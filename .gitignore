@@ -1,7 +1,7 @@
 # Environment and secrets
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 secrets/*
 !secrets/.gitkeep
 **/service-account-key.json
@@ -19,6 +19,7 @@ uploads/*
 
 # Python
 .venv/
+venv/
 __pycache__/
 *.py[cod]
 .pytest_cache/
@@ -29,8 +30,13 @@ node_modules/
 Frontend/.nuxt/
 Frontend/.output/
 Frontend/dist/
+Frontend/.cache/
 Frontend/.env
 Frontend/.env.local
+
+# Logs
+logs/
+*.log
 
 # IDE / OS
 .idea/
@@ -41,3 +47,6 @@ Thumbs.db
 
 # Docker local overrides
 docker-compose.override.yml
+
+# Build artifacts (keep source only in git)
+.next/

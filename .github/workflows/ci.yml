@@ -1,0 +1,72 @@
+name: SchoolDomnak CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  ci:
+    name: Validate and build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Prepare environment file for Compose
+        run: |
+          if [ -f .env.example ]; then
+            cp .env.example .env
+          fi
+          mkdir -p secrets uploads
+          touch secrets/.gitkeep uploads/.gitkeep
+
+      - name: Check Docker version
+        run: docker version
+
+      - name: Check Docker Compose version
+        run: docker compose version
+
+      - name: Validate docker-compose.yml
+        run: |
+          if [ -f docker-compose.yml ]; then
+            docker compose -f docker-compose.yml config
+          elif [ -f compose.yml ]; then
+            docker compose -f compose.yml config
+          else
+            echo "ERROR: No docker-compose.yml or compose.yml found"
+            exit 1
+          fi
+
+      - name: Validate docker-compose.prod.yml
+        run: |
+          if [ -f docker-compose.prod.yml ]; then
+            docker compose -f docker-compose.prod.yml config
+          fi
+
+      - name: Build backend image
+        run: docker build -t schooldomnak-backend:ci ./backend
+
+      - name: Build frontend image
+        run: docker build -t schooldomnak-frontend:ci --target build ./Frontend
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Validate Kubernetes manifests (dry-run)
+        run: |
+          kubectl apply --dry-run=client -f deploy/kubernetes/namespace.yaml
+          kubectl apply --dry-run=client -f deploy/kubernetes/configmap.yaml
+          kubectl apply --dry-run=client -f deploy/kubernetes/postgres/
+          kubectl apply --dry-run=client -f deploy/kubernetes/redis/
+          kubectl apply --dry-run=client -f deploy/kubernetes/backend/
+          kubectl apply --dry-run=client -f deploy/kubernetes/frontend/
+          kubectl apply --dry-run=client -f deploy/kubernetes/celery/
+          kubectl apply --dry-run=client -f deploy/kubernetes/telegram/
+          kubectl apply --dry-run=client -f deploy/kubernetes/nginx/
+
+      # No push, no deploy.

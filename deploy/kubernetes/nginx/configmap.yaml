@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: school-nginx-config
+  namespace: schooldomnak
+data:
+  default.conf: |
+    upstream school_backend {
+        server school-backend:8000;
+    }
+
+    upstream school_frontend {
+        server school-frontend:80;
+    }
+
+    server {
+        listen 80;
+        server_name _;
+
+        client_max_body_size 25m;
+
+        gzip on;
+        gzip_vary on;
+        gzip_proxied any;
+        gzip_comp_level 6;
+        gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;
+
+        location /uploads/ {
+            proxy_pass http://school_backend/uploads/;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+        }
+
+        location /api/ {
+            proxy_pass http://school_backend/api/v1/;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_read_timeout 120s;
+        }
+
+        location /docs {
+            proxy_pass http://school_backend/docs;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+        }
+
+        location = /openapi.json {
+            proxy_pass http://school_backend/openapi.json;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+        }
+
+        location /health {
+            proxy_pass http://school_backend/health;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+        }
+
+        location / {
+            proxy_pass http://school_frontend/;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+        }
+    }

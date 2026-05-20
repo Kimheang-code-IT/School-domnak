@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: school-celery-beat
+  namespace: schooldomnak
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: school-celery-beat
+  template:
+    metadata:
+      labels:
+        app: school-celery-beat
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull-secret
+      containers:
+        - name: celery-beat
+          image: ghcr.io/kimheang-code-it/schooldomnak-celery-beat:latest
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: school-config
+            - secretRef:
+                name: school-secrets
+          env:
+            - name: RUN_DB_MIGRATIONS
+              value: "false"
+            - name: TELEGRAM_POLLING_ROLE
+              value: "disabled"
+            - name: TELEGRAM_USE_POLLING
+              value: "false"
+          command:
+            - celery
+            - -A
+            - app.core.celery_app.celery_app
+            - beat
+            - --loglevel=info
