@@ -237,7 +237,9 @@ Frontend folder is **`Frontend`** (capital F).
 
 | Problem | Fix |
 |---------|-----|
-| Self-hosted runner **offline** | Start `run.cmd` or `.\svc start` in runner folder |
+| Self-hosted runner **offline** | `cd D:\actions-runner-schooldomnak` then `.\run.cmd` or `.\svc start` (same user as kubectl) |
+| K8s deploy fails at **GHCR pull secret** step | Use latest workflow (PowerShell); bash `\` lines fail on Windows |
+| **CI** fails on **Validate Kubernetes manifests** | GitHub has no cluster — workflow uses `kubectl --validate=false` |
 | **Docker Desktop** not running | Start Docker Desktop |
 | **Kubernetes** not enabled | Settings → Kubernetes → Enable |
 | `school-secrets` **missing** | `kubectl create secret generic school-secrets -n schooldomnak --from-env-file=.env` |

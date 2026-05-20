@@ -59,14 +59,15 @@ jobs:
 
       - name: Validate Kubernetes manifests (dry-run)
         run: |
-          kubectl apply --dry-run=client -f deploy/kubernetes/namespace.yaml
-          kubectl apply --dry-run=client -f deploy/kubernetes/configmap.yaml
-          kubectl apply --dry-run=client -f deploy/kubernetes/postgres/
-          kubectl apply --dry-run=client -f deploy/kubernetes/redis/
-          kubectl apply --dry-run=client -f deploy/kubernetes/backend/
-          kubectl apply --dry-run=client -f deploy/kubernetes/frontend/
-          kubectl apply --dry-run=client -f deploy/kubernetes/celery/
-          kubectl apply --dry-run=client -f deploy/kubernetes/telegram/
-          kubectl apply --dry-run=client -f deploy/kubernetes/nginx/
+          # GitHub-hosted runners have no cluster; skip OpenAPI validation against apiserver.
+          kubectl apply --dry-run=client --validate=false -f deploy/kubernetes/namespace.yaml
+          kubectl apply --dry-run=client --validate=false -f deploy/kubernetes/configmap.yaml
+          kubectl apply --dry-run=client --validate=false -f deploy/kubernetes/postgres/
+          kubectl apply --dry-run=client --validate=false -f deploy/kubernetes/redis/
+          kubectl apply --dry-run=client --validate=false -f deploy/kubernetes/backend/
+          kubectl apply --dry-run=client --validate=false -f deploy/kubernetes/frontend/
+          kubectl apply --dry-run=client --validate=false -f deploy/kubernetes/celery/
+          kubectl apply --dry-run=client --validate=false -f deploy/kubernetes/telegram/
+          kubectl apply --dry-run=client --validate=false -f deploy/kubernetes/nginx/
 
       # No push, no deploy.

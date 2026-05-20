@@ -17,6 +17,10 @@ permissions:
 env:
   K8S_NAMESPACE: schooldomnak
 
+defaults:
+  run:
+    shell: pwsh
+
 jobs:
   deploy:
     name: Deploy to Docker Desktop Kubernetes
@@ -33,8 +37,13 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      - name: Check kubectl
+      - name: Configure kubectl (Docker Desktop)
         run: |
+          $kubeConfig = Join-Path $env:USERPROFILE ".kube\config"
+          if (-not (Test-Path $kubeConfig)) {
+            Write-Error "Kubeconfig not found at $kubeConfig. Enable Kubernetes in Docker Desktop and run kubectl get nodes as the same Windows user as this runner."
+          }
+          "KUBECONFIG=$kubeConfig" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           kubectl version --client
           kubectl cluster-info
 
@@ -48,21 +57,19 @@ jobs:
       - name: Create or update GHCR pull secret in cluster
         run: |
           kubectl apply -f deploy/kubernetes/namespace.yaml
-          kubectl create secret docker-registry ghcr-pull-secret \
-            --docker-server=ghcr.io \
-            --docker-username=${{ github.actor }} \
-            --docker-password=${{ secrets.GITHUB_TOKEN }} \
-            --namespace=${{ env.K8S_NAMESPACE }} \
+          kubectl create secret docker-registry ghcr-pull-secret `
+            --docker-server=ghcr.io `
+            --docker-username=${{ github.actor }} `
+            --docker-password=${{ secrets.GITHUB_TOKEN }} `
+            --namespace=${{ env:K8S_NAMESPACE }} `
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Verify application secret exists
         run: |
-          if ! kubectl get secret school-secrets -n ${{ env.K8S_NAMESPACE }} >/dev/null 2>&1; then
-            echo "::error::Secret school-secrets not found in namespace ${{ env.K8S_NAMESPACE }}."
-            echo "Create it once on your machine (see README.md), for example:"
-            echo "  kubectl create secret generic school-secrets -n schooldomnak --from-env-file=.env"
-            exit 1
-          fi
+          kubectl get secret school-secrets -n ${{ env:K8S_NAMESPACE }} 2>$null | Out-Null
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Secret school-secrets not found in namespace ${{ env:K8S_NAMESPACE }}. Run once on this PC: kubectl create secret generic school-secrets -n schooldomnak --from-env-file=.env"
+          }
 
       - name: Apply Kubernetes manifests
         run: |
@@ -78,23 +85,29 @@ jobs:
 
       - name: Restart deployments to pull latest images
         run: |
-          kubectl rollout restart deployment/school-backend -n ${{ env.K8S_NAMESPACE }}
-          kubectl rollout restart deployment/school-frontend -n ${{ env.K8S_NAMESPACE }}
-          kubectl rollout restart deployment/school-celery-worker -n ${{ env.K8S_NAMESPACE }}
-          kubectl rollout restart deployment/school-celery-beat -n ${{ env.K8S_NAMESPACE }}
-          kubectl rollout restart deployment/school-telegram-bot -n ${{ env.K8S_NAMESPACE }}
-          kubectl rollout restart deployment/school-nginx -n ${{ env.K8S_NAMESPACE }}
+          kubectl rollout restart deployment/school-backend -n ${{ env:K8S_NAMESPACE }}
+          kubectl rollout restart deployment/school-frontend -n ${{ env:K8S_NAMESPACE }}
+          kubectl rollout restart deployment/school-celery-worker -n ${{ env:K8S_NAMESPACE }}
+          kubectl rollout restart deployment/school-celery-beat -n ${{ env:K8S_NAMESPACE }}
+          kubectl rollout restart deployment/school-telegram-bot -n ${{ env:K8S_NAMESPACE }}
+          kubectl rollout restart deployment/school-nginx -n ${{ env:K8S_NAMESPACE }}
 
       - name: Wait for rollouts
         run: |
-          kubectl rollout status deployment/school-backend -n ${{ env.K8S_NAMESPACE }} --timeout=180s
-          kubectl rollout status deployment/school-frontend -n ${{ env.K8S_NAMESPACE }} --timeout=180s
-          kubectl rollout status deployment/school-nginx -n ${{ env.K8S_NAMESPACE }} --timeout=120s
-          kubectl rollout status deployment/school-celery-worker -n ${{ env.K8S_NAMESPACE }} --timeout=180s || true
-          kubectl rollout status deployment/school-celery-beat -n ${{ env.K8S_NAMESPACE }} --timeout=180s || true
-          kubectl rollout status deployment/school-telegram-bot -n ${{ env.K8S_NAMESPACE }} --timeout=180s || true
+          $ns = "${{ env:K8S_NAMESPACE }}"
+          kubectl rollout status deployment/school-backend -n $ns --timeout=300s
+          kubectl rollout status deployment/school-frontend -n $ns --timeout=300s
+          kubectl rollout status deployment/school-nginx -n $ns --timeout=120s
+          kubectl rollout status deployment/school-celery-worker -n $ns --timeout=180s
+          if ($LASTEXITCODE -ne 0) { Write-Warning "celery-worker rollout not ready yet" }
+          kubectl rollout status deployment/school-celery-beat -n $ns --timeout=180s
+          if ($LASTEXITCODE -ne 0) { Write-Warning "celery-beat rollout not ready yet" }
+          kubectl rollout status deployment/school-telegram-bot -n $ns --timeout=180s
+          if ($LASTEXITCODE -ne 0) { Write-Warning "telegram-bot rollout not ready yet" }
 
       - name: Show pods and services
+        if: always()
         run: |
-          kubectl get pods -n ${{ env.K8S_NAMESPACE }}
-          kubectl get svc -n ${{ env.K8S_NAMESPACE }}
+          kubectl get pods -n ${{ env:K8S_NAMESPACE }}
+          kubectl get svc -n ${{ env:K8S_NAMESPACE }}
+          kubectl describe pods -n ${{ env:K8S_NAMESPACE }} | Select-String -Pattern "ImagePull|Error|Warning" | Select-Object -First 30
