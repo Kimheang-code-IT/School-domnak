@@ -5,13 +5,8 @@ metadata:
   namespace: schooldomnak
 data:
   default.conf: |
-    upstream school_backend {
-        server school-backend:8000;
-    }
-
-    upstream school_frontend {
-        server school-frontend:80;
-    }
+    # Resolve upstreams at request time (backend/frontend may not exist at nginx start).
+    resolver kube-dns.kube-system.svc.cluster.local valid=10s ipv6=off;
 
     server {
         listen 80;
@@ -25,14 +20,17 @@ data:
         gzip_comp_level 6;
         gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;
 
+        set $backend_host school-backend.schooldomnak.svc.cluster.local;
+        set $frontend_host school-frontend.schooldomnak.svc.cluster.local;
+
         location /uploads/ {
-            proxy_pass http://school_backend/uploads/;
+            proxy_pass http://$backend_host:8000/uploads/;
             proxy_http_version 1.1;
             proxy_set_header Host $host;
         }
 
         location /api/ {
-            proxy_pass http://school_backend/api/v1/;
+            proxy_pass http://$backend_host:8000/api/v1/;
             proxy_http_version 1.1;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
@@ -42,25 +40,25 @@ data:
         }
 
         location /docs {
-            proxy_pass http://school_backend/docs;
+            proxy_pass http://$backend_host:8000/docs;
             proxy_http_version 1.1;
             proxy_set_header Host $host;
         }
 
         location = /openapi.json {
-            proxy_pass http://school_backend/openapi.json;
+            proxy_pass http://$backend_host:8000/openapi.json;
             proxy_http_version 1.1;
             proxy_set_header Host $host;
         }
 
         location /health {
-            proxy_pass http://school_backend/health;
+            proxy_pass http://$backend_host:8000/health;
             proxy_http_version 1.1;
             proxy_set_header Host $host;
         }
 
         location / {
-            proxy_pass http://school_frontend/;
+            proxy_pass http://$frontend_host:80/;
             proxy_http_version 1.1;
             proxy_set_header Host $host;
         }
