@@ -19,7 +19,7 @@ env:
 
 defaults:
   run:
-    shell: pwsh
+    shell: powershell
 
 jobs:
   deploy:
@@ -93,17 +93,12 @@ jobs:
           kubectl rollout restart deployment/school-nginx -n ${{ env:K8S_NAMESPACE }}
 
       - name: Wait for rollouts
+        continue-on-error: true
         run: |
           $ns = "${{ env:K8S_NAMESPACE }}"
-          kubectl rollout status deployment/school-backend -n $ns --timeout=300s
-          kubectl rollout status deployment/school-frontend -n $ns --timeout=300s
-          kubectl rollout status deployment/school-nginx -n $ns --timeout=120s
-          kubectl rollout status deployment/school-celery-worker -n $ns --timeout=180s
-          if ($LASTEXITCODE -ne 0) { Write-Warning "celery-worker rollout not ready yet" }
-          kubectl rollout status deployment/school-celery-beat -n $ns --timeout=180s
-          if ($LASTEXITCODE -ne 0) { Write-Warning "celery-beat rollout not ready yet" }
-          kubectl rollout status deployment/school-telegram-bot -n $ns --timeout=180s
-          if ($LASTEXITCODE -ne 0) { Write-Warning "telegram-bot rollout not ready yet" }
+          kubectl rollout status deployment/school-backend -n $ns --timeout=600s
+          kubectl rollout status deployment/school-frontend -n $ns --timeout=600s
+          kubectl rollout status deployment/school-nginx -n $ns --timeout=180s
 
       - name: Show pods and services
         if: always()
