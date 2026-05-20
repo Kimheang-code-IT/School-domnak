@@ -18,13 +18,23 @@ spec:
       containers:
         - name: telegram-bot
           image: ghcr.io/kimheang-code-it/schooldomnak-telegram-bot:latest
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           envFrom:
             - configMapRef:
                 name: school-config
             - secretRef:
                 name: school-secrets
           env:
+            - name: DATABASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: school-config
+                  key: DATABASE_URL
+            - name: REDIS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: school-config
+                  key: REDIS_URL
             - name: RUN_DB_MIGRATIONS
               value: "false"
             - name: TELEGRAM_POLLING_ROLE

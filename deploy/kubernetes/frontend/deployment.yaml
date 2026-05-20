@@ -18,7 +18,7 @@ spec:
       initContainers:
         - name: copy-static
           image: ghcr.io/kimheang-code-it/schooldomnak-frontend:latest
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           command:
             - sh
             - -c

@@ -18,7 +18,7 @@ spec:
       containers:
         - name: backend
           image: ghcr.io/kimheang-code-it/schooldomnak-backend:latest
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
           envFrom:
@@ -27,6 +27,27 @@ spec:
             - secretRef:
                 name: school-secrets
           env:
+            # Override .env hostnames (postgres/redis) with Kubernetes service names
+            - name: DATABASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: school-config
+                  key: DATABASE_URL
+            - name: REDIS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: school-config
+                  key: REDIS_URL
+            - name: CELERY_BROKER_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: school-config
+                  key: CELERY_BROKER_URL
+            - name: CELERY_RESULT_BACKEND
+              valueFrom:
+                configMapKeyRef:
+                  name: school-config
+                  key: CELERY_RESULT_BACKEND
             - name: RUN_DB_MIGRATIONS
               value: "true"
             - name: TELEGRAM_POLLING_ROLE
