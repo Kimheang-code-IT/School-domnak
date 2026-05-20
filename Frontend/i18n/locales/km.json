@@ -1,0 +1,824 @@
+{
+  "navigation": {
+    "dashboard": "ផ្ទាំងគ្រប់គ្រង",
+    "settings": "ការកំណត់"
+  },
+  "actions": {
+    "edit": "កែសម្រួល",
+    "delete": "លុប",
+    "save": "រក្សាទុក",
+    "confirm": "បញ្ជាក់",
+    "add": "បន្ថែម",
+    "cancel": "បោះបង់"
+  },
+  "errors": {
+    "notFound": {
+      "statusMessage": "រកមិនឃើញទំព័រ",
+      "message": "ទំព័រដែលអ្នកកំពុងរកមិនមានទេ។"
+    },
+    "forbidden": {
+      "statusMessage": "មិនមានសិទ្ធិ",
+      "message": "អ្នកមិនមានសិទ្ធិមើលទំព័្រនេះទេ។"
+    },
+    "server": {
+      "statusMessage": "កំហុសម៉ាស៊ីនមេ",
+      "message": "មានបញ្ហាកើតឡើង។ សូមព្យាយាមម្តងទៀតនៅពេលក្រោយ។"
+    },
+    "default": {
+      "statusMessage": "មានបញ្ហាកើតឡើង",
+      "message": "មានកំហុសមិនរំពឹងទុក។ សូមព្យាយាមម្តងទៀត។"
+    }
+  },
+  "common": {
+    "rank": "ល.រ",
+    "actions": "សកម្មភាព",
+    "revenueUsd": "ចំណូល (USD)",
+    "chartView": "មើលក្រាហ្វ",
+    "noData": "មិនមានទិន្នន័យ",
+    "loading": "កំពុងផ្ទុក...",
+    "search": "ស្វែងរក...",
+    "preview": "មើលវិក្កយបត្រ",
+    "amount": "ចំនួនទឹកប្រាក់",
+    "items": "ចំនួន",
+    "export": "នាំចេញ",
+    "close": "បិទ",
+    "confirm": "បញ្ជាក់",
+    "error": "កំហុស"
+  },
+  "telegram": {
+    "processingBanner": "បច្ចុប្បន្ន Telegram កំពុងដំណើរការ ({count} ក្នុងជួររង់)",
+    "processingNow": "កំពុងដំណើរការ",
+    "loadingOverlay": "Telegram រវល់ —សូមរង់…"
+  },
+  "components": {
+    "search": "ច្រោះទិន្នន័យ...",
+    "clear": "លុបការស្វែងរក",
+    "rowsPerPage": "ចំនួនជួរដេកក្នុងមួយទំព័រ:",
+    "pickDate": "ជ្រើសរើសកាលបរិច្ឆេទ",
+    "confirmAction": "បញ្ជាក់សកម្មភាព",
+    "confirmDesc": "តើអ្នកប្រាកដថាចង់បន្តប្រតិបត្តិការនេះទេ?",
+    "proceed": "បន្ត",
+    "cancel": "បោះបង់",
+    "processData": "ដំណើរការទិន្នន័យ",
+    "saveChanges": "រក្សាទុកការផ្លាស់ប្តូរ",
+    "selectDate": "ជ្រើសរើសកាលបរិច្ឆេទ",
+    "select": "ជ្រើសរើស...",
+    "loadingMap": "កំពុងផ្ទុកទិន្នន័យផែនទីកម្ពុជា...",
+    "scale": "មាត្រដ្ឋាន",
+    "min": "តិចតួច",
+    "max": "ច្រើន",
+    "exportData": "នាំចេញទិន្នន័យ",
+    "exportDesc": "ជ្រើសរើសចន្លោះកាលបរិច្ឆេទ និងទម្រង់",
+    "dateRange": "ចន្លោះកាលបរិច្ឆេទ",
+    "exportFormat": "ទម្រង់",
+    "allDates": "កាលបរិច្ឆេទទាំងអស់",
+    "from": "ចាប់ពី",
+    "reset": "កំណត់ឡើងវិញ",
+    "exportNow": "នាំចេញ",
+    "fileUploadFormats": "SVG, PNG, JPG ឬ GIF (អតិបរមា 2MB)",
+    "fileUploadReplaceHint": "ចុច ឬទម្លាក់រូបភាពថ្មី",
+    "formatCSV": "CSV (.csv)",
+    "stockAdjust": {
+      "titleAdd": "បន្ថែមស្តុកផលិតផល",
+      "titleDamaged": "បន្ថែមស្តុកខូច",
+      "productLabel": "ផលិតផល",
+      "qtyToAdd": "ចំនួនត្រូវបន្ថែម",
+      "qtyDamaged": "ចំនួនខូច"
+    }
+  },
+  "provinces": {
+    "Banteay Meanchey": "បន្ទាយមានជ័យ",
+    "Battambang": "បាត់ដំបង",
+    "Kampong Cham": "កំពង់ចាម",
+    "Kampong Chhnang": "កំពង់ឆ្នាំង",
+    "Kampong Speu": "កំពង់ស្ពឺ",
+    "Kampong Thom": "កំពង់ធំ",
+    "Kampot": "កំពត",
+    "Kandal": "កណ្តាល",
+    "Kep": "កែប",
+    "Koh Kong": "កោះកុង",
+    "Kratie": "ក្រចេះ",
+    "Mondul Kiri": "មណ្ឌលគីរី",
+    "Oddar Meanchey": "ឧត្តរមានជ័យ",
+    "Pailin": "ប៉ៃលិន",
+    "Phnom Penh": "ភ្នំពេញ",
+    "Preah Sihanouk": "ព្រះសីហនុ",
+    "Preah Vihear": "ព្រះវិហារ",
+    "Prey Veng": "ព្រៃវែង",
+    "Pursat": "ពោធិ៍សាត់",
+    "Ratanak Kiri": "រតនគីរី",
+    "Siemreap": "សៀមរាប",
+    "Stung Treng": "ស្ទឹងត្រែង",
+    "Svay Rieng": "ស្វាយរៀង",
+    "Takeo": "តាកែវ",
+    "Tboung Khmum": "ត្បូងឃ្មុំ"
+  },
+  "pages": {
+    "dashboard": {
+      "title": "ទិដ្ឋភាពទូទៅនៃផ្ទាំងគ្រប់គ្រង",
+      "filterCategory": "ប្រភេទ",
+      "filterCourse": "វគ្គសិក្សា",
+      "filterClass": "ថ្នាក់",
+      "moduleDistribution": "ការចែកចាយតាមកម្រៃជើងសា",
+      "monthlyDataQuick": "ទិន្នន័យតាមផលិតផល",
+      "studentsByProvince": "សិស្សតាមខេត្ត",
+      "studentCount": "សិស្ស",
+      "commissionByTeacher": "កម្រៃជើងសាតាមគ្រូ",
+      "studentsByClass": "សិស្សតាមថ្នាក់",
+      "revenueByRegion": "វិភាគចំនួនអ្នកទិញតាមខេត្ត",
+      "summary": {
+        "totalCategory": "ប្រភេទសរុប",
+        "totalClasses": "ថ្នាក់សរុប",
+        "totalInStock": "កន្លែងនៅសល់សរុប",
+        "totalSold": "បន្ទាត់បង់ប្រាក់សរុប",
+        "totalReportAmount": "សរុបទឹកប្រាក់លក់",
+        "totalReportLines": "បន្ទាត់លក់",
+        "totalFinanceRows": "ហិរញ្ញវត្ថុ"
+      }
+    },
+    "category": {
+      "title": "ប្រភេទ",
+      "toast": {
+        "added": "បានបន្ថែមប្រភេទ",
+        "updated": "បានធ្វើបច្ចុប្បន្នភាពប្រភេទ",
+        "deleted": "បានលុបប្រភេទ"
+      },
+      "error": {
+        "requestFailed": "សំណើបរាជ័យ",
+        "tryAgain": "សូមព្យាយាមម្តងទៀត។"
+      },
+      "confirm": {
+        "deleteDescription": "តើអ្នកពិតជាចង់លុបប្រភេទនេះមែនទេ? សកម្មភាពនេះមិនអាចត្រឡប់វិញបានទេ។",
+        "editNamed": "បញ្ជាក់ធ្វើបច្ចុប្បន្នភាពប្រភេទ \"{name}\"?",
+        "addNamed": "បញ្ជាក់បន្ថែមប្រភេទ \"{name}\"?"
+      },
+      "footer": {
+        "categoryCount": "ប្រភេទ {count}"
+      }
+    },
+    "allclass": {
+      "title": "ថ្នាក់ទាំងអស់",
+      "addBtn": "បន្ថែមថ្នាក់",
+      "editTitle": "កែប្រែថ្នាក់",
+      "created": "បានបន្ថែមថ្នាក់",
+      "updated": "បានធ្វើបច្ចុប្បន្នភាពថ្នាក់",
+      "deleted": "បានលុបថ្នាក់",
+      "empty": "រកមិនឃើញថ្នាក់។",
+      "loadMore": "ផ្ទុកបន្ថែម",
+      "confirmSaveAdd": "បង្កើតថ្នាក់នេះជាមួយប្រភេទ វគ្គ និងគ្រូដែលបានជ្រើស?",
+      "confirmSaveEdit": "រក្សាទុកការកែប្រែថ្នាក់នេះ?",
+      "confirmDeleteTitle": "លុបថ្នាក់នេះ?",
+      "confirmDeleteDescription": "នឹងលុប \"{name}\" ជាអចិន្ត្រៃយ៍។",
+      "card": {
+        "addEnrollment": "ជ្រើសថ្នាក់ ហើយបន្តទៅព័ត៌មានសិស្ស",
+        "selectClass": "ជ្រើសថ្នាក់",
+        "selectClassForEnrollment": "ធីកធីកថ្នាក់នេះ រួចចុចបន្តនៅផ្ទាំងខាងលើ ដើម្បីបញ្ចូលចុះឈ្មោះ"
+      },
+      "pickClassFirst": "សូមជ្រើសថ្នាក់ពីក្រឡាចត្រង្គមុនពេលបន្ត។",
+      "studentNameRequired": "សូមបញ្ចូលឈ្មោះសិស្សមុនពេលបន្ត។",
+      "steps": {
+        "selectClass": "ជ្រើសថ្នាក់",
+        "studentInfo": "ព័ត៌មានសិស្ស",
+        "payment": "ការទូទាត់",
+        "invoice": "វិក្កយបត្រ"
+      },
+      "nav": {
+        "back": "ត្រលប់",
+        "next": "បន្ត",
+        "done": "រួចរាល់"
+      },
+      "previewNav": {
+        "title": "មើលវិក្កយបត្រ",
+        "counter": "{current} / {total}",
+        "scrollHint": "រំកិលដើម្បីមើលវិក្កយបត្រនីមួយៗ",
+        "printCurrent": "បោះពុម្ព",
+        "printAll": "បោះពុម្ពទាំងអស់"
+      },
+      "enrollment": {
+        "selectClassField": "ថ្នាក់សម្រាប់ចុះឈ្មោះ",
+        "selectClassPlaceholder": "ជ្រើសថ្នាក់..."
+      },
+      "student": {
+        "name": "ឈ្មោះសិស្ស",
+        "namePlaceholder": "ឈ្មោះពេញ",
+        "phone": "លេខទូរស័ព្ទ",
+        "phonePlaceholder": "ឧ. 012345678",
+        "email": "អ៊ីមែល",
+        "emailPlaceholder": "មិនបាច់បំពេញ",
+        "studentInTitle": "សិស្សចូល",
+        "searchExisting": "ស្វែងរកសិស្សដែលមានស្រាប់",
+        "noStudentMatches": "រកមិនឃើញសិស្ស",
+        "provincePlaceholder": "ជ្រើសរើសខេត្ត",
+        "durationOnClass": "រយៈពេលសិក្សារបស់សិស្ស (ខែ)",
+        "durationPlaceholderMax": "ឧ. រហូតដល់ {max}",
+        "classDurationHint": "ថ្នាក់នេះ {max} ខែ។ បញ្ចូល ១, ១.៥, ២, … រហូតដល់ {max}។ ថ្លៃគណនាតាមរយៈពេលនេះ។",
+        "proratedFee": "ថ្លៃប៉ាន់ស្មាន៖ ${amount} (តម្លៃពេញ ${full} សម្រាប់ {months} ខែ)",
+        "startDate": "ថ្ងៃចាប់ផ្តើមសិក្សា",
+        "startDateHint": "ថ្ងៃដែលសិស្សចាប់ផ្តើមរៀនថ្នាក់នេះ។",
+        "endDatePreview": "ថ្ងៃបញ្ចប់ប៉ាន់ស្មាន៖ {date}"
+      },
+      "panels": {
+        "studentTitle": "ព័ត៌មានសិស្ស",
+        "deliveryTitle": "ការដឹកជញ្ជូន",
+        "paymentTitle": "ការទូទាត់",
+        "invoiceTitle": "សង្ខេបវិក្កយបត្រ"
+      },
+      "payment": {
+        "amountDue": "ចំនួនទូទាត់",
+        "afterDiscountHint": "រួមបញ្ចូលការបញ្ចុះតម្លៃពីផ្ទាំងសង្ខេបការចុះឈ្មោះ។",
+        "method": "របៀបទូទាត់",
+        "note": "កំណត់សម្គាល់",
+        "notePlaceholder": "កំណត់សម្គាល់បន្ថែម",
+        "cash": "សាច់ប្រាក់",
+        "bankTransfer": "ផ្ទេរប្រាក់តាមធនាគារ",
+        "abaBank": "ធនាគារ ABA",
+        "other": "ផ្សេងៗ"
+      },
+      "invoice": {
+        "class": "ថ្នាក់",
+        "fee": "សរុបត្រូវបង់",
+        "subtotal": "សរុបរង",
+        "discount": "បញ្ចុះតម្លៃ",
+        "student": "សិស្ស",
+        "phone": "ទូរស័ព្ទ",
+        "email": "អ៊ីមែល",
+        "paymentMethod": "របៀបទូទាត់"
+      },
+      "validation": {
+        "required": "សូមបំពេញរាល់វាលដែលត្រូវការ។",
+        "lookup": "រកមិនឃើញវគ្គ ឬគ្រូដែលបានជ្រើស។",
+        "price": "សូមបញ្ចូលតម្លៃឱ្យបានត្រឹមត្រូវ។",
+        "durationRequired": "សូមបញ្ចូលចំនួនខែដែលសិស្សនឹងរៀនថ្នាក់នេះ។",
+        "classDurationRequired": "សូមបញ្ចូលរយៈពេលថ្នាក់ជាខែ។",
+        "durationExceedsClass": "រយៈពេលសិស្សមិនអាចលើស {max} ខែសម្រាប់ថ្នាក់នេះបានទេ។",
+        "startDateRequired": "សូមជ្រើសថ្ងៃដែលសិស្សចាប់ផ្តើមរៀនថ្នាក់នេះ។"
+      },
+      "placeholders": {
+        "className": "ឧ. គណិតវិទ្យា — ក្រុម A",
+        "image": "រូបគម្របថ្នាក់",
+        "level": "ឧ. កម្រិតដំបូង ឬ ថ្នាក់ទី១០",
+        "levelKm": "ឧ. កម្រិតដំបូង ឬ ថ្នាក់ទី១០",
+        "levelSelect": "ជ្រើសរើសកម្រិត…",
+        "duration": "ឧ. ៣",
+        "daysOfWeek": "ជ្រើសថ្ងៃសិក្សា",
+        "timeIn": "ជ្រើសម៉ោងចូល",
+        "timeOut": "ជ្រើសម៉ោងចេញ"
+      },
+      "fields": {
+        "className": "ឈ្មោះថ្នាក់",
+        "teacher": "គ្រូ",
+        "teacherCommission": "កម្រៃជើងសារគ្រូ (ក្នុងមួយដងទូទាត់)",
+        "teacherCommissionHint": "ក្នុងមួយដងទូទាត់៖ USD ថរិជាក់លាក់ ឬ % នៃចំនួនលក់។ ទុក 0 ប្រសិនមិនមានកម្រៃជើងសារ។",
+        "level": "កម្រិត",
+        "levelKm": "កម្រិតជាភាសាខ្មែរ",
+        "duration": "រយៈពេល",
+        "durationUnit": "ខែ",
+        "daysOfWeek": "ថ្ងៃក្នុងសប្តាហ៍",
+        "time": "ម៉ោង",
+        "timeIn": "ម៉ោងចូល",
+        "timeOut": "ម៉ោងចេញ",
+        "fullPrice": "តម្លៃពេញ",
+        "discountPrice": "តម្លៃបញ្ចុះ",
+        "discount": "បញ្ចុះតម្លៃ"
+      },
+      "durationMonth": "{count} ខែ",
+      "durationMonths": "{count} ខែ",
+      "weekdays": {
+        "monday": "ចន្ទ",
+        "tuesday": "អង្គារ",
+        "wednesday": "ពុធ",
+        "thursday": "ព្រហស្បតិ៍",
+        "friday": "សុក្រ",
+        "saturday": "សៅរ៍",
+        "sunday": "អាទិត្យ"
+      },
+      "studentListModal": {
+        "columns": {
+          "id": "លេខសម្គាល់",
+          "studentName": "ឈ្មោះសិស្ស",
+          "gender": "ភេទ",
+          "startdate": "ថ្ងៃចាប់ផ្តើម",
+          "enddate": "ថ្ងៃបញ្ចប់",
+          "status": "ស្ថានភាព"
+        },
+        "footer": {
+          "studentCount": "សិស្ស {count} នាក់"
+        },
+        "actions": {
+          "continueClass": "បន្តថ្នាក់ (ទូទាត់)",
+          "cancelClass": "ដកចេញពីថ្នាក់"
+        },
+        "confirm": {
+          "continueTitle": "បន្តទៅការទូទាត់ថ្នាក់នេះ?",
+          "continueDescription": "នឹងបំពេញព័ត៌មានសិស្ស {name} ហើយបន្តថ្នាក់នេះទៅដំណើរការទូទាត់។",
+          "cancelTitle": "ដកសិស្សចេញពីថ្នាក់នេះ?",
+          "cancelDescription": "{name} នឹងមិននៅក្នុងបញ្ជីសិស្សសកម្មទេ។ ប្រវត្តិសិក្សាចាស់ត្រូវបានរក្សាទុក។"
+        },
+        "toast": {
+          "continueReady": "បន្តទូទាត់",
+          "continueReadyHint": "បានផ្ទុកព័ត៌មានសិស្ស។ កំណត់រយៈពេលសិក្សា និងថ្ងៃចាប់ផ្តើម (លំនាំដើមគឺបន្ទាប់ពីថ្ងៃបញ្ចប់មុន) រួចទៅទូទាត់។",
+          "noClassContext": "មិនមានថ្នាក់ដែលបានជ្រើសទេ។",
+          "missingEnrollmentId": "គ្មានលេខសម្គាល់ការចុះឈ្មោះ។",
+          "withdrawSuccess": "បានដកសិស្សចេញពីថ្នាក់",
+          "withdrawHistoryHint": "កំណត់ត្រាប្រវត្តិមិនត្រូវបានលុបទេ។",
+          "withdrawFailed": "មិនអាចដកសិស្សចេញបានទេ"
+        }
+      }
+    },
+    "allstudent": {
+      "title": "សិស្សទាំងអស់",
+      "filterAll": "ទាំងអស់",
+      "footerTotalStudents": "សិស្សសរុប៖ {count}",
+      "gender": {
+        "male": "ប្រុស",
+        "female": "ស្រី"
+      },
+      "placeholders": {
+        "imageDrop": "ទុករូបយ៉ាងនៅទីនេះ",
+        "nameKm": "ឧ. ឈ្មោះពេញជាភាសាខ្មែរ",
+        "nameEn": "ឧ Student English name",
+        "birthdate": "ជ្រើសថ្ងៃខែឆ្នាំកំណើត",
+        "phone": "បញ្ចូលលេខទូរស័ព្ទ"
+      },
+      "provinces": {
+        "phnomPenh": "ភ្នំពេញ",
+        "battambang": "បាត់ដំបង",
+        "sihanoukville": "ព្រះសីហនុ",
+        "kampongCham": "កំពង់ចាម",
+        "kampongThom": "កំពង់ធំ",
+        "kampongSpeu": "កំពង់ស្ពឺ",
+        "kampongSom": "កំពង់សុខ"
+      },
+      "confirm": {
+        "deleteDescription": "តើអ្នកពិតជាចង់លុបសិស្ស #{id}? សកម្មភាពនេះមិនអាចត្រឡប់វិញបានទេ។",
+        "saveEditDescription": "រក្សាទុកការផ្លាស់ប្តូរសម្រាប់សិស្ស #{id}?",
+        "saveAddDescription": "បញ្ជាក់បន្ថែមសិស្សថ្មី \"{name}\"?"
+      },
+      "toast": {
+        "deleted": "បានលុបសិស្ស",
+        "deletedDescription": "បានដកសិស្ស #{id} ចេញ។",
+        "added": "បានបន្ថែមសិស្ស",
+        "addedDescription": "បានរក្សាទុកសិស្សថ្មីដោយជោគជ័យ។",
+        "updated": "បានធ្វើបច្ចុប្បន្នភាពសិស្ស",
+        "updatedDescription": "បានធ្វើបច្ចុប្បន្នភាពសិស្ស #{id}។",
+        "stockAdded": "បានធ្វើបច្ចុប្បន្នភាពកន្លែងនៅសល់",
+        "stockDamaged": "បានកត់ត្រាការខូច",
+        "stockAdjustedDescription": "បានធ្វើបច្ចុប្បន្នភាពកំណត់ត្រា #{id}",
+        "historyLoadFailed": "ផ្ទុកប្រវត្តិបរាជ័យ",
+        "enrollmentLoadFailed": "មិនអាចផ្ទុកការចុះឈ្មោះវគ្គបានទេ"
+      },
+      "enrollmentModal": {
+        "titleFallback": "សិស្ស",
+        "subtitle": "លេខសិស្ស៖ {id}",
+        "columns": {
+          "no": "ល.រ",
+          "courseName": "ឈ្មោះវគ្គ",
+          "className": "ឈ្មោះថ្នាក់",
+          "duration": "រយៈពេល",
+          "startDate": "ថ្ងៃចាប់ផ្តើម",
+          "endDate": "ថ្ងៃបញ្ចប់",
+          "totalPrice": "តម្លៃសរុប",
+          "discountPrice": "តម្លៃបញ្ចុះ",
+        "priceAfterDiscount": "សរុបវិក្កយបត្រ",
+        "registerDate": "ថ្ងៃចុះឈ្មោះ"
+      },
+        "footer": {
+          "courseCount": "វគ្គ {count}"
+        },
+        "actions": {
+          "certificate": "លិខិតបញ្ជាក់"
+        },
+        "certificatePreview": {
+          "title": "លិខិតបញ្ជាក់",
+          "back": "ត្រលប់ទៅការចុះឈ្មោះ",
+          "download": "ទាញយក",
+          "downloadFailed": "មិនអាចទាញយករូបលិខិតបញ្ជាក់បានទេ។",
+          "generateFailed": "មិនអាចបង្កើតរូបលិខិតបញ្ជាក់បានទេ។"
+        },
+        "confirm": {
+          "deleteTitle": "លុបការចុះឈ្មោះនេះ?",
+          "deleteDescription": "នឹងដកការចុះឈ្មោះសម្រាប់ \"{course}\"។ បន្ត?"
+        },
+        "toast": {
+          "enrollmentDeleted": "បានដកការចុះឈ្មោះ",
+          "enrollmentDeleteFailed": "មិនអាចដកការចុះឈ្មោះបានទេ"
+        }
+      }
+    },
+    "courses": {
+      "title": "កម្មវិធីសិក្សា",
+      "tableTitle": "បញ្ជីវគ្គសិក្សា",
+      "addTitle": "បន្ថែមវគ្គសិក្សា",
+      "addBtn": "បន្ថែមវគ្គ",
+      "created": "បានបន្ថែមវគ្គ",
+      "updated": "បានធ្វើបច្ចុប្បន្នភាព",
+      "deleted": "បានលុបវគ្គ",
+      "confirmDelete": "វគ្គនេះនឹងត្រូវលុបជាអចិន្ត្រៃយ៍។",
+      "confirmSaveAdd": "រក្សារទុកវគ្គថ្មី?",
+      "confirmSaveEdit": "រក្សារទុកការផ្លាស់ប្តូរ?",
+      "confirmSaveAddNamed": "បញ្ជាក់បន្ថែមវគ្គ \"{name}\"?",
+      "confirmSaveEditNamed": "រក្សារទុកការផ្លាស់ប្តូរសម្រាប់ \"{name}\"?",
+      "placeholders": {
+        "courseName": "ឧ. គណិតវិទ្យា I",
+        "courseNameKm": "ឧ. គណិតវិទ្យា I",
+        "description": "សេចក្តីសង្ខេបសម្រាប់វគ្គនេះ (បានកំណត់)",
+        "time": "ឧ. ០៨:០០ - ១០:០០"
+      },
+      "units": {
+        "classes": "ថ្នាក់"
+      },
+      "footerCount": "ចំនួន: {count}",
+      "footerTotalClassSum": "សរុបថ្នាក់៖ {sum}",
+      "emptyDescription": "—",
+      "shift": {
+        "morning": "ពេលព្រឹក",
+        "afternoon": "រសៀល",
+        "evening": "ល្ងាច"
+      },
+      "columns": {
+        "no": "ល.រ",
+        "category": "ប្រភេទ",
+        "course": "វគ្គ",
+        "courseName": "ឈ្មោះវគ្គ",
+        "courseNameKm": "ឈ្មោះវគ្គជាភាសាខ្មែរ",
+        "teacherName": "គ្រូ",
+        "shift": "វេន",
+        "time": "ម៉ោង",
+        "totalClass": "ថ្នាក់សរុប",
+        "created": "បានបង្កើត",
+        "description": "សេចក្តីពិពណ៌នា",
+        "fullPrice": "តម្លៃពេញ",
+        "discount": "បញ្ចុះតម្លៃ",
+        "finalPrice": "ថ្លៃសិក្សា"
+      }
+    },
+    "levels": {
+      "title": "កម្រិត",
+      "tableTitle": "បញ្ជីកម្រិត",
+      "addTitle": "បន្ថែមកម្រិត",
+      "addBtn": "បន្ថែមកម្រិត",
+      "created": "បានបន្ថែមកម្រិត",
+      "updated": "បានធ្វើបច្ចុប្បន្នភាព",
+      "deleted": "បានលុបកម្រិត",
+      "confirmDelete": "កម្រិតនេះនឹងត្រូវលុបជាអចិន្ត្រៃយ៍។",
+      "confirmSaveAdd": "រក្សារទុកកម្រិតថ្មី?",
+      "confirmSaveEdit": "រក្សារទុកការផ្លាស់ប្តូរ?",
+      "confirmSaveAddNamed": "បញ្ជាក់បន្ថែមកម្រិត \"{name}\"?",
+      "confirmSaveEditNamed": "រក្សារទុកការផ្លាស់ប្តូរសម្រាប់ \"{name}\"?",
+      "placeholders": {
+        "levelNameKm": "ឧ. កម្រិតដំបូង",
+        "levelNameEn": "ឧ. Beginner",
+        "description": "កំណត់ចំណាំអំពីកម្រិតនេះ (ជម្រើស)"
+      },
+      "units": {
+        "classes": "ថ្នាក់"
+      },
+      "footerCount": "ចំនួន: {count}",
+      "footerTotalClassSum": "ថ្នាក់សរុប: {sum}",
+      "columns": {
+        "no": "ល.រ",
+        "levelNameKm": "ឈ្មោះកម្រិត (ខ្មែរ)",
+        "levelNameEn": "ឈ្មោះកម្រិត (អង់គ្លេស)",
+        "description": "ការពិពណ៌នា",
+        "totalClass": "ថ្នាក់សរុប"
+      }
+    },
+    "product": {
+      "title": "ផលិតផល"
+    },
+    "school": {
+      "listing": {
+        "noProducts": "រកមិនឃើញថ្នាក់។",
+        "title": "ថ្នាក់ និងការចុះឈ្មោះ"
+      },
+      "steps": {
+        "addToCart": "បន្ថែមទៅកន្ត្រក",
+        "customerInfo": "ព័ត៌មានសិស្ស",
+        "checkout": "ទូទាត់"
+      },
+      "contact": {
+        "title": "សិស្ស / អាណាព្យាបាល",
+        "description": "ព័ត៌មានទំនាក់ទំនងសម្រាប់ការចុះឈ្មោះ",
+        "phone": "ទូរស័ព្ទ",
+        "phonePlaceholder": "លេខទូរស័ព្ទសិស្ស ឬអាណាព្យាបាល",
+        "name": "ឈ្មោះ",
+        "namePlaceholder": "ឈ្មោះពេញ",
+        "deliveryType": "ប្រភេទដឹកជញ្ជូន",
+        "deliveryPrice": "តម្លៃដឹកជញ្ជូន",
+        "address": "អាសយដ្ឋាន",
+        "addressPlaceholder": "អាសយដ្ឋាន (បានកំណត់)"
+      },
+      "customer": {
+        "title": "ព័ត៌មានសិស្ស",
+        "description": "បញ្ចូលព័ត៌មានសិស្ស",
+        "types": {
+          "customer": "សិស្សបានចុះឈ្មោះ",
+          "walkIn": "មកផ្ទាល់"
+        },
+        "form": {
+          "name": "ឈ្មោះ",
+          "namePlaceholder": "បញ្ចូលឈ្មោះ",
+          "phone": "ទូរស័ព្ទ",
+          "phonePlaceholder": "បញ្ចូលលេខទូរស័ព្ទ",
+          "deliveryType": "ប្រភេទដឹកជញ្ជូន",
+          "deliveryPrice": "តម្លៃដឹកជញ្ជូន",
+          "address": "អាសយដ្ឋាន",
+          "addressPlaceholder": "បញ្ចូលអាសយដ្ឋាន"
+        }
+      },
+      "classCard": {
+        "inStock": "មានស្តុក",
+        "students": "សិស្ស {count} នាក់",
+        "sku": "SKU",
+        "view": "មើលព័ត៌មានលម្អិត",
+        "addMore": "បន្ថែមទៀត",
+        "addToCart": "បន្ថែមទៅកន្ត្រក",
+        "className": "ថ្នាក់",
+        "course": "វគ្គ",
+        "teacherName": "គ្រូ",
+        "shift": "វេន",
+        "time": "ម៉ោង",
+        "fullPrice": "តម្លៃពេញ",
+        "discount": "បញ្ចុះតម្លៃ",
+        "finalPrice": "ថ្លៃសិក្សា"
+      },
+      "cart": {
+        "title": "សង្ខេបការចុះឈ្មោះ",
+        "clearAll": "លុបការជ្រើស",
+        "empty": "មិនទាន់បានជ្រើសថ្នាក់។ សូមធីកថ្នាក់មុន រួចបន្ត។",
+        "items": "បន្ទាត់ថ្នាក់",
+        "subtotal": "សរុបរង",
+        "discount": "បញ្ចុះតម្លៃ",
+        "discountMode": "ប្រភេទបញ្ចុះតម្លៃ",
+        "total": "សរុបត្រូវបង់",
+        "next": "បន្ទាប់",
+        "finish": "បញ្ចប់",
+        "confirmFinishTitle": "បញ្ចប់ការចុះឈ្មោះ?",
+        "confirmFinishDescription": "នេះនឹងបង្កើតវិក្កយបត្រ និងរក្សាទុកការចុះឈ្មោះ។ អ្នកអាចបោះពុម្ពវិក្កយបត្រនៅអេក្រង់បន្ទាប់។",
+        "checkoutSuccessTitle": "ទូទាត់បានបញ្ចប់",
+        "checkoutSuccessDescription": "វិក្កយបត្រត្រូវបានបង្កើតដោយជោគជ័យ។",
+        "printInvoice": "បោះពុម្ពវិក្កយបត្រ",
+        "done": "រួចរាល់"
+      },
+      "invoice": {
+        "title": "វិក្កយបត្រ",
+        "section": {
+          "invoiceInfo": "ព័ត៌មានវិក្កយបត្រ",
+          "customer": "សិស្ស / អ្នកបង់ប្រាក់"
+        },
+        "fields": {
+          "invoiceNo": "លេខវិក្កយបត្រ",
+          "startDate": "កាលបរិច្ឆេទចាប់ផ្តើម",
+          "startDateHint": "ថ្ងៃចាប់ផ្តើមសិក្សា — ធ្វើឱ្យថ្ងៃបញ្ចប់ផ្លាស់ប្តូរនៅលើវិក្កយបត្រ។",
+          "endDate": "កាលបរិច្ឆេទបញ្ចប់",
+          "registered": "បានចុះឈ្មោះ",
+          "name": "ឈ្មោះ",
+          "phone": "ទូរស័ព្ទ",
+          "deliveryType": "ប្រភេទដឹកជញ្ជូន",
+          "deliveryPrice": "តម្លៃដឹកជញ្ជូន",
+          "duration": "រយៈពេល",
+          "shift": "វេនសិក្សា"
+        },
+        "table": {
+          "noKm": "ល.រ",
+          "no": "No",
+          "descriptionKm": "ពិពណ៌នា",
+          "description": "Description",
+          "priceKm": "តម្លៃ",
+          "price": "Price",
+          "qtyKm": "បរិមាណ",
+          "qty": "Qty",
+          "totalKm": "សរុប",
+          "total": "Total"
+        },
+        "terms": {
+          "title": "លក្ខខណ្ឌ",
+          "km": "រាល់ការបង់ប្រាក់មិនអាចដកយកប្រាក់វិញបានទេ",
+          "en": "All Payments Are Non-Refundable."
+        },
+        "summary": {
+          "subtotal": "សរុប",
+          "deliveryPrice": "តម្លៃដឹកជញ្ជូន",
+          "discount": "បញ្ចុះតម្លៃ",
+          "grandTotal": "សរុបចុងក្រោយ"
+        },
+        "footer": {
+          "customer": "សិស្ស",
+          "seller": "អ្នករដ្ឋបាលការិយាល័យ"
+        }
+      }
+    },
+    "auth": {
+      "loginTitle": "ចូលគណនី",
+      "loginDesc": "សូមចូលគណនីដើម្បីបន្ត។",
+      "email": "អ៊ីមែល",
+      "emailPlaceholder": "បញ្ចូលអ៊ីមែលរបស់អ្នក",
+      "password": "ពាក្យសម្ងាត់",
+      "passwordPlaceholder": "បញ្ចូលពាក្យសម្ងាត់របស់អ្នក",
+      "remember": "ចងចាំខ្ញុំ",
+      "loginBtn": "ចូលគណនី",
+      "loginSuccessTitle": "ចូលគណនីបានជោគជ័យ",
+      "loginSuccessDesc": "សូមស្វាគមន៍ត្រឡប់មកវិញ, {name}",
+      "loginFailedTitle": "ចូលគណនីបរាជ័យ",
+      "loginFailedDesc": "អ៊ីមែល ឬពាក្យសម្ងាត់ដែលអ្នកបានបញ្ចូលមិនត្រឹមត្រូវ។",
+      "departmentLine": "រក្សាសិទ្ធិ​ ដំណាក់សិក្សា"
+    },
+    "dataEntry": {
+      "title": "បញ្ចូលទិន្នន័យ",
+      "tableTitle": "ទិន្នន័យប្រាក់ចំណូល",
+      "addBtn": "បន្ថែមការបញ្ចូល",
+      "formTitleNew": "ការបញ្ចូលប្រាក់ចំណូលថ្មី",
+      "formTitleEdit": "កែប្រែការបញ្ចូលប្រាក់ចំណូល",
+      "analyticsTotalUsd": "សរុបដុល្លារ",
+      "analyticsTotalRiel": "សរុបរៀល",
+      "analyticsEntries": "ការបញ្ចូលសរុប",
+      "analyticsAvg": "មធ្យមភាគដុល្លារ",
+      "columns": {}
+    },
+    "history": {
+      "title": "ប្រវត្តិសវនកម្មប្រព័ន្ធ",
+      "tableTitle": "សំណៅព្រឹត្តិការណ៍ប្រវត្តិ",
+      "detailTitle": "ព័ត៌មានលម្អិតប្រតិបត្តិការសវនកម្ម",
+      "closeDetails": "បិទព័ត៌មានលម្អិត",
+      "columns": {
+        "typeAction": "ប្រភេទសកម្មភាព",
+        "username": "ឈ្មោះអ្នកប្រើ",
+        "date": "កាលបរិច្ឆេទ",
+        "description": "ការពិពណ៌នា"
+      },
+      "actionTypes": {
+        "login": "ចូលប្រព័ន្ធ",
+        "logout": "ចេញ",
+        "create": "បង្កើត",
+        "update": "ធ្វើបច្ចុប្បន្នភាព",
+        "delete": "លុប",
+        "export": "នាំចេញ"
+      },
+      "actions": {
+        "viewDetails": "មើលព័ត៌មានលម្អិត"
+      }
+    },
+    "userManagement": {
+      "title": "គ្រប់គ្រងអ្នកប្រើ",
+      "tableTitle": "ឯកសារអ្នកប្រើ",
+      "addBtn": "បន្ថែមអ្នកប្រើ",
+      "analyticsTitle": "ការយល់ដឹងអំពីអ្នកប្រើ",
+      "columns": {
+        "name": "ឈ្មោះ",
+        "role": "តួនាទី",
+        "email": "អ៊ីមែល",
+        "password": "ពាក្យសម្ងាត់",
+        "lastLogin": "ចូលប្រើចុងក្រោយ",
+        "commission": "កម្រៃជើងសា"
+      }
+    },
+    "finance": {
+      "title": "ហិរញ្ញវត្ថុ",
+      "tableTitle": "ហិរញ្ញវត្ថុ",
+      "editTitle": "កែប្រែជួរហិរញ្ញវត្ថុ",
+      "columns": {
+        "productName": "ឈ្មោះផលិតផល",
+        "className": "ថ្នាក់",
+        "printPrice": "តម្លៃបោះពុម្ព",
+        "electricity": "អគ្គិសនី",
+        "water": "ទឹក",
+        "internet": "អ៊ីនធឺណិត",
+        "totalCommission": "កម្រៃជើងសាសរុប",
+        "facebook": "Facebook",
+        "other": "ផ្សេងៗ",
+        "amount": "ចំនួនទឹកប្រាក់",
+        "inPriceForPos": "តម្លៃចូលសម្រាប់ POS",
+        "finalPrice": "តម្លៃចុងក្រោយ"
+      }
+    },
+    "comission": {
+      "title": "កម្រៃជើងសា",
+      "tableTitle": "កម្រៃជើងសា",
+      "groupOverview": "សង្ខេបក្រុម",
+      "columns": {
+        "seller": "អ្នកលក់",
+        "product": "ផលិតផល",
+        "customer": "អតិថិជន",
+        "className": "ឈ្មោះថ្នាក់",
+        "teacherName": "គ្រូ",
+        "courseName": "វគ្គ",
+        "studentName": "សិស្ស",
+        "source": "ប្រភព",
+        "date": "កាលបរិច្ឆេទ",
+        "amount": "ចំនួនទឹកប្រាក់",
+        "commission": "កម្រៃជើងសា"
+      }
+    },
+    "report": {
+      "title": "របាយការណ៍",
+      "tableTitle": "របាយការណ៍",
+      "columns": {
+        "no": "ល.រ",
+        "invoiceNo": "លេខវិក្កយបត្រ",
+        "date": "កាលបរិច្ឆេទ",
+        "studentId": "លេខសម្គាល់សិស្ស",
+        "product": "ផលិតផល",
+        "studentPayment": "ប្រាក់ទូទាត់សិស្ស",
+        "customer": "អតិថិជន",
+        "phoneCustomer": "ទូរស័ព្ទអតិថិជន",
+        "studentName": "ឈ្មោះសិស្ស",
+        "studentPhone": "ទូរស័ព្ទសិស្ស",
+        "seller": "អ្នកលក់",
+        "phoneSaler": "ទូរស័ព្ទអ្នកលក់",
+        "source": "ប្រភព",
+        "address": "អាសយដ្ឋាន",
+        "receiptNumber": "លេខបង្កាន់ដៃ",
+        "amount": "ចំនួនទឹកប្រាក់"
+      },
+      "searchPlaceholder": "ស្វែងរក វិក្កយបត្រ លេខសម្គាល់សិស្ស ឈ្មោះ ទូរស័ព្ទ ផលិតផល…",
+      "footer": {
+        "invoiceCount": "វិក្កយបត្រខុសគ្នា: {count}"
+      }
+    },
+    "delivery": {
+      "title": "ដឹកជញ្ជូន",
+      "tableTitle": "បញ្ជីដឹកជញ្ជូន",
+      "columns": {
+        "no": "ល.រ",
+        "invoiceId": "លេខវិក្កយបត្រ",
+        "address": "អាសយដ្ឋាន",
+        "deliveryType": "ប្រភេទដឹកជញ្ជូន",
+        "deliveryPrice": "តម្លៃដឹកជញ្ជូន",
+        "date": "កាលបរិច្ឆេទ"
+      }
+    },
+    "roleManagement": {
+      "title": "គ្រប់គ្រងតួនាទី",
+      "filterByRole": "ចម្រោះតាមតួនាទី",
+      "tableTitle": "សិទ្ធិចូលប្រើប្រាស់ទំព័រ",
+      "addBtn": "បន្ថែមតួនាទី",
+      "analyticsRoles": "តួនាទីសរុប",
+      "analyticsPermissions": "ការអនុញ្ញាតសកម្មភាព",
+      "analyticsPolicies": "គោលការណ៍សកម្មភាព",
+      "analyticsSecurity": "សុវត្ថិភាពប្រព័ន្ធ",
+      "columns": {
+        "name": "ឈ្មោះ",
+        "pageAccess": "ការចូលដំណើរការទំព័រ"
+      }
+    }
+  },
+  "category": {
+    "tableTitle": "ប្រភេទផលិតផល",
+    "addTitle": "បន្ថែមប្រភេទថ្មី",
+    "id": "ល.រ",
+    "name": "ឈ្មោះ",
+    "description": "ការពិពណ៌នា",
+    "total": "ចំនួនផលិតផល",
+    "createdAt": "កាលបរិច្ឆេទការ",
+    "namePlaceholder": "ឧ. កុំព្យូទ័រយួរដៃ, គ្រឿងបន្លាស់",
+    "descriptionPlaceholder": "ការពិពណ៌នាអំពីប្រភេទនេះ"
+  },
+  "product": {
+    "id": "ល.រ",
+    "image": "រូបភាព",
+    "name": "ឈ្មោះផលិតផល",
+    "nameKm": "ឈ្មោះ (ខ្មែរ)",
+    "nameEn": "ឈ្មោះ (អង់គ្លេស)",
+    "gender": "ភេទ",
+    "genderMale": "ប្រុស",
+    "genderFemale": "ស្រី",
+    "genderOther": "ផ្សេងៗ",
+    "birthdate": "ថ្ងៃខែឆ្នាំកំណើត",
+    "phone": "លេខទូរស័ព្ទ",
+    "province": "ខេត្ត",
+    "totalCourse": "ចំនួនវគ្គសរុប",
+    "category": "ប្រភេទ",
+    "inPrice": "តម្លៃចូល",
+    "outPrice": "តម្លៃចេញ",
+    "commission": "កម្រៃជើងសា",
+    "totalStock": "ស្តុកសរុប",
+    "inStock": "ស្តុកនៅសល់",
+    "sold": "បានលក់សរុប",
+    "added": "បន្ថែមសរុប",
+    "damaged": "ខូចសរុប",
+    "status": "ស្ថានភាព",
+    "createdAt": "កាលបរិច្ឆេទការ",
+    "stockStatus": {
+      "aLot": "ស្តុកច្រើន",
+      "lower": "ស្តុកតិច",
+      "out": "អស់ពីស្តុក"
+    },
+    "qty": "បរិមាណ",
+    "note": "ចំណាំ",
+    "viewAddedStock": "មើលប្រវត្តិបន្ថែមស្តុក",
+    "viewDamagedStock": "មើលប្រវត្តិស្តុកខូច",
+    "historyTitleAdded": "ប្រវត្តិបន្ថែមស្តុក",
+    "historyTitleDamaged": "ប្រវត្តិស្តុកខូច"
+  },
+  "settings": {
+    "language": "ភាសា",
+    "theme": "រចនាប័ទ្ម",
+    "appearance": "រូបរាង",
+    "primary": "ពណ៌ចម្បង",
+    "neutral": "ពណ៌ព្រាល",
+    "light": "ភ្លឺ",
+    "dark": "ងងឹត",
+    "logout": "ចាកចេញ",
+    "history": "ប្រវត្តិប្រើប្រាស់"
+  }
+}

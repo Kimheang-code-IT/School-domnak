@@ -1,0 +1,114 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+@theme {
+  --font-sans: "Inter", "Public Sans", "Segoe UI", "Helvetica Neue", Arial, "Noto Sans", "Siemreap", "Khmer OS Siemreap", sans-serif;
+  --font-khmer-sans: "Noto Sans Khmer", "Kantumruy Pro", "Kantumruy", sans-serif;
+
+  --color-green-50: #effdf5;
+  --color-green-100: #d9fbe8;
+  --color-green-200: #b3f5d1;
+  --color-green-300: #75edae;
+  --color-green-400: #00dc82;
+  --color-green-500: #00c16a;
+  --color-green-600: #00a155;
+  --color-green-700: #007f45;
+  --color-green-800: #016538;
+  --color-green-900: #0a5331;
+  --color-green-950: #052e16;
+  --color-blue-50: #eef3f8;
+  --color-blue-100: #d6e3f1;
+  --color-blue-200: #b3cbe3;
+  --color-blue-300: #86adce;
+  --color-blue-400: #5689b4;
+  --color-blue-500: #033f7b;
+  --color-blue-600: #032f5c;
+  --color-blue-700: #02264a;
+  --color-blue-800: #021d38;
+  --color-blue-900: #011426;
+  --color-blue-950: #010c17;
+  --color-brand-50: #eef3f8;
+  --color-brand-100: #d6e3f1;
+  --color-brand-200: #b3cbe3;
+  --color-brand-300: #86adce;
+  --color-brand-400: #5689b4;
+  --color-brand-500: #03386e;
+  --color-brand-600: #032f5c;
+  --color-brand-700: #02264a;
+  --color-brand-800: #021d38;
+  --color-brand-900: #011426;
+  --color-brand-950: #010c17;
+  --color-gray-900: #18181b;
+}
+
+@layer base {
+  body {
+    font-family: var(--font-sans) !important;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  
+  .dark,
+  .dark body {
+    background-color: #18181b !important;
+  }
+
+  /* Khmer Font Readability Enhancements */
+  :lang(km) {
+    font-family: var(--font-khmer-sans) !important;
+    line-height: 1.6;
+    letter-spacing: normal;
+  }
+
+  [lang="km"],
+  [lang="km"] * {
+    font-family: var(--font-khmer-sans);
+  }
+
+  [lang="km"] .tracking-tighter,
+  [lang="km"].tracking-tighter {
+    letter-spacing: normal !important;
+  }
+}
+
+/* Global Custom Scrollbar Styles */
+html, body, * {
+  scrollbar-width: thin;
+  scrollbar-color: #a3a3a3 #f3f4f6;
+}
+
+/* Webkit Browsers */
+html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar {
+  width: 8px;
+  background: #f3f4f6;
+  border-radius: 8px;
+}
+html::-webkit-scrollbar-thumb, body::-webkit-scrollbar-thumb, *::-webkit-scrollbar-thumb {
+  background: #a3a3a3;
+  border-radius: 8px;
+  min-height: 24px;
+}
+html::-webkit-scrollbar-thumb:hover, body::-webkit-scrollbar-thumb:hover, *::-webkit-scrollbar-thumb:hover {
+  background: #737373;
+}
+html::-webkit-scrollbar-corner, body::-webkit-scrollbar-corner, *::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Dark Mode Custom Scrollbar Styles */
+.dark html, .dark body, .dark * {
+  scrollbar-color: #52525b #18181b;
+}
+.dark html::-webkit-scrollbar, .dark body::-webkit-scrollbar, .dark *::-webkit-scrollbar {
+  background: #18181b;
+}
+.dark html::-webkit-scrollbar-thumb, .dark body::-webkit-scrollbar-thumb, .dark *::-webkit-scrollbar-thumb {
+  background: #52525b;
+}
+.dark html::-webkit-scrollbar-thumb:hover, .dark body::-webkit-scrollbar-thumb:hover, .dark *::-webkit-scrollbar-thumb:hover {
+  background: #a3a3a3;
+}
+.dark html::-webkit-scrollbar-corner, .dark body::-webkit-scrollbar-corner, .dark *::-webkit-scrollbar-corner {
+  background: transparent;
+}

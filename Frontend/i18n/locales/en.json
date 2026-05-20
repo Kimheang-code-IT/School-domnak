@@ -1,0 +1,824 @@
+{
+  "navigation": {
+    "dashboard": "Dashboard",
+    "settings": "Settings"
+  },
+  "actions": {
+    "edit": "Edit",
+    "delete": "Delete",
+    "save": "Save",
+    "confirm": "Confirm",
+    "add": "Add",
+    "cancel": "Cancel"
+  },
+  "errors": {
+    "notFound": {
+      "statusMessage": "Page not found",
+      "message": "The page you are looking for does not exist."
+    },
+    "forbidden": {
+      "statusMessage": "Access denied",
+      "message": "You do not have permission to view this page."
+    },
+    "server": {
+      "statusMessage": "Server error",
+      "message": "Something went wrong. Please try again later."
+    },
+    "default": {
+      "statusMessage": "Something went wrong",
+      "message": "An unexpected error occurred. Please try again."
+    }
+  },
+  "common": {
+    "rank": "#",
+    "actions": "Actions",
+    "revenueUsd": "Revenue (USD)",
+    "chartView": "Chart View",
+    "noData": "No data records found",
+    "loading": "Loading...",
+    "search": "Search...",
+    "preview": "Preview",
+    "amount": "Amount",
+    "items": "items",
+    "export": "Export",
+    "close": "Close",
+    "confirm": "Confirm",
+    "error": "Error"
+  },
+  "telegram": {
+    "processingBanner": "Telegram bot is handling messages ({count} in queue)",
+    "processingNow": "processing",
+    "loadingOverlay": "Telegram is busy — please wait…"
+  },
+  "components": {
+    "search": "Filter...",
+    "clear": "Clear input",
+    "rowsPerPage": "Rows per page:",
+    "pickDate": "Pick a date",
+    "confirmAction": "Confirm Action",
+    "confirmDesc": "Are you sure you want to proceed with this operation?",
+    "proceed": "Proceed",
+    "cancel": "Cancel",
+    "processData": "Process Data",
+    "saveChanges": "Save Changes",
+    "selectDate": "Select Date",
+    "select": "Select...",
+    "loadingMap": "Loading Cambodia Map Data...",
+    "scale": "Scale",
+    "min": "MIN",
+    "max": "MAX",
+    "exportData": "Export Data",
+    "exportDesc": "Select date range and format",
+    "dateRange": "Date Range",
+    "exportFormat": "Format",
+    "allDates": "All dates",
+    "from": "From",
+    "reset": "Reset",
+    "exportNow": "Export",
+    "fileUploadFormats": "SVG, PNG, JPG or GIF (max. 2MB)",
+    "fileUploadReplaceHint": "Click or drop to replace image",
+    "formatCSV": "CSV (.csv)",
+    "stockAdjust": {
+      "titleAdd": "Add Product Stock",
+      "titleDamaged": "Add Damaged Stock",
+      "productLabel": "Product",
+      "qtyToAdd": "Quantity to add",
+      "qtyDamaged": "Damaged quantity"
+    }
+  },
+  "provinces": {
+    "Banteay Meanchey": "Banteay Meanchey",
+    "Battambang": "Battambang",
+    "Kampong Cham": "Kampong Cham",
+    "Kampong Chhnang": "Kampong Chhnang",
+    "Kampong Speu": "Kampong Speu",
+    "Kampong Thom": "Kampong Thom",
+    "Kampot": "Kampot",
+    "Kandal": "Kandal",
+    "Kep": "Kep",
+    "Koh Kong": "Koh Kong",
+    "Kratie": "Kratie",
+    "Mondul Kiri": "Mondul Kiri",
+    "Oddar Meanchey": "Oddar Meanchey",
+    "Pailin": "Pailin",
+    "Phnom Penh": "Phnom Penh",
+    "Preah Sihanouk": "Preah Sihanouk",
+    "Preah Vihear": "Preah Vihear",
+    "Prey Veng": "Prey Veng",
+    "Pursat": "Pursat",
+    "Ratanak Kiri": "Ratanak Kiri",
+    "Siemreap": "Siemreap",
+    "Stung Treng": "Stung Treng",
+    "Svay Rieng": "Svay Rieng",
+    "Takeo": "Takeo",
+    "Tboung Khmum": "Tboung Khmum"
+  },
+  "pages": {
+    "dashboard": {
+      "title": "Dashboard Overview",
+      "filterCategory": "Categories",
+      "filterCourse": "Courses",
+      "filterClass": "Classes",
+      "moduleDistribution": "Module Distribution",
+      "monthlyDataQuick": "Monthly Data (Quick View)",
+      "studentsByProvince": "Students by province",
+      "studentCount": "Students",
+      "commissionByTeacher": "Commission by teacher",
+      "studentsByClass": "Students by class",
+      "revenueByRegion": "Cambodia - Revenue by Region",
+      "summary": {
+        "totalCategory": "Total Category",
+        "totalClasses": "Total classes",
+        "totalInStock": "Available seats (total)",
+        "totalSold": "Enrollment lines (sold)",
+        "totalReportAmount": "Total Amount",
+        "totalReportLines": "Sales lines",
+        "totalFinanceRows": "Finance"
+      }
+    },
+    "category": {
+      "title": "Category",
+      "toast": {
+        "added": "Category added",
+        "updated": "Category updated",
+        "deleted": "Category deleted"
+      },
+      "error": {
+        "requestFailed": "Request failed",
+        "tryAgain": "Please try again."
+      },
+      "confirm": {
+        "deleteDescription": "Are you sure you want to delete this category? This action is permanent.",
+        "editNamed": "Confirm updating category \"{name}\"?",
+        "addNamed": "Confirm adding category \"{name}\"?"
+      },
+      "footer": {
+        "categoryCount": "{count} categories"
+      }
+    },
+    "allclass": {
+      "title": "All Classes",
+      "addBtn": "Add class",
+      "editTitle": "Edit class",
+      "created": "Class added",
+      "updated": "Class updated",
+      "deleted": "Class deleted",
+      "empty": "No classes found.",
+      "loadMore": "Load more",
+      "confirmSaveAdd": "Create this class with the selected category, course, and teacher?",
+      "confirmSaveEdit": "Save changes to this class?",
+      "confirmDeleteTitle": "Delete this class?",
+      "confirmDeleteDescription": "This will permanently remove \"{name}\".",
+      "card": {
+        "addEnrollment": "Select class and continue to student info",
+        "selectClass": "Select class",
+        "selectClassForEnrollment": "Select this class, then use Next in the header to add it to enrollment"
+      },
+      "pickClassFirst": "Choose a class from the grid before continuing.",
+      "studentNameRequired": "Enter the student's name before continuing.",
+      "steps": {
+        "selectClass": "Select class",
+        "studentInfo": "Student info",
+        "payment": "Payment",
+        "invoice": "Invoice"
+      },
+      "nav": {
+        "back": "Back",
+        "next": "Next",
+        "done": "Done"
+      },
+      "previewNav": {
+        "title": "Invoice preview",
+        "counter": "{current} / {total}",
+        "scrollHint": "Scroll to view each invoice",
+        "printCurrent": "Print",
+        "printAll": "Print all"
+      },
+      "enrollment": {
+        "selectClassField": "Class for enrollment",
+        "selectClassPlaceholder": "Select a class..."
+      },
+      "student": {
+        "name": "Student name",
+        "namePlaceholder": "Full name",
+        "phone": "Phone",
+        "phonePlaceholder": "e.g. 012345678",
+        "email": "Email",
+        "emailPlaceholder": "Optional",
+        "studentInTitle": "Student In",
+        "searchExisting": "Search existing student",
+        "noStudentMatches": "No matching students",
+        "provincePlaceholder": "Select province",
+        "durationOnClass": "Student study duration (months)",
+        "durationPlaceholderMax": "e.g. up to {max}",
+        "classDurationHint": "Class is {max} months total. Enter 1, 1.5, 2, … up to {max}. Fee is calculated from this.",
+        "proratedFee": "Estimated fee: ${amount} (class full price ${full} for {months} months)",
+        "startDate": "Study start date",
+        "startDateHint": "When the student begins this class.",
+        "endDatePreview": "Estimated end date: {date}"
+      },
+      "panels": {
+        "studentTitle": "Student information",
+        "deliveryTitle": "Delivery",
+        "paymentTitle": "Payment",
+        "invoiceTitle": "Invoice summary"
+      },
+      "payment": {
+        "amountDue": "Amount due",
+        "afterDiscountHint": "Includes discount from the enrollment summary panel.",
+        "method": "Payment method",
+        "note": "Notes",
+        "notePlaceholder": "Optional reference or memo",
+        "cash": "Cash",
+        "bankTransfer": "Bank transfer",
+        "abaBank": "ABA Bank",
+        "other": "Other"
+      },
+      "invoice": {
+        "class": "Class",
+        "fee": "Total due",
+        "subtotal": "Subtotal",
+        "discount": "Discount",
+        "student": "Student",
+        "phone": "Phone",
+        "email": "Email",
+        "paymentMethod": "Payment method"
+      },
+      "validation": {
+        "required": "Please fill in all required fields.",
+        "lookup": "Could not resolve the selected course or teacher.",
+        "price": "Please enter valid prices.",
+        "durationRequired": "Enter how many months the student will study this class.",
+        "classDurationRequired": "Enter the class duration in months.",
+        "durationExceedsClass": "Student duration cannot be more than {max} months for this class.",
+        "startDateRequired": "Please select when the student starts this class."
+      },
+      "placeholders": {
+        "className": "e.g. Mathematics — Section A",
+        "image": "Class cover image",
+        "level": "e.g. Beginner, Grade 10",
+        "levelKm": "e.g. កម្រិតដំបូង ឬ ថ្នាក់ទី១០",
+        "levelSelect": "Select level…",
+        "duration": "e.g. 3",
+        "daysOfWeek": "Select study days",
+        "timeIn": "Select time in",
+        "timeOut": "Select time out"
+      },
+      "fields": {
+        "className": "Class name",
+        "teacher": "Teacher",
+        "teacherCommission": "Teacher commission (per payment)",
+        "teacherCommissionHint": "Per payment: fixed USD or % of the sale amount. Use 0 for no commission.",
+        "level": "Level",
+        "levelKm": "Level (Khmer)",
+        "duration": "Duration",
+        "durationUnit": "months",
+        "daysOfWeek": "Days of week",
+        "time": "Time",
+        "timeIn": "Time in",
+        "timeOut": "Time out",
+        "fullPrice": "Full price",
+        "discountPrice": "Discount price",
+        "discount": "Discount"
+      },
+      "durationMonth": "{count} month",
+      "durationMonths": "{count} months",
+      "weekdays": {
+        "monday": "Monday",
+        "tuesday": "Tuesday",
+        "wednesday": "Wednesday",
+        "thursday": "Thursday",
+        "friday": "Friday",
+        "saturday": "Saturday",
+        "sunday": "Sunday"
+      },
+      "studentListModal": {
+        "columns": {
+          "id": "ID",
+          "studentName": "Student name",
+          "gender": "Gender",
+          "startdate": "Start date",
+          "enddate": "End date",
+          "status": "Status"
+        },
+        "footer": {
+          "studentCount": "{count} students"
+        },
+        "actions": {
+          "continueClass": "Continue class (payment)",
+          "cancelClass": "Remove from roster"
+        },
+        "confirm": {
+          "continueTitle": "Continue this class payment?",
+          "continueDescription": "This will load {name}'s student information and move this class to the payment flow.",
+          "cancelTitle": "Remove from this class?",
+          "cancelDescription": "{name} will leave the active roster. Past enrollment in this class remains in history."
+        },
+        "toast": {
+          "continueReady": "Continue payment",
+          "continueReadyHint": "Student info is loaded. Set study duration and start date (defaults to the day after the previous end date), then go to payment.",
+          "noClassContext": "No class is selected.",
+          "missingEnrollmentId": "Enrollment id is missing.",
+          "withdrawSuccess": "Student removed from roster",
+          "withdrawHistoryHint": "Historical records for this class are unchanged.",
+          "withdrawFailed": "Could not remove student"
+        }
+      }
+    },
+    "allstudent": {
+      "title": "All Students",
+      "filterAll": "All",
+      "footerTotalStudents": "Total students: {count}",
+      "gender": {
+        "male": "Male",
+        "female": "Female"
+      },
+      "placeholders": {
+        "imageDrop": "Drop your image here",
+        "nameKm": "e.g. full name in Khmer",
+        "nameEn": "Example: Student English name",
+        "birthdate": "Select birth date",
+        "phone": "Enter phone number"
+      },
+      "provinces": {
+        "phnomPenh": "Phnom Penh",
+        "battambang": "Battambang",
+        "sihanoukville": "Sihanoukville",
+        "kampongCham": "Kampong Cham",
+        "kampongThom": "Kampong Thom",
+        "kampongSpeu": "Kampong Speu",
+        "kampongSom": "Kampong Som"
+      },
+      "confirm": {
+        "deleteDescription": "Are you sure you want to delete student #{id}? This action is permanent.",
+        "saveEditDescription": "Save changes to student #{id}?",
+        "saveAddDescription": "Confirm adding new student \"{name}\"?"
+      },
+      "toast": {
+        "deleted": "Student deleted",
+        "deletedDescription": "Student #{id} has been removed.",
+        "added": "Student added",
+        "addedDescription": "New student saved successfully.",
+        "updated": "Student updated",
+        "updatedDescription": "Student #{id} updated.",
+        "stockAdded": "Capacity updated",
+        "stockDamaged": "Damaged adjustment recorded",
+        "stockAdjustedDescription": "Updated record #{id}",
+        "historyLoadFailed": "Failed to load history",
+        "enrollmentLoadFailed": "Failed to load course registrations"
+      },
+      "enrollmentModal": {
+        "titleFallback": "Student",
+        "subtitle": "Student ID: {id}",
+        "columns": {
+          "no": "No.",
+          "courseName": "Course name",
+          "className": "Class name",
+          "duration": "Duration",
+          "startDate": "Start date",
+          "endDate": "End date",
+          "totalPrice": "Total price",
+          "discountPrice": "Discount price",
+        "priceAfterDiscount": "Invoice total",
+        "registerDate": "Register date"
+      },
+        "footer": {
+          "courseCount": "{count} courses"
+        },
+        "actions": {
+          "certificate": "Certificate"
+        },
+        "certificatePreview": {
+          "title": "Certificate",
+          "back": "Back to enrollments",
+          "download": "Download",
+          "downloadFailed": "Could not download the certificate image.",
+          "generateFailed": "Could not generate the certificate image."
+        },
+        "confirm": {
+          "deleteTitle": "Remove this enrollment?",
+          "deleteDescription": "This will remove the registration for \"{course}\". Continue?"
+        },
+        "toast": {
+          "enrollmentDeleted": "Enrollment removed",
+          "enrollmentDeleteFailed": "Could not remove enrollment"
+        }
+      }
+    },
+    "courses": {
+      "title": "Courses",
+      "tableTitle": "Course list",
+      "addTitle": "Add course",
+      "addBtn": "Add course",
+      "created": "Course added",
+      "updated": "Course updated",
+      "deleted": "Course deleted",
+      "confirmDelete": "This course will be permanently removed.",
+      "confirmSaveAdd": "Save this new course?",
+      "confirmSaveEdit": "Save changes to this course?",
+      "confirmSaveAddNamed": "Confirm adding course \"{name}\"?",
+      "confirmSaveEditNamed": "Save changes to \"{name}\"?",
+      "placeholders": {
+        "courseName": "e.g. Mathematics I",
+        "courseNameKm": "e.g. គណិតវិទ្យា I",
+        "description": "Optional summary for this course",
+        "time": "e.g. 08:00 - 10:00"
+      },
+      "units": {
+        "classes": "classes"
+      },
+      "footerCount": "Count: {count}",
+      "footerTotalClassSum": "Total sessions: {sum}",
+      "emptyDescription": "—",
+      "shift": {
+        "morning": "Morning",
+        "afternoon": "Afternoon",
+        "evening": "Evening"
+      },
+      "columns": {
+        "no": "No.",
+        "category": "Category",
+        "course": "Course",
+        "courseName": "Course name",
+        "courseNameKm": "Course name (Khmer)",
+        "teacherName": "Teacher",
+        "shift": "Shift",
+        "time": "Time",
+        "totalClass": "Total class",
+        "created": "Created",
+        "description": "Description",
+        "fullPrice": "Full price",
+        "discount": "Discount",
+        "finalPrice": "Tuition"
+      }
+    },
+    "levels": {
+      "title": "Levels",
+      "tableTitle": "Level list",
+      "addTitle": "Add level",
+      "addBtn": "Add level",
+      "created": "Level added",
+      "updated": "Level updated",
+      "deleted": "Level deleted",
+      "confirmDelete": "This level will be permanently removed.",
+      "confirmSaveAdd": "Save this new level?",
+      "confirmSaveEdit": "Save changes to this level?",
+      "confirmSaveAddNamed": "Confirm adding level \"{name}\"?",
+      "confirmSaveEditNamed": "Save changes to \"{name}\"?",
+      "placeholders": {
+        "levelNameKm": "e.g. កម្រិតដំបូង",
+        "levelNameEn": "e.g. Beginner",
+        "description": "Optional notes about this level"
+      },
+      "units": {
+        "classes": "classes"
+      },
+      "footerCount": "Count: {count}",
+      "footerTotalClassSum": "Total classes: {sum}",
+      "columns": {
+        "no": "No.",
+        "levelNameKm": "Level name (Khmer)",
+        "levelNameEn": "Level name (English)",
+        "description": "Description",
+        "totalClass": "Total class"
+      }
+    },
+    "product": {
+      "title": "Product"
+    },
+    "school": {
+      "listing": {
+        "noProducts": "No classes found.",
+        "title": "Classes & enrollment"
+      },
+      "steps": {
+        "addToCart": "Add to cart",
+        "customerInfo": "Student information",
+        "checkout": "Payment"
+      },
+      "contact": {
+        "title": "Student / guardian",
+        "description": "Contact details for enrollment",
+        "phone": "Phone",
+        "phonePlaceholder": "Student or guardian phone number",
+        "name": "Name",
+        "namePlaceholder": "Full name",
+        "deliveryType": "Delivery Type",
+        "deliveryPrice": "Delivery Price",
+        "address": "Address",
+        "addressPlaceholder": "Optional address"
+      },
+      "customer": {
+        "title": "Student information",
+        "description": "Enter student details",
+        "types": {
+          "customer": "Registered student",
+          "walkIn": "Walk-in"
+        },
+        "form": {
+          "name": "Name",
+          "namePlaceholder": "Enter name",
+          "phone": "Phone",
+          "phonePlaceholder": "Enter phone number",
+          "deliveryType": "Delivery Type",
+          "deliveryPrice": "Delivery Price",
+          "address": "Address",
+          "addressPlaceholder": "Enter address"
+        }
+      },
+      "classCard": {
+        "inStock": "In Stock",
+        "students": "{count} students",
+        "sku": "SKU",
+        "view": "View details",
+        "addMore": "Add More",
+        "addToCart": "Add to Cart",
+        "className": "Class",
+        "course": "Course",
+        "teacherName": "Teacher",
+        "shift": "Shift",
+        "time": "Time",
+        "fullPrice": "Full price",
+        "discount": "Discount",
+        "finalPrice": "Tuition fee"
+      },
+      "cart": {
+        "title": "Enrollment summary",
+        "clearAll": "Clear selection",
+        "empty": "No classes selected yet. Choose classes first, then continue.",
+        "items": "Class lines",
+        "subtotal": "Subtotal",
+        "discount": "Discount",
+        "discountMode": "Discount type",
+        "total": "Total due",
+        "next": "Next",
+        "finish": "Finish",
+        "confirmFinishTitle": "Complete enrollment?",
+        "confirmFinishDescription": "This will create the invoice and save the enrollment. You can print the invoice on the next screen.",
+        "checkoutSuccessTitle": "Checkout completed",
+        "checkoutSuccessDescription": "Your invoice was created successfully.",
+        "printInvoice": "Print invoice",
+        "done": "Done"
+      },
+      "invoice": {
+        "title": "Invoice",
+        "section": {
+          "invoiceInfo": "Invoice information",
+          "customer": "Student / payer"
+        },
+        "fields": {
+          "invoiceNo": "Invoice No",
+          "startDate": "Start Date",
+          "startDateHint": "Study start — updates end date on this invoice.",
+          "endDate": "End Date",
+          "registered": "Registered",
+          "name": "Name",
+          "phone": "Phone",
+          "deliveryType": "Delivery Type",
+          "deliveryPrice": "Delivery Price",
+          "duration": "Duration",
+          "shift": "Shift"
+        },
+        "table": {
+          "noKm": "ល.រ",
+          "no": "NO",
+          "descriptionKm": "ការពិពណ៌នា",
+          "description": "Description",
+          "priceKm": "តម្លៃ",
+          "price": "Price",
+          "qtyKm": "បរិមាណ",
+          "qty": "QTY",
+          "totalKm": "សរុប",
+          "total": "Total"
+        },
+        "terms": {
+          "title": "Terms & Conditions",
+          "km": "រាល់ការបង់ប្រាក់មិនអាចដកយកប្រាក់វិញបានទេ",
+          "en": "All Payments Are Non-Refundable."
+        },
+        "summary": {
+          "subtotal": "Subtotal",
+          "deliveryPrice": "Delivery Price",
+          "discount": "Discount",
+          "grandTotal": "Grand Total"
+        },
+        "footer": {
+          "customer": "Student",
+          "seller": "Registrar"
+        }
+      }
+    },
+    "auth": {
+      "loginTitle": "Login",
+      "loginDesc": "Please log in to continue.",
+      "email": "Email",
+      "emailPlaceholder": "Enter your email",
+      "password": "Password",
+      "passwordPlaceholder": "Enter your password",
+      "remember": "Remember me",
+      "loginBtn": "Login",
+      "loginSuccessTitle": "Login Successful",
+      "loginSuccessDesc": "Welcome back, {name}",
+      "loginFailedTitle": "Login Failed",
+      "loginFailedDesc": "The email or password you entered is incorrect.",
+      "departmentLine": "Copyright © by Damnaksiksaa"
+    },
+    "dataEntry": {
+      "title": "Data Entry",
+      "tableTitle": "Revenue Data Entries",
+      "addBtn": "Add Entry",
+      "formTitleNew": "New Revenue Entry",
+      "formTitleEdit": "Edit Revenue Entry",
+      "analyticsTotalUsd": "Total USD",
+      "analyticsTotalRiel": "Total Riel",
+      "analyticsEntries": "Total Entries",
+      "analyticsAvg": "Avg USD Performance",
+      "columns": {}
+    },
+    "history": {
+      "title": "System Audit History",
+      "tableTitle": "Historical Event Stream",
+      "detailTitle": "Audit Transaction Details",
+      "closeDetails": "Close Details",
+      "columns": {
+        "typeAction": "Type Action",
+        "username": "Username",
+        "date": "Date",
+        "description": "Description"
+      },
+      "actionTypes": {
+        "login": "Login",
+        "logout": "Logout",
+        "create": "Create",
+        "update": "Update",
+        "delete": "Delete",
+        "export": "Export"
+      },
+      "actions": {
+        "viewDetails": "View details"
+      }
+    },
+    "userManagement": {
+      "title": "User Management",
+      "tableTitle": "Platform User Directory",
+      "addBtn": "Add User",
+      "analyticsTitle": "User & Session Insights",
+      "columns": {
+        "name": "Name",
+        "role": "Role",
+        "email": "Email",
+        "password": "Password",
+        "lastLogin": "Last Login",
+        "commission": "Commission"
+      }
+    },
+    "finance": {
+      "title": "Finance",
+      "tableTitle": "Finance",
+      "editTitle": "Edit finance row",
+      "columns": {
+        "productName": "Product Name",
+        "className": "Class",
+        "printPrice": "Print Price",
+        "electricity": "Electricity",
+        "water": "Water",
+        "internet": "Internet",
+        "totalCommission": "Total Commission",
+        "facebook": "Facebook",
+        "other": "Other",
+        "amount": "Amount",
+        "inPriceForPos": "In Price for POS",
+        "finalPrice": "Final Price"
+      }
+    },
+    "comission": {
+      "title": "Comission",
+      "tableTitle": "Comission",
+      "groupOverview": "Overview",
+      "columns": {
+        "seller": "Seller",
+        "product": "Product",
+        "customer": "Customer",
+        "className": "Class name",
+        "teacherName": "Teacher",
+        "courseName": "Course",
+        "studentName": "Student",
+        "source": "Source",
+        "date": "Date",
+        "amount": "Amount",
+        "commission": "Commission"
+      }
+    },
+    "report": {
+      "title": "Report",
+      "tableTitle": "Report",
+      "columns": {
+        "no": "No",
+        "invoiceNo": "Invoice No",
+        "date": "Date",
+        "studentId": "Student ID",
+        "product": "Product",
+        "studentPayment": "Student payment",
+        "customer": "Customer",
+        "phoneCustomer": "Phone Customer",
+        "studentName": "Student name",
+        "studentPhone": "Student phone",
+        "seller": "Seller",
+        "phoneSaler": "Phone Seller",
+        "source": "Source",
+        "address": "Address",
+        "receiptNumber": "Receipt No.",
+        "amount": "Amount"
+      },
+      "searchPlaceholder": "Search invoice, student ID, name, phone, product…",
+      "footer": {
+        "invoiceCount": "Distinct invoices: {count}"
+      }
+    },
+    "delivery": {
+      "title": "Delivery",
+      "tableTitle": "Delivery List",
+      "columns": {
+        "no": "No.",
+        "invoiceId": "Invoice Id",
+        "address": "Address",
+        "deliveryType": "Delivery Type",
+        "deliveryPrice": "Delivery Price",
+        "date": "Date"
+      }
+    },
+    "roleManagement": {
+      "title": "Role Management",
+      "filterByRole": "Filter by role",
+      "tableTitle": "Authorization Policies",
+      "addBtn": "Add Role",
+      "analyticsRoles": "Target Roles",
+      "analyticsPermissions": "Global Permissions",
+      "analyticsPolicies": "Active Policies",
+      "analyticsSecurity": "Security Compliance",
+      "columns": {
+        "name": "Name",
+        "pageAccess": "Page Access"
+      }
+    }
+  },
+  "category": {
+    "tableTitle": "Categories",
+    "addTitle": "Add New Category",
+    "id": "No",
+    "name": "Name",
+    "description": "Description",
+    "total": "Total",
+    "createdAt": "Created",
+    "namePlaceholder": "e.g. Laptops, Accessories",
+    "descriptionPlaceholder": "Optional description for this category"
+  },
+  "product": {
+    "id": "No",
+    "image": "Image",
+    "name": "Name",
+    "nameKm": "Name (KH)",
+    "nameEn": "Name (EN)",
+    "gender": "Gender",
+    "genderMale": "Male",
+    "genderFemale": "Female",
+    "genderOther": "Other",
+    "birthdate": "Birth date",
+    "phone": "Phone",
+    "province": "Province",
+    "totalCourse": "Total courses",
+    "category": "Category",
+    "inPrice": "In Price",
+    "outPrice": "Out Price",
+    "commission": "Commission",
+    "totalStock": "Total Stock",
+    "inStock": "In Stock",
+    "sold": "Sold",
+    "added": "Added",
+    "damaged": "Damaged",
+    "status": "Status",
+    "createdAt": "Created At",
+    "stockStatus": {
+      "aLot": "A lot of stock",
+      "lower": "Lower stock",
+      "out": "Out of stock"
+    },
+    "qty": "Qty",
+    "note": "Note",
+    "viewAddedStock": "View Add",
+    "viewDamagedStock": "View Damaged",
+    "historyTitleAdded": "Stock Addition History",
+    "historyTitleDamaged": "Damaged Stock History"
+  },
+  "settings": {
+    "language": "Language",
+    "theme": "Theme",
+    "appearance": "Appearance",
+    "primary": "Primary",
+    "neutral": "Neutral",
+    "light": "Light",
+    "dark": "Dark",
+    "logout": "Log out",
+    "history": "History"
+  }
+}
