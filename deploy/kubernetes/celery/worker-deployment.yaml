@@ -37,6 +37,13 @@ spec:
             - app.core.celery_app.celery_app
             - worker
             - --loglevel=info
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
           volumeMounts:
             - name: uploads
               mountPath: /app/uploads

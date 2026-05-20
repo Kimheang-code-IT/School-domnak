@@ -34,6 +34,13 @@ spec:
           command:
             - python
             - scripts/run_telegram_polling.py
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
           volumeMounts:
             - name: secrets
               mountPath: /app/secrets

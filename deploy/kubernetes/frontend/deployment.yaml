@@ -31,9 +31,19 @@ spec:
           image: nginx:1.27-alpine
           ports:
             - containerPort: 80
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
           volumeMounts:
             - name: html
               mountPath: /usr/share/nginx/html
+              readOnly: true
+            - name: config
+              mountPath: /etc/nginx/conf.d
               readOnly: true
           readinessProbe:
             httpGet:
@@ -41,6 +51,15 @@ spec:
               port: 80
             initialDelaySeconds: 5
             periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 20
       volumes:
         - name: html
           emptyDir: {}
+        - name: config
+          configMap:
+            name: school-frontend-nginx-config

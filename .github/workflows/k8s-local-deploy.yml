@@ -83,12 +83,15 @@ jobs:
           kubectl rollout restart deployment/school-celery-worker -n ${{ env.K8S_NAMESPACE }}
           kubectl rollout restart deployment/school-celery-beat -n ${{ env.K8S_NAMESPACE }}
           kubectl rollout restart deployment/school-telegram-bot -n ${{ env.K8S_NAMESPACE }}
+          kubectl rollout restart deployment/school-nginx -n ${{ env.K8S_NAMESPACE }}
 
       - name: Wait for rollouts
         run: |
           kubectl rollout status deployment/school-backend -n ${{ env.K8S_NAMESPACE }} --timeout=180s
           kubectl rollout status deployment/school-frontend -n ${{ env.K8S_NAMESPACE }} --timeout=180s
+          kubectl rollout status deployment/school-nginx -n ${{ env.K8S_NAMESPACE }} --timeout=120s
           kubectl rollout status deployment/school-celery-worker -n ${{ env.K8S_NAMESPACE }} --timeout=180s || true
+          kubectl rollout status deployment/school-celery-beat -n ${{ env.K8S_NAMESPACE }} --timeout=180s || true
           kubectl rollout status deployment/school-telegram-bot -n ${{ env.K8S_NAMESPACE }} --timeout=180s || true
 
       - name: Show pods and services

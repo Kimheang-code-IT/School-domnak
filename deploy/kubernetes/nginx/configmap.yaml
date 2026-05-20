@@ -23,8 +23,23 @@ data:
         set $backend_host school-backend.schooldomnak.svc.cluster.local;
         set $frontend_host school-frontend.schooldomnak.svc.cluster.local;
 
+        # User uploads / media files (stored by backend)
         location /uploads/ {
             proxy_pass http://$backend_host:8000/uploads/;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+        }
+
+        # Nuxt static assets (_nuxt/*)
+        location /_nuxt/ {
+            proxy_pass http://$frontend_host:80;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+        }
+
+        # SPA admin/settings routes (handled by Nuxt, not a separate backend app)
+        location /admin/ {
+            proxy_pass http://$frontend_host:80;
             proxy_http_version 1.1;
             proxy_set_header Host $host;
         }

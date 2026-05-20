@@ -1,56 +1,52 @@
 # Kubernetes manifests (Docker Desktop)
 
-Namespace: `schooldomnak`
+Namespace: **`schooldomnak`**
+
+## Structure
+
+```
+deploy/kubernetes/
+├── namespace.yaml
+├── configmap.yaml
+├── secret.example.yaml
+├── postgres/
+├── redis/
+├── backend/
+├── frontend/
+├── celery/
+├── telegram/
+└── nginx/
+```
 
 ## Images (GHCR)
 
-- `ghcr.io/kimheang-code-it/schooldomnak-backend:latest`
-- `ghcr.io/kimheang-code-it/schooldomnak-frontend:latest`
-- `ghcr.io/kimheang-code-it/schooldomnak-celery-worker:latest`
-- `ghcr.io/kimheang-code-it/schooldomnak-celery-beat:latest`
-- `ghcr.io/kimheang-code-it/schooldomnak-telegram-bot:latest`
+| Deployment | Image |
+|------------|--------|
+| school-backend | `ghcr.io/kimheang-code-it/schooldomnak-backend:latest` |
+| school-frontend | `ghcr.io/kimheang-code-it/schooldomnak-frontend:latest` |
+| school-celery-worker | `ghcr.io/kimheang-code-it/schooldomnak-celery-worker:latest` |
+| school-celery-beat | `ghcr.io/kimheang-code-it/schooldomnak-celery-beat:latest` |
+| school-telegram-bot | `ghcr.io/kimheang-code-it/schooldomnak-telegram-bot:latest` |
 
-Stock images: `postgres:16-alpine`, `redis:7-alpine`, `nginx:1.27-alpine`
+Stock: `postgres:16-alpine`, `redis:7-alpine`, `nginx:1.27-alpine`
 
-## Exposure
+## Services
 
-| Service | Type | Exposed outside cluster |
-|---------|------|-------------------------|
-| school-nginx | LoadBalancer | **Yes** (app entry point) |
+| Name | Type | Exposed |
+|------|------|---------|
+| school-nginx | LoadBalancer | **Yes** |
 | school-backend | ClusterIP | No |
 | school-frontend | ClusterIP | No |
 | school-postgres | ClusterIP | No |
 | school-redis | ClusterIP | No |
-| celery / telegram | — | No (Deployments only) |
 
-## One-time setup
+Celery and Telegram: Deployment only (no Service).
 
-1. Enable Kubernetes in Docker Desktop.
-2. Create secret (never commit real values):
+## One-time secret
 
 ```bash
 kubectl apply -f deploy/kubernetes/namespace.yaml
 kubectl create secret generic school-secrets -n schooldomnak --from-env-file=.env
 ```
 
-See `secret.example.yaml` for required keys.
-
-3. Install and run a **self-hosted GitHub Actions runner** on the same machine (see root `README.md`).
-
-## Manual apply (optional)
-
-```bash
-kubectl apply -f deploy/kubernetes/namespace.yaml
-kubectl apply -f deploy/kubernetes/configmap.yaml
-kubectl apply -f deploy/kubernetes/postgres/
-kubectl apply -f deploy/kubernetes/redis/
-kubectl apply -f deploy/kubernetes/backend/
-kubectl apply -f deploy/kubernetes/frontend/
-kubectl apply -f deploy/kubernetes/celery/
-kubectl apply -f deploy/kubernetes/telegram/
-kubectl apply -f deploy/kubernetes/nginx/
-```
-
-## Auto deploy
-
-Push to `main` → GHCR publish → **SchoolDomnak K8s Local Deploy** workflow on self-hosted runner.
+Auto deploy: push to `main` → GHCR publish → self-hosted `k8s-local-deploy.yml`.
