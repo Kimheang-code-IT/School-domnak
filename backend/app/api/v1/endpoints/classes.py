@@ -20,7 +20,9 @@ from app.schemas.enrollment import ClassEnrollmentRead, EnrollmentPatch
 from app.services.audit_service import write_audit_log
 from app.services.enrollment_service import sync_class_roster_enrollments, to_class_enrollment_read
 from app.services.finance_service import ensure_finance_for_class
+from app.services.cache_invalidation import CLASSES, class_enrollments_resource
 from app.services.level_service import apply_level_to_class_data
+from app.services.table_list_cache import cached_table_list
 from app.utils.image_storage import persist_image
 
 router = APIRouter()
@@ -75,8 +77,12 @@ def list_classes(
     current_user: ClassViewUser,
     category_id: int | None = Query(None, alias="categoryId"),
 ):
-    data, total = repo.list_classes(db, query, category_id=category_id)
-    return {"data": data, "total": total}
+    return cached_table_list(
+        CLASSES,
+        query,
+        lambda: repo.list_classes(db, query, category_id=category_id),
+        extra={"categoryId": category_id},
+    )
 
 
 @router.post("", response_model=ClassRead, status_code=status.HTTP_201_CREATED)
@@ -130,21 +136,27 @@ def list_class_enrollments(class_id: int, db: DbSession, query: TableParams, cur
     if not school_class:
         raise HTTPException(status_code=404, detail="Class not found")
 
-    sync_class_roster_enrollments(db, class_id, school_class)
-    db.commit()
+    def _load() -> tuple[list[ClassEnrollmentRead], int]:
+        sync_class_roster_enrollments(db, class_id, school_class)
+        db.commit()
 
-    statement = (
-        select(Enrollment, Student)
-        .join(Student, Student.id == Enrollment.student_id)
-        .where(Enrollment.class_id == class_id, Enrollment.roster_active.is_(True))
-    )
-    if query.search:
-        pattern = f"%{query.search}%"
-        statement = statement.where((Student.name_en.ilike(pattern)) | (Student.name_km.ilike(pattern)) | (Student.phone.ilike(pattern)))
-    total = db.scalar(select(func.count()).select_from(statement.subquery())) or 0
-    rows = db.execute(statement.offset((query.page - 1) * query.limit).limit(query.limit)).all()
-    data = [to_class_enrollment_read(enrollment, student) for enrollment, student in rows]
-    return {"data": data, "total": total}
+        statement = (
+            select(Enrollment, Student)
+            .join(Student, Student.id == Enrollment.student_id)
+            .where(Enrollment.class_id == class_id, Enrollment.roster_active.is_(True))
+        )
+        if query.search:
+            pattern = f"%{query.search}%"
+            statement = statement.where(
+                (Student.name_en.ilike(pattern))
+                | (Student.name_km.ilike(pattern))
+                | (Student.phone.ilike(pattern))
+            )
+        total = db.scalar(select(func.count()).select_from(statement.subquery())) or 0
+        rows = db.execute(statement.offset((query.page - 1) * query.limit).limit(query.limit)).all()
+        return [to_class_enrollment_read(enrollment, student) for enrollment, student in rows], total
+
+    return cached_table_list(class_enrollments_resource(class_id), query, _load)
 
 
 @router.patch("/{class_id}/enrollments/{enrollment_id}", response_model=ClassEnrollmentRead)

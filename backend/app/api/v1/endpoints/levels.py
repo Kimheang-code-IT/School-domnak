@@ -10,6 +10,8 @@ from app.repositories.level_repository import LevelRepository
 from app.schemas.common import CommonResponse, TableQueryParams, TableResponse, table_query_params
 from app.schemas.level import LevelCreate, LevelRead, LevelUpdate
 from app.services.audit_service import write_audit_log
+from app.services.cache_invalidation import LEVELS
+from app.services.table_list_cache import cached_table_list
 
 router = APIRouter()
 repo = LevelRepository()
@@ -23,8 +25,7 @@ LevelDeleteUser = Annotated[User, Depends(require_permission("levels", "delete")
 
 @router.get("", response_model=TableResponse[LevelRead])
 def list_levels(db: DbSession, query: TableParams, current_user: LevelViewUser):
-    data, total = repo.list_levels(db, query)
-    return {"data": data, "total": total}
+    return cached_table_list(LEVELS, query, lambda: repo.list_levels(db, query))
 
 
 @router.post("", response_model=LevelRead, status_code=status.HTTP_201_CREATED)

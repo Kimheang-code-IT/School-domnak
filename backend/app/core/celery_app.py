@@ -15,6 +15,7 @@ celery_app = Celery(
         "app.tasks.telegram_tasks",
         "app.tasks.google_sheet_tasks",
         "app.tasks.report_tasks",
+        "app.tasks.checkout_tasks",
     ],
 )
 

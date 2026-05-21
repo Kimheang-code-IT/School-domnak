@@ -9,6 +9,13 @@ import {
   type InvoicePreviewRow,
 } from '~/utils/helpers/invoicePreview'
 
+function parseInvoiceQuery(raw: string): string[] {
+  return raw
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)
+}
+
 export function usePosInvoicePreview() {
   const route = useRoute()
   const router = useRouter()
@@ -95,8 +102,16 @@ export function usePosInvoicePreview() {
 
   async function loadPreviewFromRoute() {
     const previewKey = String(route.query.previewKey || '')
-    const invoiceNo = String(route.query.invoiceNo || '')
-    if (!previewKey && !invoiceNo) {
+    const invoiceParam = String(route.query.invoice || '')
+    const invoiceNoLegacy = String(route.query.invoiceNo || '')
+
+    const invoiceNos = invoiceParam
+      ? parseInvoiceQuery(invoiceParam)
+      : invoiceNoLegacy
+        ? [invoiceNoLegacy.trim()]
+        : []
+
+    if (!previewKey && invoiceNos.length === 0) {
       previewBundles.value = []
       currentPreviewIndex.value = 0
       previewError.value = null
@@ -111,10 +126,15 @@ export function usePosInvoicePreview() {
         applyPreviewBundle(preview || {})
         return
       }
-      if (invoiceNo) {
-        const preview = await posApi.getInvoicePreviewByNo(invoiceNo)
+
+      if (invoiceNos.length === 1) {
+        const preview = await posApi.getInvoicePreviewByNo(invoiceNos[0]!)
         applyPreviewBundle(preview || {})
+        return
       }
+
+      const preview = await posApi.getInvoicesPreview(invoiceNos)
+      applyPreviewBundle(preview || {})
     } catch (err) {
       previewBundles.value = []
       currentPreviewIndex.value = 0
@@ -127,7 +147,11 @@ export function usePosInvoicePreview() {
 
   onMounted(loadPreviewFromRoute)
   watch(
-    () => [String(route.query.previewKey || ''), String(route.query.invoiceNo || '')],
+    () => [
+      String(route.query.previewKey || ''),
+      String(route.query.invoice || ''),
+      String(route.query.invoiceNo || ''),
+    ],
     loadPreviewFromRoute,
   )
 

@@ -19,6 +19,8 @@ from app.repositories.base import BaseRepository
 from app.schemas.common import CommonResponse, TableQueryParams, TableResponse, table_query_params
 from app.schemas.role import RoleCreate, RoleRead, RoleUpdate
 from app.services.audit_service import write_audit_log
+from app.services.cache_invalidation import ROLES
+from app.services.table_list_cache import cached_table_list
 from app.utils.filters import split_filter
 
 router = APIRouter()
@@ -71,15 +73,18 @@ def list_roles(db: DbSession, query: TableParams, current_user: RoleViewUser, ro
     roles = split_filter(role)
     if roles:
         statement = statement.where(Role.name.in_(roles))
-    rows, total = repo.list_simple(
-        db,
-        query,
-        base_statement=statement,
-        sort_map={"id": Role.id, "name": Role.name, "createdAt": Role.created_at},
-        search_columns=[Role.name],
-        date_column=Role.created_at,
-    )
-    return {"data": [RoleRead.model_validate(row[0]) for row in rows], "total": total}
+    def _load() -> tuple[list[RoleRead], int]:
+        rows, total = repo.list_simple(
+            db,
+            query,
+            base_statement=statement,
+            sort_map={"id": Role.id, "name": Role.name, "createdAt": Role.created_at},
+            search_columns=[Role.name],
+            date_column=Role.created_at,
+        )
+        return [RoleRead.model_validate(row[0]) for row in rows], total
+
+    return cached_table_list(ROLES, query, _load, extra={"role": role})
 
 
 @router.post("", response_model=RoleRead, status_code=status.HTTP_201_CREATED)

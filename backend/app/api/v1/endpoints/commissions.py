@@ -15,6 +15,8 @@ from app.services.commission_service import sync_commissions_from_invoices
 from app.services.export_service import rows_for_export
 from app.utils.filters import apply_date_filter, apply_search, split_filter, split_int_filter
 from app.utils.pagination import apply_pagination
+from app.services.cache_invalidation import COMMISSIONS
+from app.services.table_list_cache import cached_table_list
 from app.utils.sorting import apply_sorting
 
 router = APIRouter()
@@ -104,14 +106,22 @@ def list_commissions(
     source: str | None = Query(None),
     class_id: str | None = Query(None, alias="classId"),
 ):
-    _maybe_sync_empty(db)
-    statement, total = _build_commission_query(
-        db,
+    def _load() -> tuple[list[CommissionRead], int]:
+        _maybe_sync_empty(db)
+        statement, total = _build_commission_query(
+            db,
+            query,
+            **_commission_filter_kwargs(source=source, class_id=class_id),
+        )
+        rows = db.scalars(apply_pagination(statement, query.page, query.limit)).all()
+        return [_to_read(row) for row in rows], total
+
+    return cached_table_list(
+        COMMISSIONS,
         query,
-        **_commission_filter_kwargs(source=source, class_id=class_id),
+        _load,
+        extra=_commission_filter_kwargs(source=source, class_id=class_id),
     )
-    rows = db.scalars(apply_pagination(statement, query.page, query.limit)).all()
-    return {"data": [_to_read(row) for row in rows], "total": total}
 
 
 @router.get("/export")

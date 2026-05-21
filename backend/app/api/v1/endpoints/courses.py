@@ -10,6 +10,8 @@ from app.repositories.course_repository import CourseRepository
 from app.schemas.common import CommonResponse, TableQueryParams, TableResponse, table_query_params
 from app.schemas.course import CourseCreate, CourseRead, CourseUpdate
 from app.services.audit_service import write_audit_log
+from app.services.cache_invalidation import COURSES
+from app.services.table_list_cache import cached_table_list
 
 router = APIRouter()
 repo = CourseRepository()
@@ -23,8 +25,7 @@ CourseDeleteUser = Annotated[User, Depends(require_permission("courses", "delete
 
 @router.get("", response_model=TableResponse[CourseRead])
 def list_courses(db: DbSession, query: TableParams, current_user: CourseViewUser):
-    data, total = repo.list_courses(db, query)
-    return {"data": data, "total": total}
+    return cached_table_list(COURSES, query, lambda: repo.list_courses(db, query))
 
 
 @router.post("", response_model=CourseRead, status_code=status.HTTP_201_CREATED)

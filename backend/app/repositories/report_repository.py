@@ -104,7 +104,8 @@ class ReportRepository:
                 "studentId": Invoice.student_id,
                 "studentName": Invoice.student_name,
                 "studentPhone": Invoice.student_phone,
-                "product": InvoiceLine.product_name,
+                "product": SchoolClass.name,
+                "className": SchoolClass.name,
                 "address": Invoice.address,
                 "seller": Invoice.seller,
                 "source": Invoice.source,
@@ -118,12 +119,13 @@ class ReportRepository:
         rows = db.execute(statement).all()
         start_no = 1 if export else get_offset(query.page, query.limit) + 1
         data = []
-        for index, (line, invoice, student, _school_class) in enumerate(rows, start=start_no):
+        for index, (line, invoice, student, school_class) in enumerate(rows, start=start_no):
             resolved_address = (invoice.address or "").strip()
             if not resolved_address and student is not None:
                 resolved_address = (student.province or "").strip()
             display_name = _english_student_name(invoice, student)
             sid = student.id if student is not None else invoice.student_id
+            class_name = (school_class.name if school_class else None) or line.product_name
             data.append(
                 ReportSalesLineRead(
                     no=index,
@@ -137,7 +139,8 @@ class ReportRepository:
                     source=invoice.source,
                     amount=line.total,
                     date=invoice.created_at,
-                    product=line.product_name,
+                    product=class_name,
+                    class_name=class_name,
                     customer=display_name,
                     receipt=invoice.invoice_no,
                 )

@@ -36,4 +36,5 @@ Write-Host "On this PC:     http://localhost:$Port"
 foreach ($ip in @(Get-LanIpv4)) {
     Write-Host "On Wi-Fi/LAN:   http://${ip}:$Port"
 }
-Write-Host "`nAdd your LAN origin to BACKEND_CORS_ORIGINS in .env if the API blocks the browser, then: docker compose restart backend" -ForegroundColor DarkGray
+Write-Host "CORS: dynamic LAN enabled (BACKEND_CORS_ALLOW_LAN=true) - any Wi-Fi IP on port $Port works." -ForegroundColor DarkGray
+Write-Host "Optional legacy fix: .\scripts\sync-lan-cors.ps1" -ForegroundColor DarkGray

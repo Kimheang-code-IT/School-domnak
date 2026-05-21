@@ -128,3 +128,24 @@ def to_class_enrollment_read(
         discount_price=enrollment.discount_price or Decimal("0"),
         price_after_discount=enrollment.price_after_discount or Decimal("0"),
     )
+
+
+def class_level_labels(school_class: SchoolClass | None) -> tuple[str | None, str | None, str | None]:
+    """English level, Khmer level, and level_name_km from class denorm + levels table."""
+    if not school_class:
+        return None, None, None
+    ref = school_class.level_ref
+    level_en = (school_class.level or (ref.level_name_en if ref else None) or "").strip() or None
+    level_km = (school_class.level_km or (ref.level_name_km if ref else None) or "").strip() or None
+    level_name_km = (ref.level_name_km if ref else None) or school_class.level_km
+    level_name_km = (level_name_km or "").strip() or None
+    return level_en, level_km, level_name_km
+
+
+def class_course_labels(school_class: SchoolClass | None) -> tuple[str | None, str | None]:
+    if not school_class or not school_class.course:
+        return None, None
+    course = school_class.course
+    name = (course.course_name or "").strip() or None
+    name_km = (course.course_name_km or "").strip() or None
+    return name, name_km

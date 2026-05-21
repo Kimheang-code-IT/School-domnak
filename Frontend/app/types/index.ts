@@ -143,6 +143,7 @@ export interface ReportRow {
   /** Numeric student PK when linked */
   studentId?: number | null
   product: string
+  className?: string
   customer: string
   phoneCustomer: string
   seller: string
@@ -189,6 +190,7 @@ export interface Course {
 export interface StudentEnrollmentRow {
   id: string | number
   courseName: string
+  courseNameKm?: string
   className: string
   studentName?: string
   nameKm?: string
@@ -196,6 +198,8 @@ export interface StudentEnrollmentRow {
   gender?: string
   birthdate?: string
   level?: string
+  levelKm?: string
+  levelNameKm?: string
   classLevel?: string
   courseLevel?: string
   duration?: string

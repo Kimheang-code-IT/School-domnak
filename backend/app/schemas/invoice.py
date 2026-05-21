@@ -91,6 +91,15 @@ class InvoiceCheckoutResponse(CamelModel):
     discount_amount: Decimal
     total: Decimal
     invoice: InvoiceRead
+    job_id: str | None = None
+    print_status: str = "pending"
+
+
+class CheckoutJobStatusRead(CamelModel):
+    status: str
+    print_ready: bool = False
+    invoice_no: str | None = None
+    error: str | None = None
 
 
 class InvoicePreviewInput(CamelModel):

@@ -2,6 +2,7 @@
 import { useProduct } from '~/composables/table/useAllStudent'
 import { useTableToolbarFilters } from '~/composables/filters/useTableToolbarFilters'
 import { formatDate } from '~/utils/format/date'
+import { formatStudentCode } from '~/utils/format/studentCode'
 import { provinceDisplayLabel } from '~/utils/format/provinceDisplay'
 import type { Product } from '~/types'
 import { resolveUploadUrl } from '~/utils/helpers/mediaUrl'
@@ -164,7 +165,7 @@ function displayName(row: Product) {
               row.original.studentCode ||
               row.original.studentId ||
               row.original.displayId ||
-              `DS${String(row.original.id).padStart(6, '0')}`
+              formatStudentCode(row.original.id)
             }}
           </span>
         </template>

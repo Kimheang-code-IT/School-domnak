@@ -10,6 +10,8 @@ from app.repositories.category_repository import CategoryRepository
 from app.schemas.category import CategoryCreate, CategoryRead, CategoryUpdate
 from app.schemas.common import CommonResponse, TableQueryParams, TableResponse, table_query_params
 from app.services.audit_service import write_audit_log
+from app.services.cache_invalidation import CATEGORIES
+from app.services.table_list_cache import cached_table_list
 
 router = APIRouter()
 repo = CategoryRepository()
@@ -23,8 +25,7 @@ CategoryDeleteUser = Annotated[User, Depends(require_permission("categories", "d
 
 @router.get("", response_model=TableResponse[CategoryRead])
 def list_categories(db: DbSession, query: TableParams, current_user: CategoryViewUser):
-    data, total = repo.list_categories(db, query)
-    return {"data": data, "total": total}
+    return cached_table_list(CATEGORIES, query, lambda: repo.list_categories(db, query))
 
 
 @router.post("", response_model=CategoryRead, status_code=status.HTTP_201_CREATED)

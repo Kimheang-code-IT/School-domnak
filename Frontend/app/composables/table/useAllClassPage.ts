@@ -837,14 +837,14 @@ export function useAllClassPage() {
     }
   }
 
-  async function finishEnrollmentCheckout() {
+  async function finishEnrollmentCheckout(): Promise<{ invoiceNo: string; jobId: string | null } | null> {
     if (enrollmentCartLines.value.length === 0) {
       toast.add({
         title: t('common.error'),
         description: t('pages.allclass.pickClassFirst'),
         color: 'warning'
       })
-      return ''
+      return null
     }
 
     const startIso = normalizeIsoDate(enrollmentStartDate.value)
@@ -854,7 +854,7 @@ export function useAllClassPage() {
         description: t('pages.allclass.validation.startDateRequired'),
         color: 'warning',
       })
-      return ''
+      return null
     }
     const durationMonths = parseDurationMonthsDecimal(enrollmentDurationMonths.value)
     const maxMonths = enrollmentClassDurationMax.value
@@ -864,7 +864,7 @@ export function useAllClassPage() {
         description: t('pages.allclass.validation.durationRequired'),
         color: 'warning'
       })
-      return ''
+      return null
     }
     if (maxMonths && durationMonths > maxMonths) {
       toast.add({
@@ -872,7 +872,7 @@ export function useAllClassPage() {
         description: t('pages.allclass.validation.durationExceedsClass', { max: maxMonths }),
         color: 'warning'
       })
-      return ''
+      return null
     }
 
     try {
@@ -902,9 +902,12 @@ export function useAllClassPage() {
         },
       })
       const invoiceNo = String(response?.data?.invoiceNo || checkoutState.checkoutInvoiceNo.value || '').trim()
+      const jobId = response?.data?.jobId
+        ? String(response.data.jobId)
+        : checkoutState.checkoutJobId.value
       if (invoiceNo) enrollmentInvoiceNo.value = invoiceNo
-      await productsState.refreshProducts()
-      return invoiceNo
+      void productsState.refreshProducts()
+      return { invoiceNo, jobId: jobId || null }
     } catch (err: unknown) {
       const e = err as { message?: string; data?: { message?: string } }
       toast.add({
@@ -912,7 +915,7 @@ export function useAllClassPage() {
         description: e?.data?.message || e?.message || 'Checkout failed',
         color: 'error'
       })
-      return ''
+      return null
     }
   }
 

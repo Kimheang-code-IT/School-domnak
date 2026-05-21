@@ -4,7 +4,8 @@ from app.schemas.common import CamelModel
 
 
 def format_student_code(student_id: int) -> str:
-    return f"DS{student_id:06d}"
+    """Public student ID shown in UI: 0000001, 0000002, …"""
+    return f"{student_id:07d}"
 
 
 class StudentBase(CamelModel):

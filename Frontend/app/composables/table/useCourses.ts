@@ -64,6 +64,7 @@ export function useCourses() {
       header: t('pages.courses.columns.courseName'),
       footer: t('pages.courses.footerCount', { count: coursesSummary.value.count })
     },
+    { accessorKey: 'courseNameKm', header: t('pages.courses.columns.courseNameKm') },
     { accessorKey: 'description', header: t('pages.courses.columns.description') },
     {
       accessorKey: 'totalClass',

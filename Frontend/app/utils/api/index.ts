@@ -336,6 +336,10 @@ export function usePosApi() {
       api.get<{ invoices: any[]; invoice?: any }>(
         `/invoices/by-no/${encodeURIComponent(invoiceNo)}/preview`,
       ),
+    getInvoicesPreview: (invoiceNos: string[]) =>
+      api.get<{ invoices: any[]; invoice?: any }>('/invoices/preview', {
+        query: { invoice: invoiceNos.join(',') },
+      }),
     getNextInvoiceNo: () =>
       api.get<{ invoiceNo: string }>('/invoices/next-number'),
     calculateTotals: (payload: {
@@ -345,6 +349,10 @@ export function usePosApi() {
       withLegacyFallback(
         () => api.post<{ subtotal: number; discountAmount: number; total: number }>('/pos/calculate-totals', payload),
         () => api.post<{ subtotal: number; discountAmount: number; total: number }>('/invoices/calculate-totals', payload)
+      ),
+    getCheckoutJobStatus: (jobId: string) =>
+      api.get<{ status: string; printReady: boolean; invoiceNo?: string; error?: string }>(
+        `/invoices/checkout-jobs/${encodeURIComponent(jobId)}`
       ),
     checkout: (payload: {
       studentId?: number
@@ -369,15 +377,29 @@ export function usePosApi() {
     }) =>
       withLegacyFallback(
         () =>
-          api.post<{ data: { invoiceNo: string; subtotal: number; discountAmount: number; total: number; invoice: any } }>(
-            '/invoices/checkout',
-            payload
-          ),
+          api.post<{
+            data: {
+              invoiceNo: string
+              subtotal: number
+              discountAmount: number
+              total: number
+              invoice: any
+              jobId?: string | null
+              printStatus?: string
+            }
+          }>('/invoices/checkout', payload),
         () =>
-          api.post<{ data: { invoiceNo: string; subtotal: number; discountAmount: number; total: number; invoice: any } }>(
-            '/pos/checkout',
-            payload
-          )
+          api.post<{
+            data: {
+              invoiceNo: string
+              subtotal: number
+              discountAmount: number
+              total: number
+              invoice: any
+              jobId?: string | null
+              printStatus?: string
+            }
+          }>('/pos/checkout', payload)
       )
   }
 }

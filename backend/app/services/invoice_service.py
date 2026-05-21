@@ -20,7 +20,7 @@ from app.schemas.invoice import (
 )
 from app.services.audit_service import write_audit_log
 from app.services.commission_service import record_commissions_for_invoice
-from app.services.telegram_activity_service import notify_registration_with_enrollments
+from app.utils.task_dispatch import dispatch_checkout_post_process
 from app.utils.enrollment_dates import (
     compute_end_date,
     parse_duration_months,
@@ -31,12 +31,18 @@ from app.utils.image_storage import persist_image
 
 
 def format_invoice_no(sequence: int) -> str:
-    return f"DNSS-{sequence:08d}"
+    return f"DNS-{sequence:07d}"
 
 
 def get_next_invoice_no(db: Session) -> str:
-    next_invoice_id = (db.scalar(select(Invoice.id).order_by(Invoice.id.desc())) or 0) + 1
-    return format_invoice_no(next_invoice_id)
+    """Allocate next invoice number with transaction-scoped lock (PostgreSQL)."""
+    from sqlalchemy import func, text
+
+    bind = db.get_bind()
+    if bind.dialect.name == "postgresql":
+        db.execute(text("SELECT pg_advisory_xact_lock(42424242)"))
+    latest_id = db.scalar(select(func.max(Invoice.id))) or 0
+    return format_invoice_no(latest_id + 1)
 
 
 def _to_read(invoice: Invoice) -> InvoiceRead:
@@ -210,7 +216,13 @@ def _ensure_checkout_enrollments(
     return created
 
 
-def create_invoice(db: Session, payload: InvoiceCreate, *, username: str = "system") -> InvoiceRead:
+def create_invoice(
+    db: Session,
+    payload: InvoiceCreate,
+    *,
+    username: str = "system",
+    commit: bool = True,
+) -> InvoiceRead:
     subtotal = sum((line.price * line.qty for line in payload.lines), Decimal("0"))
     total = subtotal - payload.discount_amount
     invoice = Invoice(
@@ -239,8 +251,10 @@ def create_invoice(db: Session, payload: InvoiceCreate, *, username: str = "syst
     db.flush()
     db.refresh(invoice)
     write_audit_log(db, action="Create", username=username, description=f"Created invoice {invoice.invoice_no}")
-    db.commit()
-    return get_invoice(db, invoice.id)  # type: ignore[return-value]
+    if commit:
+        db.commit()
+        return get_invoice(db, invoice.id)  # type: ignore[return-value]
+    return _to_read(invoice)
 
 
 def checkout_invoice(db: Session, payload: InvoiceCheckoutCreate, *, username: str = "system") -> InvoiceCheckoutResponse:
@@ -310,24 +324,29 @@ def checkout_invoice(db: Session, payload: InvoiceCheckoutCreate, *, username: s
 
     discount_percent = max(Decimal("0"), min(Decimal(payload.discount_percent or 0), Decimal("100")))
     discount_amount = subtotal * discount_percent / Decimal("100")
-    invoice = create_invoice(
-        db,
-        InvoiceCreate(
-            student_id=student.id,
-            student_name=payload.customer_name,
-            student_phone=payload.customer_phone,
-            address=(payload.customer_address or "").strip() or (payload.province or "").strip() or None,
-            seller=username,
-            source=payload.source,
-            discount_amount=discount_amount,
-            lines=invoice_lines,
-        ),
-        username=username,
-    )
-    persisted = db.scalar(
-        select(Invoice).options(selectinload(Invoice.lines)).where(Invoice.id == invoice.id)
-    )
-    if persisted is not None:
+
+    db.info["defer_cache_invalidation"] = True
+    try:
+        invoice_read = create_invoice(
+            db,
+            InvoiceCreate(
+                student_id=student.id,
+                student_name=payload.customer_name,
+                student_phone=payload.customer_phone,
+                address=(payload.customer_address or "").strip() or (payload.province or "").strip() or None,
+                seller=username,
+                source=payload.source,
+                discount_amount=discount_amount,
+                lines=invoice_lines,
+            ),
+            username=username,
+            commit=False,
+        )
+        persisted = db.scalar(
+            select(Invoice).options(selectinload(Invoice.lines)).where(Invoice.id == invoice_read.id)
+        )
+        if persisted is None:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Invoice was not saved.")
         record_commissions_for_invoice(
             db,
             persisted,
@@ -335,20 +354,28 @@ def checkout_invoice(db: Session, payload: InvoiceCheckoutCreate, *, username: s
             source=payload.source,
         )
         db.commit()
-        if student_is_new or new_enrollments:
-            for enrollment, _school_class in new_enrollments:
-                db.refresh(enrollment)
-            notify_registration_with_enrollments(
-                student,
-                new_enrollments,
-                is_new_student=student_is_new,
-                registered_by=username,
-                invoice=persisted,
-            )
+        invoice_read = _to_read(persisted)
+    finally:
+        db.info.pop("defer_cache_invalidation", None)
+
+    enrollment_ids = [enrollment.id for enrollment, _ in new_enrollments]
+    should_notify = bool(student_is_new or new_enrollments)
+    job_id = dispatch_checkout_post_process(
+        persisted.id,
+        student.id,
+        is_new_student=student_is_new,
+        registered_by=username,
+        notify=should_notify,
+        enrollment_ids=enrollment_ids,
+        invoice_no=persisted.invoice_no,
+    )
+
     return InvoiceCheckoutResponse(
-        invoice_no=invoice.invoice_no,
-        subtotal=invoice.subtotal,
-        discount_amount=invoice.discount_amount,
-        total=invoice.total,
-        invoice=invoice,
+        invoice_no=invoice_read.invoice_no,
+        subtotal=invoice_read.subtotal,
+        discount_amount=invoice_read.discount_amount,
+        total=invoice_read.total,
+        invoice=invoice_read,
+        job_id=job_id,
+        print_status="ready" if job_id is None else "pending",
     )

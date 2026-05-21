@@ -430,6 +430,7 @@
       "footerCount": "Count: {count}",
       "footerTotalClassSum": "Total sessions: {sum}",
       "emptyDescription": "—",
+      "emptyCourseNameKm": "—",
       "shift": {
         "morning": "Morning",
         "afternoon": "Afternoon",
@@ -557,6 +558,8 @@
         "confirmFinishDescription": "This will create the invoice and save the enrollment. You can print the invoice on the next screen.",
         "checkoutSuccessTitle": "Checkout completed",
         "checkoutSuccessDescription": "Your invoice was created successfully.",
+        "printingInvoice": "Printing...",
+        "printingInvoiceDescription": "Invoice saved. Preparing print in the background.",
         "printInvoice": "Print invoice",
         "done": "Done"
       },
@@ -718,6 +721,7 @@
         "date": "Date",
         "studentId": "Student ID",
         "product": "Product",
+        "className": "Class name",
         "studentPayment": "Student payment",
         "customer": "Customer",
         "phoneCustomer": "Phone Customer",
@@ -730,7 +734,7 @@
         "receiptNumber": "Receipt No.",
         "amount": "Amount"
       },
-      "searchPlaceholder": "Search invoice, student ID, name, phone, product…",
+      "searchPlaceholder": "Search …",
       "footer": {
         "invoiceCount": "Distinct invoices: {count}"
       }

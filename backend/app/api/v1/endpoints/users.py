@@ -12,6 +12,8 @@ from app.schemas.common import CommonResponse, TableQueryParams, TableResponse, 
 from app.schemas.user import UserCreate, UserRead, UserUpdate
 from app.services.audit_service import write_audit_log
 from app.services.auth_service import user_create_data, user_update_data
+from app.services.cache_invalidation import USERS
+from app.services.table_list_cache import cached_table_list
 
 router = APIRouter()
 repo = UserRepository()
@@ -47,8 +49,7 @@ def _to_read(user) -> UserRead:
 
 @router.get("", response_model=TableResponse[UserRead])
 def list_users(db: DbSession, query: TableParams, current_user: UserViewUser, role: str | None = Query(None)):
-    data, total = repo.list_users(db, query, role=role)
-    return {"data": data, "total": total}
+    return cached_table_list(USERS, query, lambda: repo.list_users(db, query, role=role), extra={"role": role})
 
 
 @router.post("", response_model=UserRead, status_code=status.HTTP_201_CREATED)

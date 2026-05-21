@@ -67,6 +67,8 @@ export function mapStudentEnrollmentRow(raw: Record<string, unknown>): StudentEn
       str(raw.birthdate) || str(raw.birthDate) || str(raw.dateOfBirth) || '',
     courseName:
       str(raw.courseName) || str(raw.course_name) || str(raw.course) || '—',
+    courseNameKm:
+      str(raw.courseNameKm) || str(raw.course_name_km) || '',
     className:
       str(raw.className) ||
       str(raw.class_name) ||
@@ -75,6 +77,10 @@ export function mapStudentEnrollmentRow(raw: Record<string, unknown>): StudentEn
       '—',
     level:
       str(raw.level) || str(raw.classLevel) || str(raw.courseLevel) || '',
+    levelKm:
+      str(raw.levelKm) || str(raw.level_km) || str(raw.levelNameKm) || str(raw.level_name_km) || '',
+    levelNameKm:
+      str(raw.levelNameKm) || str(raw.level_name_km) || str(raw.levelKm) || str(raw.level_km) || '',
     classDuration:
       str(raw.classDuration) ||
       str(raw.duration) ||

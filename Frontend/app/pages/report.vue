@@ -88,7 +88,7 @@ function mapRowToInvoicePayload(row: Record<string, unknown>): PosInvoicePayload
   return {
     invoiceNo: String(row?.invoiceNo || ''),
     date: String(row?.date || ''),
-    product: String(row?.product || ''),
+    product: String(row?.className || row?.product || ''),
     customer: String(row?.customer || ''),
     phoneCustomer: String(row?.phoneCustomer || ''),
     seller: String(row?.seller || ''),
@@ -100,24 +100,11 @@ function mapRowToInvoicePayload(row: Record<string, unknown>): PosInvoicePayload
 }
 
 async function createPreviewAndGo(invoices: PosInvoicePayload[], autoPrint?: boolean) {
-  const invoiceNo = String(invoices[0]?.invoiceNo || '').trim()
-  try {
-    const preview = await posApi.createPreviewSession(invoices)
-    if (preview?.previewKey) {
-      await router.push({
-        path: '/allclass',
-        query: {
-          previewKey: preview.previewKey,
-          ...(autoPrint ? { autoPrint: '1' } : {}),
-        },
-      })
-      return
-    }
-  } catch {
-    // Fall through to invoice-no route when preview session is unavailable.
-  }
+  const invoiceList = dedupeInvoicePayloads(invoices)
+    .map((row) => String(row.invoiceNo || '').trim())
+    .filter(Boolean)
 
-  if (!invoiceNo) {
+  if (!invoiceList.length) {
     toast.add({
       title: 'Preview failed',
       description: 'Missing invoice number for this row.',
@@ -129,7 +116,7 @@ async function createPreviewAndGo(invoices: PosInvoicePayload[], autoPrint?: boo
   await router.push({
     path: '/allclass',
     query: {
-      invoiceNo,
+      invoice: invoiceList.join(','),
       ...(autoPrint ? { autoPrint: '1' } : {}),
     },
   })
@@ -234,15 +221,6 @@ function goToSelectedInvoices() {
           </div>
         </template>
 
-        <template #studentId-cell="{ row }">
-          <span class="text-sm tabular-nums text-muted-foreground">
-            {{
-              row.original.studentId != null && row.original.studentId > 0
-                ? row.original.studentId
-                : '—'
-            }}
-          </span>
-        </template>
         <template #date-cell="{ row }">
           <span class="text-sm text-muted-foreground">{{ formatDate(row.original.date) }}</span>
         </template>
@@ -254,9 +232,9 @@ function goToSelectedInvoices() {
             {{ row.original.seller }}
           </UBadge>
         </template>
-        <template #product-cell="{ row }">
+        <template #className-cell="{ row }">
           <UBadge color="neutral" variant="soft" class="font-normal">
-            {{ row.original.product }}
+            {{ row.original.className || row.original.product || '—' }}
           </UBadge>
         </template>
         <template #source-cell="{ row }">

@@ -10,7 +10,9 @@ from app.repositories.report_repository import ReportRepository
 from app.schemas.common import TableQueryParams, TableResponse, table_query_params
 from app.schemas.report import ReportSalesLineRead
 from app.services.audit_service import write_audit_log
+from app.services.cache_invalidation import REPORTS
 from app.services.export_service import rows_for_export
+from app.services.table_list_cache import cached_table_list
 
 router = APIRouter()
 repo = ReportRepository()
@@ -51,10 +53,22 @@ def sales_lines(
     class_id: str | None = Query(None, alias="classId"),
     course_id: str | None = Query(None, alias="courseId"),
 ):
-    data, total = repo.list_sales_lines(
-        db,
+    return cached_table_list(
+        REPORTS,
         query,
-        **_report_list_kwargs(
+        lambda: repo.list_sales_lines(
+            db,
+            query,
+            **_report_list_kwargs(
+                product=product,
+                address=address,
+                seller=seller,
+                source=source,
+                class_id=class_id,
+                course_id=course_id,
+            ),
+        ),
+        extra=_report_list_kwargs(
             product=product,
             address=address,
             seller=seller,
@@ -63,7 +77,6 @@ def sales_lines(
             course_id=course_id,
         ),
     )
-    return {"data": data, "total": total}
 
 
 @router.get("/sales-lines/export")

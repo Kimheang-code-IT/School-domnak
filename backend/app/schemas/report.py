@@ -17,5 +17,6 @@ class ReportSalesLineRead(CamelModel):
     amount: Decimal
     date: datetime
     product: str | None = None
+    class_name: str | None = None
     customer: str | None = None
     receipt: str | None = None

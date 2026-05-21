@@ -51,8 +51,11 @@ class StudentEnrollmentRead(CamelModel):
     status: str | None = None
     roster_active: bool | None = None
     course_name: str | None = None
+    course_name_km: str | None = None
     class_name: str | None = None
     level: str | None = None
+    level_km: str | None = None
+    level_name_km: str | None = None
     class_duration: str | None = None
     duration_months: Decimal | None = None
     start_date: date | None = None

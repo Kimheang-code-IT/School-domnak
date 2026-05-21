@@ -29,13 +29,15 @@ mkdir secrets, uploads -Force
 .\scripts\deploy-docker.ps1
 ```
 
-Or:
+Or (set scale to match `BACKEND_REPLICAS` / `CELERY_WORKER_REPLICAS` in `.env`):
 
 ```powershell
-docker compose up -d --build
+docker compose up -d --build --scale backend=2 --scale celery_worker=2
 ```
 
-(`deploy-docker.ps1` runs preflight, then Compose builds the Nuxt static site into a Docker volume for Nginx.)
+(`deploy-docker.ps1` runs preflight, builds the frontend into a Docker volume, and scales API workers from `.env`.)
+
+All Docker commands: **[docs/DOCKER-COMMANDS.md](docs/DOCKER-COMMANDS.md)** — or run `.\scripts\docker-commands.ps1` for a quick list.
 
 ### 4. Open the app
 
@@ -43,19 +45,30 @@ docker compose up -d --build
 |-------|-----|
 | This PC | http://localhost:18080 |
 | Wi‑Fi / LAN | http://\<your-PC-IP\>:18080 |
-| API (Swagger) | http://localhost:18080/docs |
+| Health | http://localhost:18080/health |
 
-For LAN access and firewall help:
+For LAN / Wi-Fi (other computers on same network):
 
 ```powershell
+.\scripts\show-lan-urls.ps1
 .\scripts\open-wifi-access.ps1
 ```
 
-If the browser blocks API calls from another device, add your LAN URL to `BACKEND_CORS_ORIGINS` in `.env`, then:
+CORS accepts **any private LAN IP** when `BACKEND_CORS_ALLOW_LAN=true` (default) — no manual IP list when you move to another PC.
+
+---
+
+## Clone on another computer
 
 ```powershell
-docker compose restart backend
+git clone https://github.com/Kimheang-code-IT/School-domnak.git
+cd School-domnak
+copy .env.example .env
+# Edit .env (secrets only - see docs/GITHUB-PUSH.md)
+.\scripts\deploy-docker.ps1
 ```
+
+Full steps: **[docs/GITHUB-PUSH.md](docs/GITHUB-PUSH.md)** and **[docs/DEPLOY-ANY-PC.md](docs/DEPLOY-ANY-PC.md)**.
 
 ---
 
@@ -114,19 +127,22 @@ Auth uses **JWT** (stateless), and uploads live on a **shared volume**, so repli
 
 ---
 
-## Common commands
+## Docker commands (quick reference)
 
-```powershell
-docker compose ps
-docker compose logs -f backend
-docker compose exec backend python scripts/seed_data.py
-docker compose exec backend python scripts/reset_database.py
-# Or interactive: .\scripts\reset-database.ps1
-docker compose down
-docker compose up -d --build
-```
+| Task | Command |
+|------|---------|
+| Deploy / start | `.\scripts\deploy-docker.ps1` |
+| Stop | `docker compose down` |
+| Status | `docker compose ps` |
+| Logs | `docker compose logs -f backend` |
+| Reset DB (admin only) | `docker compose exec backend python scripts/reset_database.py` |
+| Seed admin | `docker compose exec backend python scripts/seed_data.py` |
+| Google Sheets backup | `docker compose exec backend python scripts/run_google_sheets_backup.py` |
+| Rebuild & restart | `docker compose up -d --build --scale backend=2 --scale celery_worker=2` |
 
-First login after seed (default): `admin@gmail.com` / `admin12!@$`
+First login: `admin@gmail.com` / `admin12!@$`
+
+Full list: [docs/DOCKER-COMMANDS.md](docs/DOCKER-COMMANDS.md)
 
 ---
 
@@ -139,9 +155,13 @@ nginx/conf.d/     Nginx config
 docker-compose.yml
 scripts/
   deploy-docker.ps1
+  reset-database.ps1
+  docker-commands.ps1
   preflight-docker.ps1
   open-wifi-access.ps1
   SETUP-CHECKLIST.md
+docs/
+  DOCKER-COMMANDS.md
 ```
 
 ---
@@ -195,4 +215,21 @@ docker compose exec backend python scripts/run_google_sheets_backup.py
 
 Requires `GOOGLE_SHEETS_BACKUP_ENABLED=true`, service account JSON in `secrets/`, and spreadsheet shared with the service account email.
 
-Push to GitHub safely: `docs/GITHUB-PUSH.md`.
+Before push: `.\scripts\pre-push-check.ps1` — then [docs/GITHUB-PUSH.md](docs/GITHUB-PUSH.md).
+
+---
+
+## Redis cache (faster lists & dashboard)
+
+List pages, filters, search, dashboard summary, and `/auth/me` use **Redis cache-aside** (see [docs/REDIS-CACHE.md](docs/REDIS-CACHE.md)).
+
+Enable in `.env`: `REDIS_CACHE_ENABLED=true`, `REDIS_CACHE_URL=redis://redis:6379/2`.
+
+---
+
+## Security & operations
+
+- Production checklist: [docs/SECURITY.md](docs/SECURITY.md)
+- Docker commands: [docs/DOCKER-COMMANDS.md](docs/DOCKER-COMMANDS.md)
+- Local checks before deploy: `.\scripts\preflight-docker.ps1` (no GitHub Actions CI/CD in this repo)
+- Deploy on another PC / dynamic Wi-Fi IP: [docs/DEPLOY-ANY-PC.md](docs/DEPLOY-ANY-PC.md)

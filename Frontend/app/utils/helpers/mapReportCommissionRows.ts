@@ -48,7 +48,16 @@ export function mapReportViewRow(raw: Record<string, unknown>): ReportRow {
     invoiceNo: invoiceNo || '—',
     date: str(raw.date),
     studentId,
-    product: str(raw.product) || str(raw.productName),
+    product:
+      str(raw.className) ||
+      str(raw.class_name) ||
+      str(raw.product) ||
+      str(raw.productName),
+    className:
+      str(raw.className) ||
+      str(raw.class_name) ||
+      str(raw.product) ||
+      str(raw.productName),
     customer: displayName,
     phoneCustomer,
     studentName: displayName,

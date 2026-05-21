@@ -88,13 +88,17 @@ def has_permission(user: User, page: str, action: str) -> bool:
 
 
 def _log_permission_denied(db: Session, user: User, page: str, action: str) -> None:
-    write_audit_log(
-        db,
-        action="Denied",
-        username=user.name,
-        description=f"{user.name} tried to {action} on {page} but permission denied",
-    )
-    db.commit()
+    db.info["skip_cache_invalidation"] = True
+    try:
+        write_audit_log(
+            db,
+            action="Denied",
+            username=user.name,
+            description=f"{user.name} tried to {action} on {page} but permission denied",
+        )
+        db.commit()
+    finally:
+        db.info.pop("skip_cache_invalidation", None)
 
 
 def require_permission(page: str, action: str) -> Callable[..., User]:

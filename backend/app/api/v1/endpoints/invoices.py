@@ -1,12 +1,13 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.security import require_permission
 from app.models.user import User
 from app.schemas.invoice import (
+    CheckoutJobStatusRead,
     InvoiceCheckoutCreate,
     InvoiceCheckoutResponse,
     InvoiceCreate,
@@ -16,9 +17,14 @@ from app.schemas.invoice import (
     InvoicePreviewSessionRead,
     InvoiceRead,
 )
-from app.services.invoice_preview_service import enrich_preview_payloads, get_invoice_preview_by_no
+from app.services.invoice_preview_service import (
+    enrich_preview_payloads,
+    get_invoice_preview_by_no,
+    get_invoice_previews_by_nos,
+)
 from app.services.invoice_preview_store import create_preview_session, get_preview_session
 from app.services.invoice_service import checkout_invoice, create_invoice, get_invoice, get_next_invoice_no
+from app.utils.task_dispatch import get_checkout_job_status
 
 router = APIRouter()
 DbSession = Annotated[Session, Depends(get_db)]
@@ -54,6 +60,24 @@ def read_invoice_preview_session(
     return InvoicePreviewBundleRead(invoices=invoices, invoice=invoices[0] if len(invoices) == 1 else None)
 
 
+@router.get("/preview", response_model=InvoicePreviewBundleRead)
+def read_invoices_preview_batch(
+    invoice: str,
+    db: DbSession,
+    current_user: InvoicePreviewUser,
+):
+    invoice_nos = [part.strip() for part in invoice.split(",") if part.strip()]
+    if not invoice_nos:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invoice query is required")
+    previews = get_invoice_previews_by_nos(db, invoice_nos)
+    if not previews:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No invoices found")
+    return InvoicePreviewBundleRead(
+        invoices=previews,
+        invoice=previews[0] if len(previews) == 1 else None,
+    )
+
+
 @router.get("/by-no/{invoice_no}/preview", response_model=InvoicePreviewBundleRead)
 def read_invoice_preview_by_no(
     invoice_no: str,
@@ -64,6 +88,17 @@ def read_invoice_preview_by_no(
     if not preview:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
     return InvoicePreviewBundleRead(invoices=[preview], invoice=preview)
+
+
+@router.get("/checkout-jobs/{job_id}", response_model=CheckoutJobStatusRead)
+def read_checkout_job_status(job_id: str, current_user: InvoiceCreateUser):
+    payload = get_checkout_job_status(job_id)
+    return CheckoutJobStatusRead(
+        status=payload["status"],
+        print_ready=payload["print_ready"],
+        invoice_no=payload.get("invoice_no"),
+        error=payload.get("error"),
+    )
 
 
 @router.get("/{invoice_id}", response_model=InvoiceRead)

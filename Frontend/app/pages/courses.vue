@@ -163,6 +163,16 @@ function getInitial(name: string) {
             </div>
           </template>
 
+          <template #courseNameKm-cell="{ row }">
+            <span
+              class="text-foreground truncate max-w-[200px] block"
+              :class="row.original.courseNameKm ? 'font-[family-name:var(--font-khmer-sans)]' : 'text-muted-foreground/40 italic text-sm'"
+              :title="row.original.courseNameKm || undefined"
+            >
+              {{ row.original.courseNameKm || t('pages.courses.emptyCourseNameKm') }}
+            </span>
+          </template>
+
           <template #description-cell="{ row }">
             <span
               :class="

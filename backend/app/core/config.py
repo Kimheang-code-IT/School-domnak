@@ -17,16 +17,32 @@ class Settings(BaseSettings):
     )
     secret_key: str = Field(default="change-me-in-production", validation_alias="SECRET_KEY")
     algorithm: str = "HS256"
-    access_token_expire_minutes: int = 60 * 24
+    access_token_expire_minutes: int = Field(default=60, validation_alias="ACCESS_TOKEN_EXPIRE_MINUTES")
+    expose_openapi: bool = Field(default=True, validation_alias="EXPOSE_OPENAPI")
+    auto_create_tables: bool = Field(default=True, validation_alias="AUTO_CREATE_TABLES")
+    login_rate_limit_enabled: bool = Field(default=True, validation_alias="LOGIN_RATE_LIMIT_ENABLED")
+    login_rate_limit_max_attempts: int = Field(default=15, validation_alias="LOGIN_RATE_LIMIT_MAX_ATTEMPTS")
+    login_rate_limit_window_seconds: int = Field(default=900, validation_alias="LOGIN_RATE_LIMIT_WINDOW_SECONDS")
     refresh_token_expire_days: int = 30
-    # Comma-separated in .env (list[str] breaks Docker env parsing)
+    # Comma-separated extra origins (optional). LAN IPs are handled by regex when cors_allow_lan=true.
     backend_cors_origins: str = Field(
-        default="http://localhost:3000,http://127.0.0.1:3000",
+        default="",
         validation_alias="BACKEND_CORS_ORIGINS",
     )
+    cors_allow_lan: bool = Field(default=True, validation_alias="BACKEND_CORS_ALLOW_LAN")
+    app_public_port: int = Field(default=18080, validation_alias="APP_PUBLIC_PORT")
     upload_dir: Path = Field(default=Path("uploads"), validation_alias="UPLOAD_DIR")
 
     redis_url: str = Field(default="redis://localhost:6379/0", validation_alias="REDIS_URL")
+    # API response cache (use Redis DB 2+ so Celery broker/result stay on 0/1)
+    redis_cache_enabled: bool = Field(default=True, validation_alias="REDIS_CACHE_ENABLED")
+    redis_cache_url: str = Field(
+        default="redis://localhost:6379/2",
+        validation_alias="REDIS_CACHE_URL",
+    )
+    redis_cache_ttl_list: int = Field(default=120, validation_alias="REDIS_CACHE_TTL_LIST")
+    redis_cache_ttl_dashboard: int = Field(default=60, validation_alias="REDIS_CACHE_TTL_DASHBOARD")
+    redis_cache_ttl_auth_me: int = Field(default=300, validation_alias="REDIS_CACHE_TTL_AUTH_ME")
     celery_broker_url: str = Field(
         default="redis://localhost:6379/0",
         validation_alias="CELERY_BROKER_URL",
@@ -116,10 +132,26 @@ class Settings(BaseSettings):
     def is_production(self) -> bool:
         return self.app_env.lower() in {"production", "prod"}
 
+    @property
+    def should_expose_openapi(self) -> bool:
+        if self.is_production and not self.expose_openapi:
+            return False
+        return self.expose_openapi and (self.app_debug or not self.is_production)
+
+    @property
+    def should_auto_create_tables(self) -> bool:
+        if self.is_production:
+            return self.auto_create_tables and self.app_debug
+        return self.auto_create_tables
+
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    s = Settings()
+    from app.core.startup_validation import validate_settings
+
+    validate_settings(s)
+    return s
 
 
 settings = get_settings()

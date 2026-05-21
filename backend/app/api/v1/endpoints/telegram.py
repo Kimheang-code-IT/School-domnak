@@ -1,18 +1,28 @@
 import logging
 
-from fastapi import APIRouter, Header, HTTPException, Request, status
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 
 from app.core.config import settings
+from app.core.security import require_permission
+from app.models.user import User
 from app.services.telegram_bot_service import process_telegram_update, set_webhook
 from app.services.telegram_queue import enqueue_update, get_queue_status
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+TelegramAdminUser = Annotated[User, Depends(require_permission("role-management", "update"))]
 
 
 def _verify_webhook_secret(secret_header: str | None) -> None:
     expected = settings.telegram_webhook_secret.strip()
+    if settings.is_production and not expected:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Telegram webhook secret is required in production",
+        )
     if not expected:
         return
     if secret_header != expected:
@@ -20,7 +30,7 @@ def _verify_webhook_secret(secret_header: str | None) -> None:
 
 
 @router.get("/status")
-def telegram_queue_status() -> dict:
+def telegram_queue_status(_current_user: TelegramAdminUser) -> dict:
     """
     Frontend polls this while Telegram is busy (queued getUpdates / processing).
     """
@@ -48,7 +58,7 @@ async def telegram_webhook(
 
 
 @router.post("/set-webhook")
-async def register_webhook(public_url: str) -> dict[str, str]:
+async def register_webhook(public_url: str, _current_user: TelegramAdminUser) -> dict[str, str]:
     """
     Register webhook URL (admin utility).
     Example public_url: https://your-domain.com/api/v1/telegram/webhook

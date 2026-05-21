@@ -1,9 +1,15 @@
 # School-domnak — Docker setup checklist
 
+Full command reference: **[docs/DOCKER-COMMANDS.md](../docs/DOCKER-COMMANDS.md)**
+
+Quick list in terminal: `.\scripts\docker-commands.ps1`
+
+---
+
 ## One-time
 
 1. Install **Docker Desktop** and keep it running.
-2. Copy env file: `cp .env.example .env` (edit secrets; never commit `.env`).
+2. Copy env: `copy .env.example .env` (edit secrets; never commit `.env`).
 3. Create folders: `secrets`, `uploads` (optional: `secrets\service-account-key.json` for Google Sheets).
 
 ## Run the app
@@ -13,10 +19,10 @@ cd "D:\project\School Domnak"
 .\scripts\deploy-docker.ps1
 ```
 
-Or manually:
+Or manually (match scale to your `.env`):
 
 ```powershell
-docker compose up -d --build
+docker compose up -d --build --scale backend=2 --scale celery_worker=2
 ```
 
 ## URLs
@@ -24,41 +30,45 @@ docker compose up -d --build
 | Where | URL |
 |-------|-----|
 | This PC | http://localhost:18080 |
-| Wi‑Fi / LAN | http://\<your-PC-IP\>:18080 — run `.\scripts\open-wifi-access.ps1` |
+| Wi‑Fi / LAN | http://\<your-PC-IP\>:18080 — `.\scripts\open-wifi-access.ps1` |
 | API docs | http://localhost:18080/docs |
 
-## Load balancing
-
-In `.env`: `BACKEND_REPLICAS=2`, `CELERY_WORKER_REPLICAS=2` (see `.env.example`).  
-`deploy-docker.ps1` scales API + Celery workers; Nginx balances traffic across backends.
-
-## Google Sheets backup
-
-- Verify all tables/columns: `.\scripts\verify-google-sheets-backup.ps1`
-- Run backup: `docker compose exec backend python scripts/run_google_sheets_backup.py`
-- Telegram alerts: set `TELEGRAM_CHAT_ID` in `.env` (e.g. `8551167485`)
-
-## Reset database (admin only)
-
-Removes **all** students, classes, invoices, enrollments, audit logs, etc. Keeps only **Admin** role and **admin@gmail.com** (`admin12!@$`).
-
-```powershell
-.\scripts\reset-database.ps1
-```
-
-Or without prompt:
-
-```powershell
-docker compose exec backend python scripts/reset_database.py
-```
-
-## Useful commands
+## Docker — daily commands
 
 ```powershell
 docker compose ps
 docker compose logs -f backend
-docker compose exec backend python scripts/seed_data.py
 docker compose down
+docker compose up -d --build --scale backend=2 --scale celery_worker=2
+```
+
+## Load balancing
+
+In `.env`: `BACKEND_REPLICAS=2`, `CELERY_WORKER_REPLICAS=2`.  
+`deploy-docker.ps1` applies scale automatically; Nginx load-balances `/api/`.
+
+## Database (Docker)
+
+| Action | Command |
+|--------|---------|
+| Reset everything → admin only | `docker compose exec backend python scripts/reset_database.py` |
+| Reset with prompt | `.\scripts\reset-database.ps1` |
+| Seed / fix admin | `docker compose exec backend python scripts/seed_data.py` |
+
+Login: `admin@gmail.com` / `admin12!@$`
+
+## Google Sheets backup (Docker)
+
+```powershell
+.\scripts\verify-google-sheets-backup.ps1
+docker compose exec backend python scripts/run_google_sheets_backup.py
+```
+
+## Restart after `.env` change
+
+```powershell
+docker compose restart backend
+docker compose up -d --force-recreate telegram_bot
 ```
 
 ## Troubleshooting
@@ -66,7 +76,7 @@ docker compose down
 | Problem | Fix |
 |---------|-----|
 | Docker not running | Start Docker Desktop |
-| Missing `.env` | Copy from `.env.example` |
-| Empty app / 404 from Nginx | `docker compose up -d --build` (rebuilds frontend into the Nginx volume) |
-| Phone cannot open app | Run `open-wifi-access.ps1` as Administrator (firewall) |
-| API CORS on LAN | Add `http://<your-ip>:18080` to `BACKEND_CORS_ORIGINS` in `.env`, then `docker compose restart backend` |
+| Missing `.env` | `copy .env.example .env` |
+| Empty app / 404 | `docker compose up -d --build --scale backend=2 --scale celery_worker=2` |
+| Phone cannot connect | `.\scripts\open-wifi-access.ps1` (Admin) |
+| API CORS on LAN | Add `http://<your-ip>:18080` to `BACKEND_CORS_ORIGINS`, then `docker compose restart backend` |

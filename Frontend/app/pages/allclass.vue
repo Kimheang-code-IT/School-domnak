@@ -4,6 +4,7 @@ import type { Product } from '~/types'
 import { useAllClassPage } from '~/composables/table/useAllClassPage'
 import { usePosInvoicePreview } from '~/composables/classes/useInvoicePreview'
 import { useInvoicePrinter } from '~/composables/useInvoicePrinter'
+import { waitForCheckoutPrintReady } from '~/composables/classes/useCheckoutPrintJob'
 import {
     cartLinesFromBundle,
     previewHeaderFromBundle,
@@ -113,6 +114,8 @@ const {
 const { invoicePrintRef, printInvoice, printElement } = useInvoicePrinter()
 const isCheckoutSuccessOpen = ref(false)
 const completedInvoiceNo = ref('')
+const isPrintingInvoice = ref(false)
+const checkoutJobId = ref<string | null>(null)
 
 const reportPreviewCart = computed(() => currentPreviewLines.value)
 
@@ -346,16 +349,29 @@ async function onEnrollmentPaymentNext() {
     await goNextStep()
 }
 
+async function runBackgroundPrint(jobId: string | null) {
+    isPrintingInvoice.value = true
+    try {
+        await waitForCheckoutPrintReady(jobId)
+        await nextTick()
+        await printInvoice()
+    } finally {
+        isPrintingInvoice.value = false
+    }
+}
+
 async function onEnrollmentFinish() {
-    const invoiceNo = await finishEnrollmentCheckout()
-    if (!invoiceNo) return
-    completedInvoiceNo.value = invoiceNo
+    const result = await finishEnrollmentCheckout()
+    if (!result?.invoiceNo) return
+    completedInvoiceNo.value = result.invoiceNo
+    checkoutJobId.value = result.jobId
     isCheckoutSuccessOpen.value = true
+    void runBackgroundPrint(result.jobId)
 }
 
 async function onPrintCompletedInvoice() {
-    await nextTick()
-    await printInvoice()
+    if (isPrintingInvoice.value) return
+    await runBackgroundPrint(checkoutJobId.value)
     onInvoiceDone()
 }
 
@@ -640,16 +656,23 @@ async function printAllPreviewInvoices() {
         <CommonAppModalCURD
             v-model:open="isCheckoutSuccessOpen"
             :title="t('pages.school.cart.checkoutSuccessTitle')"
-            :description="t('pages.school.cart.checkoutSuccessDescription')"
-            :submit-label="t('pages.school.cart.printInvoice')"
+            :description="isPrintingInvoice ? t('pages.school.cart.printingInvoiceDescription') : t('pages.school.cart.checkoutSuccessDescription')"
+            :submit-label="isPrintingInvoice ? t('pages.school.cart.printingInvoice') : t('pages.school.cart.printInvoice')"
             :cancel-label="t('pages.school.cart.done')"
+            :loading="isPrintingInvoice"
             type="primary"
             @submit="onPrintCompletedInvoice"
             @cancel="onInvoiceDone"
         >
-            <div class="rounded-lg border border-default bg-muted/40 px-4 py-3">
-                <p class="text-xs font-semibold uppercase text-muted-foreground">Invoice No</p>
-                <p class="mt-1 text-xl font-black text-primary tabular-nums">{{ completedInvoiceNo || enrollmentInvoiceNo }}</p>
+            <div class="rounded-lg border border-default bg-muted/40 px-4 py-3 space-y-3">
+                <div>
+                    <p class="text-xs font-semibold uppercase text-muted-foreground">Invoice No</p>
+                    <p class="mt-1 text-xl font-black text-primary tabular-nums">{{ completedInvoiceNo || enrollmentInvoiceNo }}</p>
+                </div>
+                <p v-if="isPrintingInvoice" class="text-sm text-muted-foreground flex items-center gap-2">
+                    <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin shrink-0" />
+                    {{ t('pages.school.cart.printingInvoice') }}
+                </p>
             </div>
         </CommonAppModalCURD>
 

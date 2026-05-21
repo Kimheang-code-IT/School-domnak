@@ -13,7 +13,9 @@ from app.schemas.common import TableQueryParams, TableResponse, table_query_para
 from app.schemas.finance import FinanceRead, FinanceUpdate
 from app.services.audit_service import write_audit_log
 from app.services.export_service import rows_for_export
+from app.services.cache_invalidation import FINANCE
 from app.services.finance_service import recalculate_finance, sync_finance_for_all_classes
+from app.services.table_list_cache import cached_table_list
 from app.utils.filters import apply_date_filter, apply_search
 from app.utils.pagination import apply_pagination
 from app.utils.sorting import apply_sorting
@@ -84,10 +86,13 @@ def _maybe_sync_empty(db: Session) -> None:
 
 @router.get("", response_model=TableResponse[FinanceRead])
 def list_finance(db: DbSession, query: TableParams, current_user: FinanceViewUser):
-    _maybe_sync_empty(db)
-    statement, total = _build_finance_query(db, query)
-    rows = db.execute(apply_pagination(statement, query.page, query.limit)).all()
-    return {"data": [_to_read(row, class_name) for row, class_name in rows], "total": total}
+    def _load() -> tuple[list[FinanceRead], int]:
+        _maybe_sync_empty(db)
+        statement, total = _build_finance_query(db, query)
+        rows = db.execute(apply_pagination(statement, query.page, query.limit)).all()
+        return [_to_read(row, class_name) for row, class_name in rows], total
+
+    return cached_table_list(FINANCE, query, _load)
 
 
 @router.get("/export")

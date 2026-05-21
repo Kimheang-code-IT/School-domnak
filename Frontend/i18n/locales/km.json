@@ -430,6 +430,7 @@
       "footerCount": "ចំនួន: {count}",
       "footerTotalClassSum": "សរុបថ្នាក់៖ {sum}",
       "emptyDescription": "—",
+      "emptyCourseNameKm": "—",
       "shift": {
         "morning": "ពេលព្រឹក",
         "afternoon": "រសៀល",
@@ -557,6 +558,8 @@
         "confirmFinishDescription": "នេះនឹងបង្កើតវិក្កយបត្រ និងរក្សាទុកការចុះឈ្មោះ។ អ្នកអាចបោះពុម្ពវិក្កយបត្រនៅអេក្រង់បន្ទាប់។",
         "checkoutSuccessTitle": "ទូទាត់បានបញ្ចប់",
         "checkoutSuccessDescription": "វិក្កយបត្រត្រូវបានបង្កើតដោយជោគជ័យ។",
+        "printingInvoice": "កំពុងបោះពុម្ព...",
+        "printingInvoiceDescription": "វិក្កយបត្រត្រូវបានរក្សាទុក។ កំពុងរៀបចំបោះពុម្ពនៅផ្ទៃខាងក្រោយ។",
         "printInvoice": "បោះពុម្ពវិក្កយបត្រ",
         "done": "រួចរាល់"
       },
@@ -718,6 +721,7 @@
         "date": "កាលបរិច្ឆេទ",
         "studentId": "លេខសម្គាល់សិស្ស",
         "product": "ផលិតផល",
+        "className": "ឈ្មោះថ្នាក់",
         "studentPayment": "ប្រាក់ទូទាត់សិស្ស",
         "customer": "អតិថិជន",
         "phoneCustomer": "ទូរស័ព្ទអតិថិជន",

@@ -4,6 +4,7 @@ import { parseDate, type DateValue } from '@internationalized/date'
 import { onClickOutside } from '@vueuse/core'
 import { CAMBODIA_PROVINCE_NAMES, normalizeCambodiaProvince } from '~/utils/constants/cambodiaProvinces'
 import { normalizeKhmerText } from '~/utils/format/khmerText'
+import { formatStudentCode } from '~/utils/format/studentCode'
 import { normalizeCambodiaPhone } from '~/utils/format/phone'
 import { formatClassDuration } from '~/utils/format/duration'
 import { mapProductViewStudentRow } from '~/utils/helpers/mapProductViewStudentRow'
@@ -56,7 +57,7 @@ type StudentsApiList = { data?: Product[] }
 
 function studentDisplayId(p: Product): string {
   return String(
-    p.studentCode || p.studentId || p.displayId || `DS${String(p.id).padStart(6, '0')}`
+    p.studentCode || p.studentId || p.displayId || formatStudentCode(p.id)
   ).trim()
 }
 

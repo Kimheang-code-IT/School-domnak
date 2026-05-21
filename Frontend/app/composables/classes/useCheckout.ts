@@ -26,6 +26,8 @@ export function usePosCheckout() {
   const posApi = usePosApi()
   const isFinishing = ref(false)
   const checkoutInvoiceNo = ref('')
+  const checkoutJobId = ref<string | null>(null)
+  const checkoutPrintStatus = ref<'pending' | 'ready'>('ready')
   const lastInvoiceData = ref<any | null>(null)
 
   async function checkout(args: {
@@ -47,6 +49,9 @@ export function usePosCheckout() {
       })
       const response = await posApi.checkout(payload)
       checkoutInvoiceNo.value = String(response?.data?.invoiceNo || '')
+      checkoutJobId.value = response?.data?.jobId ? String(response.data.jobId) : null
+      checkoutPrintStatus.value =
+        response?.data?.printStatus === 'pending' || checkoutJobId.value ? 'pending' : 'ready'
       lastInvoiceData.value = response?.data?.invoice || null
       return response
     } catch (error: any) {
@@ -59,6 +64,8 @@ export function usePosCheckout() {
   return {
     isFinishing,
     checkoutInvoiceNo,
+    checkoutJobId,
+    checkoutPrintStatus,
     lastInvoiceData,
     checkout
   }

@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
-      - "15432:5432"
+      - "127.0.0.1:15432:5432"
     volumes:
       - school_postgres_data:/var/lib/postgresql/data
     networks:
@@ -25,7 +25,7 @@ services:
     container_name: school-redis
     restart: unless-stopped
     ports:
-      - "16379:6379"
+      - "127.0.0.1:16379:6379"
     networks:
       - school_network
     healthcheck:

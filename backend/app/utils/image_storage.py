@@ -24,6 +24,22 @@ _MIME_EXT = {
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
 
 
+def _validate_image_bytes(raw: bytes, mime: str) -> None:
+    normalized = mime.lower().split(";", 1)[0].strip()
+    if normalized in {"image/jpeg", "image/jpg"} and raw.startswith(b"\xff\xd8\xff"):
+        return
+    if normalized == "image/png" and raw.startswith(b"\x89PNG\r\n\x1a\n"):
+        return
+    if normalized == "image/gif" and (raw.startswith(b"GIF87a") or raw.startswith(b"GIF89a")):
+        return
+    if normalized == "image/webp" and len(raw) >= 12 and raw[:4] == b"RIFF" and raw[8:12] == b"WEBP":
+        return
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="Image content does not match a supported format (JPEG, PNG, GIF, WebP).",
+    )
+
+
 def _extension_for_mime(mime: str) -> str:
     normalized = mime.lower().split(";", 1)[0].strip()
     return _MIME_EXT.get(normalized, ".png")
@@ -66,6 +82,7 @@ def persist_image(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid image data.",
             ) from exc
+        _validate_image_bytes(raw, mime)
         if len(raw) > MAX_IMAGE_BYTES:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

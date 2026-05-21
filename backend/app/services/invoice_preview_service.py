@@ -129,18 +129,43 @@ def _build_preview_from_invoice(db: Session, invoice: Invoice) -> dict:
     }
 
 
+def get_invoice_previews_by_nos(db: Session, invoice_nos: list[str]) -> list[dict]:
+    previews: list[dict] = []
+    seen: set[str] = set()
+    for raw in invoice_nos:
+        invoice_no = str(raw or "").strip()
+        if not invoice_no or invoice_no in seen:
+            continue
+        seen.add(invoice_no)
+        preview = get_invoice_preview_by_no(db, invoice_no)
+        if preview:
+            previews.append(preview)
+    return previews
+
+
 def get_invoice_preview_by_no(db: Session, invoice_no: str) -> dict | None:
+    from app.services.invoice_print_cache import get_cached_invoice_print
+
+    normalized = invoice_no.strip()
+    cached = get_cached_invoice_print(normalized)
+    if cached:
+        return cached
+
     invoice = db.scalar(
         select(Invoice)
         .options(
             selectinload(Invoice.lines),
             selectinload(Invoice.student),
         )
-        .where(Invoice.invoice_no == invoice_no.strip())
+        .where(Invoice.invoice_no == normalized)
     )
     if not invoice:
         return None
-    return _build_preview_from_invoice(db, invoice)
+    preview = _build_preview_from_invoice(db, invoice)
+    from app.services.invoice_print_cache import warm_invoice_print_cache
+
+    warm_invoice_print_cache(db, invoice.id)
+    return preview
 
 
 def enrich_preview_payloads(db: Session, payloads: list[dict]) -> list[dict]:

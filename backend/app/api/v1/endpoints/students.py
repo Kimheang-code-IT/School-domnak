@@ -2,10 +2,11 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.database import get_db
 from app.core.security import require_permission
+from app.models.class_model import SchoolClass
 from app.models.enrollment import Enrollment
 from app.models.invoice import Invoice, InvoiceLine
 from app.models.user import User
@@ -14,6 +15,9 @@ from app.schemas.common import CommonResponse, TableQueryParams, TableResponse, 
 from app.schemas.enrollment import StudentEnrollmentRead
 from app.schemas.student import StudentCreate, StudentRead, StudentUpdate, format_student_code
 from app.services.audit_service import write_audit_log
+from app.services.cache_invalidation import STUDENTS, student_enrollments_resource
+from app.services.enrollment_service import class_course_labels, class_level_labels
+from app.services.table_list_cache import cached_table_list
 from app.utils.image_storage import persist_image
 from app.utils.task_dispatch import dispatch_new_student_alerts
 from app.utils.filters import split_filter, split_int_filter
@@ -51,15 +55,24 @@ def list_students(
     class_id: str | None = Query(None, alias="classId"),
     course_id: str | None = Query(None, alias="courseId"),
 ):
-    data, total = repo.list_students(
-        db,
+    return cached_table_list(
+        STUDENTS,
         query,
-        provinces=split_filter(province),
-        genders=split_filter(gender),
-        class_ids=split_int_filter(class_id),
-        course_ids=split_int_filter(course_id),
+        lambda: repo.list_students(
+            db,
+            query,
+            provinces=split_filter(province),
+            genders=split_filter(gender),
+            class_ids=split_int_filter(class_id),
+            course_ids=split_int_filter(course_id),
+        ),
+        extra={
+            "province": province,
+            "gender": gender,
+            "classId": class_id,
+            "courseId": course_id,
+        },
     )
-    return {"data": data, "total": total}
 
 
 @router.post("", response_model=StudentRead, status_code=status.HTTP_201_CREATED)
@@ -102,59 +115,78 @@ def delete_student(student_id: int, db: DbSession, current_user: StudentDeleteUs
     return CommonResponse(message="Student deleted")
 
 
-def _latest_invoice_for_enrollment(db: Session, *, student_id: int, class_id: int) -> Invoice | None:
-    return db.scalar(
-        select(Invoice)
+def _latest_invoices_by_class(
+    db: Session, *, student_id: int, class_ids: list[int]
+) -> dict[int, Invoice]:
+    if not class_ids:
+        return {}
+    rows = db.execute(
+        select(Invoice, InvoiceLine.class_id)
         .join(InvoiceLine, InvoiceLine.invoice_id == Invoice.id)
-        .where(Invoice.student_id == student_id, InvoiceLine.class_id == class_id)
-        .order_by(Invoice.created_at.desc())
-        .limit(1)
-    )
+        .where(Invoice.student_id == student_id, InvoiceLine.class_id.in_(class_ids))
+        .order_by(InvoiceLine.class_id, Invoice.created_at.desc())
+    ).all()
+    by_class: dict[int, Invoice] = {}
+    for invoice, class_id in rows:
+        if class_id is not None and class_id not in by_class:
+            by_class[class_id] = invoice
+    return by_class
 
 
 @router.get("/{student_id}/enrollments", response_model=TableResponse[StudentEnrollmentRead])
 def list_student_enrollments(student_id: int, db: DbSession, query: TableParams, current_user: StudentEnrollmentViewUser):
-    statement = (
-        select(Enrollment)
-        .where(Enrollment.student_id == student_id)
-        .order_by(Enrollment.register_date.desc(), Enrollment.id.desc())
-    )
-    total = db.scalar(select(func.count()).select_from(statement.subquery())) or 0
-    rows = db.scalars(statement.offset((query.page - 1) * query.limit).limit(query.limit)).all()
-    data = []
-    for enrollment in rows:
-        student = enrollment.student
-        school_class = enrollment.school_class
-        invoice = (
-            _latest_invoice_for_enrollment(db, student_id=student_id, class_id=enrollment.class_id)
-            if enrollment.class_id
-            else None
-        )
-        data.append(
-            StudentEnrollmentRead(
-                id=enrollment.id,
-                status=enrollment.status,
-                roster_active=enrollment.roster_active,
-                course_name=school_class.course.course_name if school_class and school_class.course else None,
-                class_name=school_class.name if school_class else None,
-                level=school_class.level if school_class else None,
-                class_duration=school_class.class_duration if school_class else None,
-                duration_months=enrollment.duration_months,
-                start_date=enrollment.start_date,
-                end_date=enrollment.end_date,
-                total_price=enrollment.total_price,
-                discount_price=enrollment.discount_price,
-                price_after_discount=enrollment.price_after_discount,
-                invoice_discount_amount=invoice.discount_amount if invoice else None,
-                invoice_grand_total=invoice.total if invoice else None,
-                register_date=enrollment.register_date,
-                name_km=student.name_km,
-                name_en=student.name_en,
-                birthdate=student.birthdate,
-                gender=student.gender,
+    def _load() -> tuple[list[StudentEnrollmentRead], int]:
+        statement = (
+            select(Enrollment)
+            .where(Enrollment.student_id == student_id)
+            .options(
+                joinedload(Enrollment.student),
+                joinedload(Enrollment.school_class).joinedload(SchoolClass.course),
+                joinedload(Enrollment.school_class).joinedload(SchoolClass.level_ref),
             )
+            .order_by(Enrollment.register_date.desc(), Enrollment.id.desc())
         )
-    return {"data": data, "total": total}
+        total = db.scalar(select(func.count()).select_from(statement.subquery())) or 0
+        rows = db.scalars(statement.offset((query.page - 1) * query.limit).limit(query.limit)).all()
+        class_ids = [e.class_id for e in rows if e.class_id]
+        invoices_by_class = _latest_invoices_by_class(db, student_id=student_id, class_ids=class_ids)
+        data = []
+        for enrollment in rows:
+            student = enrollment.student
+            school_class = enrollment.school_class
+            invoice = invoices_by_class.get(enrollment.class_id) if enrollment.class_id else None
+            level_en, level_km, level_name_km = class_level_labels(school_class)
+            course_name, course_name_km = class_course_labels(school_class)
+            data.append(
+                StudentEnrollmentRead(
+                    id=enrollment.id,
+                    status=enrollment.status,
+                    roster_active=enrollment.roster_active,
+                    course_name=course_name,
+                    course_name_km=course_name_km,
+                    class_name=school_class.name if school_class else None,
+                    level=level_en,
+                    level_km=level_km,
+                    level_name_km=level_name_km,
+                    class_duration=school_class.class_duration if school_class else None,
+                    duration_months=enrollment.duration_months,
+                    start_date=enrollment.start_date,
+                    end_date=enrollment.end_date,
+                    total_price=enrollment.total_price,
+                    discount_price=enrollment.discount_price,
+                    price_after_discount=enrollment.price_after_discount,
+                    invoice_discount_amount=invoice.discount_amount if invoice else None,
+                    invoice_grand_total=invoice.total if invoice else None,
+                    register_date=enrollment.register_date,
+                    name_km=student.name_km,
+                    name_en=student.name_en,
+                    birthdate=student.birthdate,
+                    gender=student.gender,
+                )
+            )
+        return data, total
+
+    return cached_table_list(student_enrollments_resource(student_id), query, _load)
 
 
 @router.delete("/{student_id}/enrollments/{enrollment_id}", response_model=CommonResponse)

@@ -6,6 +6,7 @@ import { formatClassDuration } from '~/utils/format/duration'
 import { resolveUploadUrl } from '~/utils/helpers/mediaUrl'
 import type { StudentEnrollmentRow } from '~/types'
 import { totalEnrollmentDiscountAmount } from '~/utils/helpers/mapStudentEnrollmentRow'
+import { formatStudentCode } from '~/utils/format/studentCode'
 import certificateImageUrl from '~/assets/images/certificate.png'
 
 const open = defineModel<boolean>('open', { default: false })
@@ -29,6 +30,10 @@ const props = defineProps<{
 
 const { t, te } = useI18n()
 const toast = useToast()
+
+const displayStudentCode = computed(() =>
+  formatStudentCode(props.studentId) || props.studentId?.trim() || '',
+)
 
 const certificatePreviewRow = ref<StudentEnrollmentRow | null>(null)
 const generatedCertificateUrl = ref('')
@@ -64,7 +69,7 @@ function filePartSlug(raw: string) {
 
 async function downloadCertificate() {
   const row = certificatePreviewRow.value
-  const sid = filePartSlug(props.studentId?.trim() || 'student')
+  const sid = filePartSlug(displayStudentCode.value || props.studentId?.trim() || 'student')
   const eid = row?.id != null ? filePartSlug(String(row.id)) : 'enrollment'
   const filename = `certificate-${sid}-${eid}.png`
   try {
@@ -201,7 +206,9 @@ function baseCertificateDetails(): CertificateData {
   const gender = genderLabels(firstText([row?.gender, props.studentGender]))
   const birthdate = cellDate(firstText([row?.birthdate, props.studentBirthdate]))
   const course = firstText([row?.courseName, '—'])
+  const courseKmStored = firstText([row?.courseNameKm, ''])
   const level = firstText([row?.level, row?.classLevel, row?.courseLevel, '—'])
+  const levelKmStored = firstText([row?.levelKm, row?.levelNameKm, ''])
   const duration = firstText([
     row?.classDuration,
     row?.duration,
@@ -218,9 +225,9 @@ function baseCertificateDetails(): CertificateData {
     birthdateEn: birthdate,
     birthdateKm: toKhmerDigits(birthdate),
     courseEn: course,
-    courseKm: toKhmerCertificateText(course),
+    courseKm: courseKmStored || toKhmerCertificateText(course),
     levelEn: level,
-    levelKm: toKhmerCertificateText(level),
+    levelKm: levelKmStored || toKhmerCertificateText(level),
     durationEn: duration,
     durationKm: toKhmerCertificateText(duration),
     issuedDate: cellDate(new Date().toISOString()),
@@ -249,8 +256,10 @@ function updateCertificateData(key: CertificateDataKey, value: string | number) 
   }
 
   if (key === 'birthdateEn') next.birthdateKm = toKhmerDigits(text)
-  if (key === 'courseEn') next.courseKm = toKhmerCertificateText(text)
-  if (key === 'levelEn') next.levelKm = toKhmerCertificateText(text)
+  if (key === 'courseEn' && !next.courseKm?.trim()) next.courseKm = toKhmerCertificateText(text)
+  if (key === 'levelEn' && !next.levelKm?.trim()) next.levelKm = toKhmerCertificateText(text)
+  if (key === 'levelKm') next.levelKm = text
+  if (key === 'courseKm') next.courseKm = text
   if (key === 'durationEn') next.durationKm = toKhmerCertificateText(text)
   if (key === 'genderEn') next.genderKm = genderLabels(text).km
 
@@ -662,7 +671,7 @@ const columns = computed(() => [
               {{ studentName?.trim() || $t('pages.allstudent.enrollmentModal.titleFallback') }}
             </h3>
             <p class="text-xs text-muted-foreground truncate">
-              {{ $t('pages.allstudent.enrollmentModal.subtitle', { id: studentId }) }}
+              {{ $t('pages.allstudent.enrollmentModal.subtitle', { id: displayStudentCode }) }}
             </p>
           </template>
         </div>

@@ -11,7 +11,9 @@ from app.models.user import User
 from app.schemas.audit_log import AuditLogRead
 from app.schemas.common import TableQueryParams, TableResponse, table_query_params
 from app.services.audit_service import write_audit_log
+from app.services.cache_invalidation import AUDIT_LOGS
 from app.services.export_service import rows_for_export
+from app.services.table_list_cache import cached_table_list
 from app.utils.filters import apply_date_filter, apply_search, split_filter
 from app.utils.pagination import apply_pagination
 from app.utils.sorting import apply_sorting
@@ -59,9 +61,12 @@ def _to_read(row: AuditLog) -> AuditLogRead:
 
 @router.get("", response_model=TableResponse[AuditLogRead])
 def list_audit_logs(db: DbSession, query: TableParams, current_user: HistoryViewUser, action: str | None = Query(None)):
-    statement, total = _build_audit_query(db, query, action)
-    rows = db.scalars(apply_pagination(statement, query.page, query.limit)).all()
-    return {"data": [_to_read(row) for row in rows], "total": total}
+    def _load() -> tuple[list[AuditLogRead], int]:
+        statement, total = _build_audit_query(db, query, action)
+        rows = db.scalars(apply_pagination(statement, query.page, query.limit)).all()
+        return [_to_read(row) for row in rows], total
+
+    return cached_table_list(AUDIT_LOGS, query, _load, extra={"action": action})
 
 
 @router.get("/export")
