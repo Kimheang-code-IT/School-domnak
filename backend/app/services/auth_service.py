@@ -88,16 +88,41 @@ def build_auth_user(user: User) -> AuthUserRead:
     )
 
 
-def user_create_data(payload: UserCreate) -> dict:
-    data = payload.model_dump(exclude={"password"})
+def resolve_role_id(db: Session, *, role_id: int | None = None, role_name: str | None = None) -> int | None:
+    if role_id is not None:
+        return role_id
+    name = (role_name or "").strip()
+    if not name:
+        return None
+    role = db.scalar(select(Role).where(Role.name == name))
+    return role.id if role else None
+
+
+def user_create_data(db: Session, payload: UserCreate) -> dict:
+    data = payload.model_dump(exclude={"password", "role"})
     data["password_hash"] = get_password_hash(payload.password)
+    resolved_role_id = resolve_role_id(db, role_id=payload.role_id, role_name=payload.role)
+    if resolved_role_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A valid role is required",
+        )
+    data["role_id"] = resolved_role_id
     return data
 
 
-def user_update_data(payload: UserUpdate) -> dict:
-    data = payload.model_dump(exclude_unset=True, exclude={"password"})
+def user_update_data(db: Session, payload: UserUpdate) -> dict:
+    data = payload.model_dump(exclude_unset=True, exclude={"password", "role"})
     if payload.password:
         data["password_hash"] = get_password_hash(payload.password)
+    if payload.role_id is not None or payload.role is not None:
+        resolved_role_id = resolve_role_id(db, role_id=payload.role_id, role_name=payload.role)
+        if resolved_role_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="A valid role is required",
+            )
+        data["role_id"] = resolved_role_id
     return data
 
 

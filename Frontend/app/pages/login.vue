@@ -10,6 +10,24 @@ const { t } = useI18n()
 const router = useRouter()
 const toast = useToast()
 const auth = useAuthStore()
+const route = useRoute()
+
+onMounted(() => {
+  const code = String(route.query.error || '')
+  if (code === 'no_role') {
+    toast.add({
+      title: t('pages.auth.loginFailedTitle'),
+      description: 'This account has no role assigned. Contact an administrator.',
+      color: 'error',
+    })
+  } else if (code === 'no_permissions') {
+    toast.add({
+      title: t('pages.auth.loginFailedTitle'),
+      description: 'Your role has no page permissions. Contact an administrator.',
+      color: 'error',
+    })
+  }
+})
 
 const REMEMBER_ENABLED_KEY = 'login_remember_enabled'
 const REMEMBER_EMAIL_KEY = 'login_remember_email'
@@ -70,8 +88,11 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
 
     await router.push('/')
   } catch (error) {
-    const message = error && typeof error === 'object' && 'data' in error
-      ? String((error as { data?: { detail?: string } }).data?.detail || t('pages.auth.loginFailedDesc'))
+    const data = error && typeof error === 'object' && 'data' in error
+      ? (error as { data?: { detail?: string } }).data
+      : undefined
+    const message = data?.detail
+      ? String(data.detail)
       : t('pages.auth.loginFailedDesc')
 
     toast.add({

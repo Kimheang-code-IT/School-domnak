@@ -15,12 +15,15 @@ class UserBase(CamelModel):
 
 class UserCreate(UserBase):
     password: str
+    # Frontend sends role name from the select; resolved to role_id in auth_service.
+    role: str | None = None
 
 
 class UserUpdate(CamelModel):
     name: str | None = None
     email: EmailStr | None = None
     role_id: int | None = None
+    role: str | None = None
     password: str | None = None
 
 

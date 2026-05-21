@@ -61,14 +61,36 @@ export function useSystemUserManagement() {
   const effectiveUsers = computed(() => resource.rows.value)
 
   // --- Filter States ---
-  const roleItems = ref<string[]>([])
+  const roleRecords = ref<Array<{ id: number; name: string }>>([])
+  const roleItems = computed(() =>
+    roleRecords.value.map((r) => r.name).filter(Boolean)
+  )
   const selectedRoles = ref<string[]>([]);
+
+  function toApiUserPayload(user: SystemUser) {
+    const roleId = roleRecords.value.find((r) => r.name === user.role)?.id
+    const payload: Record<string, unknown> = {
+      name: user.name,
+      email: user.email,
+      roleId,
+    }
+    if (user.password?.trim()) {
+      payload.password = user.password.trim()
+    }
+    return payload
+  }
+
   async function loadRoleItems() {
     try {
       const res = await systemRoleApi.list({ page: 1, limit: 200, sortBy: 'name', sortOrder: 'asc' })
-      roleItems.value = (res.data || []).map((r: any) => String(r?.name || '').trim()).filter(Boolean)
+      roleRecords.value = (res.data || [])
+        .map((r: { id?: number; name?: string }) => ({
+          id: Number(r?.id),
+          name: String(r?.name || '').trim(),
+        }))
+        .filter((r) => r.id > 0 && r.name)
     } catch {
-      roleItems.value = []
+      roleRecords.value = []
     }
   }
   onMounted(loadRoleItems)
@@ -137,7 +159,7 @@ export function useSystemUserManagement() {
       key: "role",
       label: t("pages.userManagement.columns.role"),
       type: "select",
-      items: roleItems.value,
+      items: roleItems.value as string[],
       icon: "i-lucide-shield-half",
       required: true,
     },
@@ -210,8 +232,18 @@ export function useSystemUserManagement() {
         color: "error",
       });
     } else if (confirmMode.value === "save" && pendingUser.value) {
+      const apiPayload = toApiUserPayload(pendingUser.value)
+      if (!apiPayload.roleId) {
+        toast.add({
+          title: t("pages.userManagement.columns.role"),
+          description: "Please select a valid role.",
+          color: "error",
+        });
+        isConfirmOpen.value = false;
+        return;
+      }
       if (pendingUser.value.id === 0 || !pendingUser.value.id) {
-        await mutation.run(() => systemUserApi.create(pendingUser.value!), 'users')
+        await mutation.run(() => systemUserApi.create(apiPayload as Partial<SystemUser>), 'users')
         await resource.refresh()
         toast.add({
           title: "Account Provisioned",
@@ -219,7 +251,7 @@ export function useSystemUserManagement() {
           color: "primary",
         });
       } else {
-        await mutation.run(() => systemUserApi.update(pendingUser.value!.id, pendingUser.value!), 'users')
+        await mutation.run(() => systemUserApi.update(pendingUser.value!.id, apiPayload as Partial<SystemUser>), 'users')
         await resource.refresh()
         toast.add({
           title: "Account Synchronized",

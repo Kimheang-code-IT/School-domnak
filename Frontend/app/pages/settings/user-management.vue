@@ -57,7 +57,7 @@ function onSubmitUser(data: Record<string, any>) {
                     <UBadge
                         :color="row.original.role === 'Admin' || row.original.role === 'SuperAdmin' ? 'primary' : row.original.role === 'Editor' ? 'secondary' : 'neutral'"
                         variant="soft">
-                        {{ row.original.role }}
+                        {{ row.original.role || '—' }}
                     </UBadge>
                 </template>
                 <template #email-cell="{ row }">

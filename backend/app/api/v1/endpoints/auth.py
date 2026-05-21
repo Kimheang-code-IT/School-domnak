@@ -35,6 +35,11 @@ def login(payload: LoginRequest, db: DbSession):
     user = authenticate_user(db, email=payload.email, password=payload.password)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
+    if not user.role_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This account has no role assigned. Ask an administrator to set a role in User Management.",
+        )
     refresh_token = create_refresh_token(db, user)
     access_token = build_login_token(user)
     db.commit()

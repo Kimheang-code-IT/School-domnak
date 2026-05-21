@@ -53,7 +53,7 @@ def list_users(db: DbSession, query: TableParams, current_user: UserViewUser, ro
 
 @router.post("", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 def create_user(payload: UserCreate, db: DbSession, current_user: UserCreateUser):
-    user = repo.create(db, user_create_data(payload))
+    user = repo.create(db, user_create_data(db, payload))
     write_audit_log(db, action="Create", username=current_user.name, description=f"{current_user.name} created user {user.name}")
     db.commit()
     return _to_read(user)
@@ -64,7 +64,7 @@ def update_user(user_id: int, payload: UserUpdate, db: DbSession, current_user: 
     user = repo.get(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    user = repo.update(db, user, user_update_data(payload))
+    user = repo.update(db, user, user_update_data(db, payload))
     write_audit_log(db, action="Update", username=current_user.name, description=f"{current_user.name} updated user {user.name}")
     db.commit()
     return _to_read(user)

@@ -1,5 +1,5 @@
 import { isUiOnlyMode } from '~/composables/useBackendMode'
-import { resolveRoutePermission } from '~/utils/auth/routes'
+import { resolveRoutePermission, routePermissionMap } from '~/utils/auth/routes'
 
 /** UI-only mode: ensure a fixed app session so menus and permissions resolve (admin:*). */
 const DEFAULT_SESSION = {
@@ -43,19 +43,29 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return navigateTo('/login')
   }
 
+  if (auth.isLoggedIn && !auth.pageAccess.length && to.path !== '/login') {
+    auth.clearAuth()
+    return navigateTo('/login?error=no_role')
+  }
+
   if (auth.isLoggedIn && to.path === '/login') {
-    return navigateTo('/')
+    const homeRule = resolveRoutePermission('/')
+    if (homeRule && auth.hasPermission(homeRule.permission)) {
+      return navigateTo('/')
+    }
+    const firstAllowed = routePermissionMap.find((entry) => auth.hasPermission(entry.permission))
+    return navigateTo(firstAllowed?.home || '/login?error=no_permissions')
   }
 
   if (auth.isLoggedIn && to.path !== '/login') {
     const routeRule = resolveRoutePermission(to.path)
     if (routeRule && !auth.hasPermission(routeRule.permission)) {
-      throw createError({
-        statusCode: 403,
-        statusMessage: 'Forbidden',
-        message: 'You do not have permission to access this page.',
-        fatal: true,
-      })
+      const firstAllowed = routePermissionMap.find((entry) => auth.hasPermission(entry.permission))
+      if (firstAllowed) {
+        return navigateTo(firstAllowed.home)
+      }
+      auth.clearAuth()
+      return navigateTo('/login?error=no_permissions')
     }
   }
 })
