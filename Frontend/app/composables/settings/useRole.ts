@@ -4,7 +4,11 @@ import { useBaseTable } from '~/composables/table/useBaseTable'
 import { useTableQuery } from '~/composables/table/useTableQuery'
 import type { SystemRole, FormField } from '~/types'
 import { PERMISSIONS } from '~/utils/auth/permissions'
-import { mergeRolePermissionOptions } from '~/utils/auth/permissionCatalog'
+import {
+    permissionsToPageAccessTokens,
+    rolePermissionOptions,
+    sanitizeRolePermissions,
+} from '~/utils/auth/permissionCatalog'
 import { useSystemRoleApi } from '~/utils/api'
 import type { ApiQueryParams } from '~/utils/api'
 import { useServerTableResource } from '~/composables/table/useServerTable'
@@ -12,10 +16,7 @@ import { useTableSearchDateQuery } from '~/composables/table/useTableSearchDateQ
 import { useMutation } from '~/composables/data/useMutation'
 
 function flattenPermissions(permissions?: Record<string, string[]>): string[] {
-    if (!permissions || typeof permissions !== 'object') return []
-    return Object.entries(permissions).flatMap(([page, actions]) =>
-        Array.isArray(actions) ? actions.map(action => `${page}:${action}`) : []
-    )
+    return permissionsToPageAccessTokens(permissions)
 }
 
 /** Built-in Admin role — hidden from Role Management UI. */
@@ -83,7 +84,8 @@ export function useSystemRoleManagement() {
             .filter(role => !isHiddenSystemRole(role.name))
             .map(role => ({
                 ...role,
-                pageAccess: Array.isArray(role.pageAccess) ? role.pageAccess : flattenPermissions(role.permissions)
+                permissions: sanitizeRolePermissions(role.permissions),
+                pageAccess: flattenPermissions(role.permissions),
             }))
     )
 
@@ -97,11 +99,7 @@ export function useSystemRoleManagement() {
         return [...new Set(names)].sort((a, b) => a.localeCompare(b))
     })
 
-    const permissionOptions = computed(() =>
-        mergeRolePermissionOptions(
-            effectiveRoles.value.map((r) => ({ permissions: r.permissions })),
-        ),
-    )
+    const permissionOptions = computed(() => rolePermissionOptions())
 
     function selectedRoleFilterLabels(): string[] {
         return selectedRoles.value
@@ -170,6 +168,7 @@ export function useSystemRoleManagement() {
             type: 'permission-tree',
             items: permissionOptions.value.pages,
             childItems: permissionOptions.value.actions,
+            catalog: permissionOptions.value.catalog,
             required: true
         }
     ])
@@ -207,11 +206,19 @@ export function useSystemRoleManagement() {
             const pageAccess = data.pageAccess
                 .map((s: any) => String(s).trim())
                 .filter(Boolean)
-                .map((s: string) => s.toLowerCase())
-            data.permissions = expandPermissions(pageAccess)
+            data.permissions = sanitizeRolePermissions(expandPermissions(pageAccess))
             delete data.pageAccess
         } else {
             data.permissions = {}
+        }
+
+        if (!Object.keys(data.permissions || {}).length) {
+            toast.add({
+                title: t('pages.roleManagement.columns.pageAccess'),
+                description: 'Select at least one permission from the catalog.',
+                color: 'error',
+            })
+            return
         }
 
         pendingRole.value = { ...data }

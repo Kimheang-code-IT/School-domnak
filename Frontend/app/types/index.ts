@@ -48,6 +48,8 @@ export interface FormField {
   commission?: boolean
   items?: any[]
   childItems?: any[]
+  /** Page -> allowed actions (permission-tree; must match ROLE_PERMISSION_CATALOG). */
+  catalog?: Record<string, readonly string[] | string[]>
   multiple?: boolean
   readonly?: boolean
   required?: boolean

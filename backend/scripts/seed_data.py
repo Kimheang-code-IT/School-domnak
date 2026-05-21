@@ -6,7 +6,8 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from app.core.database import Base, SessionLocal, engine
-from app.core.permissions import ADMIN_PERMISSIONS
+from app.core.permissions import ADMIN_PERMISSIONS, sanitize_role_permissions
+from sqlalchemy import select
 from app.core.security import get_password_hash
 from app.models.role import Role
 from app.models.user import User
@@ -27,6 +28,9 @@ def seed() -> None:
             db.flush()
         else:
             admin_role.permissions = ADMIN_PERMISSIONS
+
+        for role in db.scalars(select(Role)).all():
+            role.permissions = sanitize_role_permissions(role.permissions)
 
         admin = db.query(User).filter(User.email == ADMIN_EMAIL).one_or_none()
         if admin is None:

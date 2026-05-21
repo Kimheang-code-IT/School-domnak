@@ -646,6 +646,7 @@ function onSave() {
                     v-model="formData[field.key]"
                     :pages="(field.items || []) as string[]"
                     :actions="(field.childItems || []) as string[]"
+                    :catalog="field.catalog"
                 />
 
                 <!-- TEXTAREA TYPE -->

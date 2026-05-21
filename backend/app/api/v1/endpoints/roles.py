@@ -5,7 +5,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.permissions import ROLE_MANAGEMENT_RESERVED_NAMES
+from app.core.permissions import (
+    ROLE_MANAGEMENT_RESERVED_NAMES,
+    ROLE_PERMISSION_CATALOG,
+    catalog_actions_union,
+    catalog_pages,
+    sanitize_role_permissions,
+)
 from app.core.security import require_permission
 from app.models.role import Role
 from app.models.user import User
@@ -37,6 +43,28 @@ def _assert_role_deletable(role: Role) -> None:
     _assert_role_manageable(role)
 
 
+def _apply_permissions_payload(data: dict) -> dict:
+    if "permissions" not in data:
+        return data
+    sanitized = sanitize_role_permissions(data.get("permissions"))
+    if not sanitized:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="At least one permission from the system catalog is required",
+        )
+    data["permissions"] = sanitized
+    return data
+
+
+@router.get("/permission-catalog")
+def permission_catalog(_current_user: RoleViewUser):
+    return {
+        "catalog": ROLE_PERMISSION_CATALOG,
+        "pages": catalog_pages(),
+        "actions": catalog_actions_union(),
+    }
+
+
 @router.get("", response_model=TableResponse[RoleRead])
 def list_roles(db: DbSession, query: TableParams, current_user: RoleViewUser, role: str | None = Query(None)):
     statement = select(Role).where(Role.name.notin_(ROLE_MANAGEMENT_RESERVED_NAMES))
@@ -61,7 +89,8 @@ def create_role(payload: RoleCreate, db: DbSession, current_user: RoleCreateUser
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="This role name is reserved for the system",
         )
-    role = repo.create(db, payload.model_dump())
+    data = _apply_permissions_payload(payload.model_dump())
+    role = repo.create(db, data)
     write_audit_log(db, action="Create", username=current_user.name, description=f"{current_user.name} created role {role.name}")
     db.commit()
     return RoleRead.model_validate(role)
@@ -74,6 +103,8 @@ def update_role(role_id: int, payload: RoleUpdate, db: DbSession, current_user: 
         raise HTTPException(status_code=404, detail="Role not found")
     _assert_role_manageable(role)
     data = payload.model_dump(exclude_unset=True)
+    if "permissions" in data:
+        data = _apply_permissions_payload(data)
     if role.name in ROLE_MANAGEMENT_RESERVED_NAMES and data.get("name") and data["name"] != role.name:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

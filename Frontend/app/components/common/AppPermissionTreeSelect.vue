@@ -1,15 +1,32 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 const modelValue = defineModel<string[] | undefined>({ default: undefined })
 
 const props = withDefaults(defineProps<{
   pages: string[]
   actions: string[]
+  /** When set, each page only shows actions allowed in the catalog. */
+  catalog?: Record<string, readonly string[] | string[]>
 }>(), {
   pages: () => [],
-  actions: () => ['view', 'edit', 'update']
+  actions: () => ['view', 'edit', 'update'],
+  catalog: undefined,
 })
+
+const displayPages = computed(() => {
+  if (props.catalog && Object.keys(props.catalog).length) {
+    return Object.keys(props.catalog).sort((a, b) => a.localeCompare(b))
+  }
+  return props.pages
+})
+
+function actionsForPage(page: string): string[] {
+  if (props.catalog?.[page]) {
+    return [...props.catalog[page]]
+  }
+  return props.actions
+}
 
 const expandedPages = ref<string[]>([])
 
@@ -22,20 +39,21 @@ function hasAction(page: string, action: string) {
 }
 
 function hasAnyAction(page: string) {
-  return props.actions.some((action) => hasAction(page, action))
+  return actionsForPage(page).some((action) => hasAction(page, action))
 }
 
 function togglePage(page: string) {
   const selected = new Set(modelValue.value || [])
   if (hasAnyAction(page)) {
-    props.actions.forEach((action) => selected.delete(getKey(page, action)))
+    actionsForPage(page).forEach((action) => selected.delete(getKey(page, action)))
     modelValue.value = [...selected]
     expandedPages.value = expandedPages.value.filter((p) => p !== page)
     return
   }
 
   // Default first action when page is selected.
-  selected.add(getKey(page, props.actions[0] || 'view'))
+  const defaults = actionsForPage(page)
+  selected.add(getKey(page, defaults[0] || 'view'))
   modelValue.value = [...selected]
   if (!expandedPages.value.includes(page)) {
     expandedPages.value.push(page)
@@ -72,7 +90,7 @@ function prettyName(value: string) {
 <template>
   <div class="space-y-2 rounded-lg border border-default p-2">
     <div
-      v-for="page in pages"
+      v-for="page in displayPages"
       :key="page"
       class="rounded-md border border-default"
     >
@@ -94,7 +112,7 @@ function prettyName(value: string) {
       <div v-if="expandedPages.includes(page) || hasAnyAction(page)" class="px-2 pb-2">
         <div class="grid grid-cols-1 gap-1 pl-6">
           <label
-            v-for="action in actions"
+            v-for="action in actionsForPage(page)"
             :key="`${page}:${action}`"
             class="flex items-center gap-2 cursor-pointer rounded px-2 py-1"
             :class="hasAction(page, action) ? 'bg-primary/10' : 'hover:bg-muted/60'"
