@@ -1,4 +1,5 @@
-# Optional: build static frontend for Nginx (output -> Frontend/dist)
+# Build static Nuxt for Nginx. Compose copies .output/public into the frontend_dist volume.
+# Optional host export: docker build -f Frontend/Dockerfile --output type=local,dest=Frontend/dist Frontend
 FROM node:22-alpine AS build
 
 WORKDIR /app

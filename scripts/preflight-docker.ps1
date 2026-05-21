@@ -15,15 +15,16 @@ function Test-Check($name, $ok, $hint) {
 
 Test-Check "Docker running" { (docker info 2>$null) -ne $null } "Start Docker Desktop"
 Test-Check "Root .env" { Test-Path ".env" } "Copy .env.example to .env"
-Test-Check "Frontend/dist/index.html" { Test-Path "Frontend\dist\index.html" } "Run: cd Frontend; pnpm run generate; copy .output\public to dist"
+Test-Check "Frontend Dockerfile" { Test-Path "Frontend\Dockerfile" } ""
+Test-Check "docker-compose.yml" { Test-Path "docker-compose.yml" } ""
 Test-Check "nginx config" { Test-Path "nginx\conf.d\app.conf" } ""
 Test-Check "secrets JSON (optional)" { Test-Path "secrets\service-account-key.json" } "Copy Google key to secrets\service-account-key.json"
 
 try {
     docker compose config --quiet 2>$null | Out-Null
-    Test-Check "docker-compose.yml" $true ""
+    Test-Check "Compose config valid" $true ""
 } catch {
-    Test-Check "docker-compose.yml" $false $_.Exception.Message
+    Test-Check "Compose config valid" $false $_.Exception.Message
 }
 
 $failed = @($checks | Where-Object { -not $_.Ok })

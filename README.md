@@ -4,211 +4,104 @@ School management system with a **Nuxt** frontend, **FastAPI** backend, **Postgr
 
 **Repository:** https://github.com/Kimheang-code-IT/School-domnak.git
 
----
-
-## Target auto-deploy flow
-
-```mermaid
-flowchart LR
-    A[Push code] --> B[GitHub Actions CI]
-    B --> C[Build images]
-    C --> D[Push to GHCR]
-    D --> E[Self-hosted runner]
-    E --> F[kubectl apply]
-    F --> G[kubectl rollout restart]
-    G --> H[Nginx LoadBalancer]
-    H --> I[App updated]
-```
-
-1. Push to `main`
-2. **SchoolDomnak CI** (GitHub-hosted) — validate, build, no push
-3. **SchoolDomnak GHCR Publish** (GitHub-hosted) — push to `ghcr.io/kimheang-code-it/*`
-4. **SchoolDomnak K8s Local Deploy** (self-hosted on your PC) — `kubectl apply` + rollout restart
-5. App available via **school-nginx** LoadBalancer
+Deployment is **Docker Compose only** (local build). There is no Kubernetes or GitHub Actions CI/CD in this repo.
 
 ---
 
-## Workflows
+## Quick start
 
-| File | Runner | Trigger |
-|------|--------|---------|
-| `.github/workflows/ci.yml` | `ubuntu-latest` | Push/PR `main` |
-| `.github/workflows/ghcr-publish.yml` | `ubuntu-latest` | Push `main`, manual |
-| `.github/workflows/k8s-local-deploy.yml` | `self-hosted` | After GHCR publish OK, manual |
+### 1. Prerequisites
 
-**GHCR images** (tags: `latest` + commit SHA):
+- **Docker Desktop** (running)
+- Project folder, e.g. `D:\project\School Domnak`
 
-- `ghcr.io/kimheang-code-it/schooldomnak-backend`
-- `ghcr.io/kimheang-code-it/schooldomnak-frontend`
-- `ghcr.io/kimheang-code-it/schooldomnak-celery-worker`
-- `ghcr.io/kimheang-code-it/schooldomnak-celery-beat`
-- `ghcr.io/kimheang-code-it/schooldomnak-telegram-bot`
+### 2. Environment
 
-Uses **`GITHUB_TOKEN`** only — no Docker Hub.
-
-**Exposure:** only `school-nginx` is `LoadBalancer`. All other services are `ClusterIP` or have no Service.
-
----
-
-## One-time setup
-
-### 1. Docker Desktop + Kubernetes
-
-1. Open **Docker Desktop** — keep it **running**.
-2. **Settings** → **Kubernetes** → **Enable Kubernetes** → **Apply**.
-3. Verify:
-
-```bash
-kubectl config current-context
-kubectl cluster-info
-kubectl get nodes
+```powershell
+copy .env.example .env
+# Edit .env — never commit it
+mkdir secrets, uploads -Force
 ```
 
-### 2. Project folder and `.env`
+### 3. Start everything
 
-```text
-D:\project\School Domnak
+```powershell
+.\scripts\deploy-docker.ps1
 ```
 
-```bash
-cp .env.example .env
-# Edit .env — never commit .env
-mkdir -p secrets uploads
+Or:
+
+```powershell
+docker compose up -d --build
 ```
 
-### 3. Kubernetes application secret (required once)
+(`deploy-docker.ps1` runs preflight, then Compose builds the Nuxt static site into a Docker volume for Nginx.)
 
-```bash
-kubectl apply -f deploy/kubernetes/namespace.yaml
-kubectl create secret generic school-secrets -n schooldomnak --from-env-file=.env
+### 4. Open the app
+
+| Where | URL |
+|-------|-----|
+| This PC | http://localhost:18080 |
+| Wi‑Fi / LAN | http://\<your-PC-IP\>:18080 |
+| API (Swagger) | http://localhost:18080/docs |
+
+For LAN access and firewall help:
+
+```powershell
+.\scripts\open-wifi-access.ps1
 ```
 
-See `deploy/kubernetes/secret.example.yaml` (safe example only).
+If the browser blocks API calls from another device, add your LAN URL to `BACKEND_CORS_ORIGINS` in `.env`, then:
 
-### 4. GHCR package access
-
-If images are private: GitHub → **Packages** → each `schooldomnak-*` package → allow repo **School-domnak**.
-
-Manual pull (optional):
-
-```bash
-echo YOUR_GITHUB_PAT | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
-```
-
-Or run `.\scripts\setup-ghcr-pull-secret.ps1` (see `scripts/SETUP-CHECKLIST.md`).
-
-### 5. Self-hosted runner (required for auto deploy)
-
-1. https://github.com/Kimheang-code-IT/School-domnak/settings/actions/runners/new?arch=x64&os=win
-2. Install runner (e.g. `D:\actions-runner-schooldomnak`).
-3. Configure with GitHub `config.cmd` token.
-4. **Keep runner running:**
-
-**Windows:**
-
-```bat
-cd D:\actions-runner-schooldomnak
-.\svc install
-.\svc start
-```
-
-Or interactive: `run.cmd`
-
-**Linux:** `./run.sh`
-
-Runner must show **Idle** (green) in GitHub → Settings → Actions → Runners.
-
-### 6. Pre-flight checks
-
-```bash
-kubectl get ns
-kubectl get secret school-secrets -n schooldomnak
-kubectl apply -f deploy/kubernetes/namespace.yaml --dry-run=client
+```powershell
+docker compose restart backend
 ```
 
 ---
 
-## Test auto deploy
+## Services (Compose)
 
-```bash
-git add .
-git commit -m "test k8s auto deploy"
-git push origin main
-```
+| Service | Port (host) | Notes |
+|---------|-------------|--------|
+| nginx | 18080, 18443 | Public app entry |
+| backend | (internal) | FastAPI — scaled replicas; use Nginx on 18080 |
+| postgres | 15432 | Optional external access |
+| redis | 16379 | Optional external access |
 
-### Confirm on GitHub
-
-**Actions** tab — all green:
-
-1. SchoolDomnak CI  
-2. SchoolDomnak GHCR Publish  
-3. SchoolDomnak K8s Local Deploy (self-hosted)
-
-### Confirm on cluster
-
-```bash
-kubectl get pods -n schooldomnak
-kubectl get svc -n schooldomnak
-```
-
-All app pods should reach `Running` and `READY 1/1`.
+Stack: `postgres`, `redis`, `backend_migrate`, `backend` (replicas), `celery_worker` (replicas), `celery_beat`, `telegram_bot`, `frontend` (build helper), `nginx`.
 
 ---
 
-## App access
+## Load balancing (multiple users at once)
 
-```bash
-kubectl get svc school-nginx -n schooldomnak
+**Nginx** is the load balancer. It distributes `/api/`, `/docs`, and `/health` across every running `backend` container using `least_conn` (sends each new request to the replica with the fewest active connections).
+
+Set in `.env` (defaults shown in `.env.example`):
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `BACKEND_REPLICAS` | 2 | API containers behind Nginx |
+| `UVICORN_WORKERS` | 2 | Uvicorn worker processes **per** API container |
+| `CELERY_WORKER_REPLICAS` | 2 | Background job workers |
+| `CELERY_WORKER_CONCURRENCY` | 4 | Celery processes **per** worker container |
+
+Deploy with scaling (reads `.env` automatically):
+
+```powershell
+.\scripts\deploy-docker.ps1
 ```
 
-| EXTERNAL-IP | URL |
-|-------------|-----|
-| `localhost` | http://localhost |
-| `<pending>` | Wait 1–2 min, or use port-forward below |
+Or manually:
 
-**Port-forward fallback:**
-
-```bash
-kubectl port-forward svc/school-nginx 8080:80 -n schooldomnak
+```powershell
+docker compose up -d --build --scale backend=3 --scale celery_worker=2
 ```
 
-Open: http://localhost:8080
+Auth uses **JWT** (stateless), and uploads live on a **shared volume**, so replicas do not need sticky sessions. Keep **one** `telegram_bot` and **one** `celery_beat` (do not scale those).
 
 ---
 
-## Deploy every time (automatic vs manual)
-
-**Automatic (normal):** push to `main` — workflows handle everything if the self-hosted runner is online.
-
-**Manual trigger:** GitHub → Actions → **SchoolDomnak K8s Local Deploy** → **Run workflow**.
-
-**Manual kubectl (same as the workflow):**
-
-```bash
-kubectl apply -f deploy/kubernetes/namespace.yaml
-kubectl apply -f deploy/kubernetes/configmap.yaml
-kubectl apply -f deploy/kubernetes/postgres/
-kubectl apply -f deploy/kubernetes/redis/
-kubectl apply -f deploy/kubernetes/backend/
-kubectl apply -f deploy/kubernetes/frontend/
-kubectl apply -f deploy/kubernetes/celery/
-kubectl apply -f deploy/kubernetes/telegram/
-kubectl apply -f deploy/kubernetes/nginx/
-
-kubectl rollout restart deployment/school-backend -n schooldomnak
-kubectl rollout restart deployment/school-frontend -n schooldomnak
-kubectl rollout restart deployment/school-celery-worker -n schooldomnak
-kubectl rollout restart deployment/school-celery-beat -n schooldomnak
-kubectl rollout restart deployment/school-telegram-bot -n schooldomnak
-kubectl rollout restart deployment/school-nginx -n schooldomnak
-
-kubectl get pods -n schooldomnak
-kubectl get svc -n schooldomnak
-```
-
----
-
-## Nginx routing (public entry: school-nginx)
+## Nginx routing
 
 | Path | Target |
 |------|--------|
@@ -219,17 +112,37 @@ kubectl get svc -n schooldomnak
 | `/admin/` | Frontend SPA routes |
 | `/docs`, `/health` | Backend |
 
-There is no Django-style `/static/` path; Nuxt uses `/_nuxt/`.
-
 ---
 
-## Local development (optional Compose)
+## Common commands
 
-```bash
+```powershell
+docker compose ps
+docker compose logs -f backend
+docker compose exec backend python scripts/seed_data.py
+docker compose exec backend python scripts/reset_database.py
+# Or interactive: .\scripts\reset-database.ps1
+docker compose down
 docker compose up -d --build
 ```
 
-Frontend folder is **`Frontend`** (capital F).
+First login after seed (default): `admin@gmail.com` / `admin12!@$`
+
+---
+
+## Project layout
+
+```
+backend/          FastAPI app
+Frontend/         Nuxt app (folder name is capital F)
+nginx/conf.d/     Nginx config
+docker-compose.yml
+scripts/
+  deploy-docker.ps1
+  preflight-docker.ps1
+  open-wifi-access.ps1
+  SETUP-CHECKLIST.md
+```
 
 ---
 
@@ -237,46 +150,49 @@ Frontend folder is **`Frontend`** (capital F).
 
 | Problem | Fix |
 |---------|-----|
-| Self-hosted runner **offline** | `cd D:\actions-runner-schooldomnak` then `.\run.cmd` or `.\svc start` (same user as kubectl) |
-| K8s deploy fails at **GHCR pull secret** step | Use latest workflow (PowerShell); bash `\` lines fail on Windows |
-| **CI** fails on **Validate Kubernetes manifests** | GitHub has no cluster — workflow uses `kubectl --validate=false` |
-| **Docker Desktop** not running | Start Docker Desktop |
-| **Kubernetes** not enabled | Settings → Kubernetes → Enable |
-| `school-secrets` **missing** | `kubectl create secret generic school-secrets -n schooldomnak --from-env-file=.env` |
-| **GHCR image private** / pull denied | Package settings → grant repo access; deploy workflow creates `ghcr-pull-secret` |
-| **ErrImagePull** / ImagePullBackOff | Wait for GHCR publish; run `setup-ghcr-pull-secret.ps1`; check Actions logs |
-| Wrong path **`frontend`** vs **`Frontend`** | CI/build must use `./Frontend` |
-| LoadBalancer **pending** | Docker Desktop: wait or `kubectl get svc school-nginx -n schooldomnak` |
-| Pods **CrashLoopBackOff** | `kubectl logs deployment/school-backend -n schooldomnak` |
-| Backend **cannot connect to PostgreSQL** | Check `DATABASE_URL` in secret matches `school-postgres:5432` |
-| Backend **cannot connect to Redis** | Check `REDIS_URL` uses `school-redis:6379` |
-| K8s deploy **skipped** | GHCR publish failed or runner offline |
-| Two Telegram **409** pollers | Only one `school-telegram-bot` replica |
+| Docker not running | Start Docker Desktop |
+| Missing `.env` | `copy .env.example .env` |
+| Nginx shows 404 / empty page | `docker compose up -d --build` (re-runs the `frontend` copy step) |
+| Port 18080 in use | `docker compose down` or stop the other process |
+| Phone cannot connect | `.\scripts\open-wifi-access.ps1` (Admin for firewall) |
+| Two Telegram 409 errors | Only one `telegram_bot` container should run |
+| Backend DB errors | Check `DATABASE_URL` uses host `postgres` in `.env` for Compose |
 
 ---
 
 ## Security
 
-- `.env` is in `.gitignore` — never commit it.
-- Real secrets live in Kubernetes `school-secrets` only.
-- No Docker Hub credentials in workflows.
+- `.env` is gitignored — never commit secrets.
+- Keep `secrets/` local only (e.g. Google service account JSON).
+
+See `scripts/SETUP-CHECKLIST.md` for a short step-by-step list.
 
 ---
 
-## Layout
+## Google Sheets backup
 
-```
-.github/workflows/
-  ci.yml
-  ghcr-publish.yml
-  k8s-local-deploy.yml
-deploy/kubernetes/
-  namespace.yaml
-  configmap.yaml
-  secret.example.yaml
-  postgres/ redis/ backend/ frontend/ celery/ telegram/ nginx/
-backend/Dockerfile
-Frontend/Dockerfile
+Exports **every database table** and **every column** into one spreadsheet tab per table (plus `_backup_meta`). The only column excluded is `users.password_hash` (security).
+
+| Table | Typical columns |
+|-------|-----------------|
+| `users` | id, email, name, role_id, … (not password_hash) |
+| `roles`, `students`, `categories`, `courses`, `levels`, `classes` | full row |
+| `enrollments`, `commissions`, `finance`, `invoices`, `invoice_lines` | full row |
+| `audit_logs`, `refresh_tokens` | full row |
+| `alembic_version` | migration version |
+
+Verify coverage (no Google API call):
+
+```powershell
+.\scripts\verify-google-sheets-backup.ps1
 ```
 
-See `deploy/kubernetes/README.md` and `scripts/SETUP-CHECKLIST.md`.
+Run backup now:
+
+```powershell
+docker compose exec backend python scripts/run_google_sheets_backup.py
+```
+
+Requires `GOOGLE_SHEETS_BACKUP_ENABLED=true`, service account JSON in `secrets/`, and spreadsheet shared with the service account email.
+
+Push to GitHub safely: `docs/GITHUB-PUSH.md`.

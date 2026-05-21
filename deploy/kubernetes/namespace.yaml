@@ -1,6 +1,0 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: schooldomnak
-  labels:
-    app.kubernetes.io/name: schooldomnak

@@ -50,31 +50,53 @@ services:
       - school_network
     restart: "no"
 
-  backend:
+  # Run DB migrations once before any API replica starts (avoids races when scaling backend).
+  backend_migrate:
     build:
       context: ./backend
-    container_name: school-backend
-    restart: unless-stopped
+    container_name: school-backend-migrate
+    restart: "no"
     env_file:
       - .env
     environment:
       RUN_DB_MIGRATIONS: "true"
+    command: ["python", "-c", "print('migrations ok')"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - school_network
+
+  # Scale with: docker compose up -d --scale backend=N (or deploy-docker.ps1 reads BACKEND_REPLICAS).
+  # Nginx load-balances across all replicas via Docker DNS (see nginx/conf.d/app.conf).
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      RUN_DB_MIGRATIONS: "false"
       TELEGRAM_POLLING_ROLE: "disabled"
       TELEGRAM_POLLING_IN_API: "false"
       TELEGRAM_USE_POLLING: "false"
-    ports:
-      - "18000:8000"
+      UVICORN_WORKERS: ${UVICORN_WORKERS:-2}
     volumes:
       - ./secrets:/app/secrets:ro
       - ./uploads:/app/uploads
     depends_on:
+      backend_migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     networks:
       - school_network
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    command:
+      - sh
+      - -c
+      - exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers "$$UVICORN_WORKERS"
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')\""]
       interval: 10s
@@ -107,10 +129,10 @@ services:
       - school_network
     command: python scripts/run_telegram_polling.py
 
+  # Scale with: --scale celery_worker=N (see CELERY_WORKER_REPLICAS in .env).
   celery_worker:
     build:
       context: ./backend
-    container_name: school-celery-worker
     restart: unless-stopped
     env_file:
       - .env
@@ -119,6 +141,7 @@ services:
       TELEGRAM_POLLING_ROLE: "disabled"
       TELEGRAM_POLLING_IN_API: "false"
       TELEGRAM_USE_POLLING: "false"
+      CELERY_WORKER_CONCURRENCY: ${CELERY_WORKER_CONCURRENCY:-4}
     volumes:
       - ./secrets:/app/secrets:ro
       - ./uploads:/app/uploads
@@ -127,11 +150,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      backend:
-        condition: service_healthy
     networks:
       - school_network
-    command: celery -A app.core.celery_app.celery_app worker --loglevel=info
+    command:
+      - sh
+      - -c
+      - exec celery -A app.core.celery_app.celery_app worker --loglevel=info --concurrency=$$CELERY_WORKER_CONCURRENCY
 
   celery_beat:
     build:
@@ -158,6 +182,7 @@ services:
       - school_network
     command: celery -A app.core.celery_app.celery_app beat --loglevel=info
 
+  # Entry point + load balancer for API and static app (least_conn across backend replicas).
   nginx:
     image: nginx:1.27-alpine
     container_name: school-nginx
