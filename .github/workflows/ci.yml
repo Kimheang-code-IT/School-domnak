@@ -149,15 +149,15 @@ jobs:
         with:
           context: ./backend
           push: false
+          provenance: false
           tags: school-backend:ci
           cache-from: type=gha
-          cache-to: type=gha,mode=max
 
       - name: Build frontend image
         uses: docker/build-push-action@v7
         with:
           context: ./Frontend
           push: false
+          provenance: false
           tags: school-frontend:ci
           cache-from: type=gha
-          cache-to: type=gha,mode=max

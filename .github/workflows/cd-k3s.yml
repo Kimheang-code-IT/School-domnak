@@ -89,14 +89,15 @@ jobs:
           context: ./Frontend
           file: ./Frontend/Dockerfile
           push: true
+          provenance: false
           tags: |
             ${{ steps.image.outputs.image_sha }}
             ${{ steps.image.outputs.image_latest }}
           build-args: |
             NUXT_PUBLIC_API_BASE=http://${{ secrets.VPS_HOST }}/api/v1
             NUXT_PUBLIC_USE_BACKEND_API=true
+          # Read GHA cache only — cache-to mode=max often fails with "layer blob: not_found"
           cache-from: type=gha
-          cache-to: type=gha,mode=max
 
   deploy:
     name: Deploy to Hostinger VPS (kubectl only)
