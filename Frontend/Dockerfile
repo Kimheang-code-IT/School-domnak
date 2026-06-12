@@ -22,10 +22,8 @@ ENV NODE_ENV=production \
     NUXT_PUBLIC_USE_BACKEND_API=true \
     VITE_API_BASE_URL=/api
 
-# `nuxt build` matches CI and outputs static files to .output/public (nitro preset: static)
-RUN pnpm run build \
-    && mkdir -p dist \
-    && cp -r .output/public/. dist/
+# Static preset writes to .output/public and links dist -> .output/public
+RUN pnpm run build
 
 FROM scratch AS export
-COPY --from=build /app/dist /dist
+COPY --from=build /app/.output/public /dist
