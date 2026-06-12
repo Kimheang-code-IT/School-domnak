@@ -37,19 +37,33 @@ Docker on EC2 is **optional** (only needed for local debugging). CD no longer bu
 curl -sfL https://get.k3s.io | sh -s - --write-kubeconfig-mode 644
 ```
 
-## 4. Configure kubectl (required for GitHub Actions CD)
+## 4. Verify K3s and kubectl
+
+On K3s, use the embedded kubectl (recommended for CD and manual use):
+
+```bash
+sudo k3s kubectl get nodes
+```
+
+Optional — configure `kubectl` for the ubuntu user:
 
 ```bash
 mkdir -p ~/.kube
 sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
 sudo chown ubuntu:ubuntu ~/.kube/config
 chmod 600 ~/.kube/config
-export KUBECONFIG=~/.kube/config
 kubectl get nodes
 ```
 
-If you see `permission denied` on `/etc/rancher/k3s/k3s.yaml`, run the commands above once on EC2.
-The CD workflow also copies this config automatically on each deploy.
+GitHub Actions CD uses `sudo k3s kubectl` (no kubeconfig file required).
+
+If you see `TLS handshake timeout`, check K3s is running:
+
+```bash
+sudo systemctl status k3s
+sudo systemctl restart k3s
+sudo k3s kubectl get nodes
+```
 
 ## 5. Check node
 
@@ -133,5 +147,7 @@ curl -I http://127.0.0.1:30000
 | `ErrImagePull` / 401 | Regenerate PAT with `read:packages`; verify `GHCR_USERNAME` |
 | Backend `CrashLoopBackOff` | `kubectl logs deployment/backend -n school-domnak`; check `school-domnak-secrets` |
 | SSH timeout from GitHub | Security group: allow TCP **22** from `0.0.0.0/0` (lab only) |
+| `TLS handshake timeout` (kubectl) | `sudo systemctl restart k3s` then `sudo k3s kubectl get nodes` |
+| K3s API slow on t3.micro | Wait 2–3 min after reboot; CD retries up to 3 minutes |
 | Frontend wrong API URL | Re-run CD after setting `AWS_HOST` secret correctly (used at build time) |
 | Slow build (old method) | Use new GHCR workflow — do not build on EC2 |

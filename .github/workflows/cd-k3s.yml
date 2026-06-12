@@ -102,14 +102,22 @@ jobs:
             BACKEND_IMAGE="ghcr.io/${IMAGE_OWNER}/school-domnak-backend:${GITHUB_SHA}"
             FRONTEND_IMAGE="ghcr.io/${IMAGE_OWNER}/school-domnak-frontend:${GITHUB_SHA}"
 
-            echo "==> Configuring kubectl for ubuntu user..."
-            mkdir -p "$HOME/.kube"
-            if [ ! -r "$HOME/.kube/config" ]; then
-              sudo cp /etc/rancher/k3s/k3s.yaml "$HOME/.kube/config"
-              sudo chown "$(whoami):$(whoami)" "$HOME/.kube/config"
-            fi
-            chmod 600 "$HOME/.kube/config"
-            export KUBECONFIG="$HOME/.kube/config"
+            echo "==> Using K3s embedded kubectl (no kubeconfig file needed)..."
+            kubectl() { sudo k3s kubectl "$@"; }
+
+            echo "==> Waiting for K3s API..."
+            for i in $(seq 1 18); do
+              if kubectl get nodes >/dev/null 2>&1; then
+                break
+              fi
+              if [ "$i" -eq 18 ]; then
+                echo "K3s API not responding. Check: sudo systemctl status k3s"
+                sudo systemctl status k3s --no-pager || true
+                exit 1
+              fi
+              echo "  attempt ${i}/18 — retrying in 10s..."
+              sleep 10
+            done
             kubectl get nodes
 
             cd "$APP_DIR"
