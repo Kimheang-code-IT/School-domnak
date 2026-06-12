@@ -7,7 +7,8 @@ const root = dirname(fileURLToPath(import.meta.url))
 /** Match Nuxt `~` → application source (`app/`) so Vitest resolves the same imports as dev. */
 export default defineConfig({
   test: {
-    environment: 'node'
+    environment: 'node',
+    passWithNoTests: true
   },
   resolve: {
     alias: {
