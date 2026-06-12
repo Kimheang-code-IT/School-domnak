@@ -1,4 +1,8 @@
+# Apply this file first: kubectl apply -f k8s/namespace.yaml
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: school-domnak
+  name: devops-lab
+  labels:
+    app.kubernetes.io/name: devops-lab
+    app.kubernetes.io/managed-by: kubectl

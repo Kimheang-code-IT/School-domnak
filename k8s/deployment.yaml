@@ -1,0 +1,49 @@
+# Frontend/nginx image from GHCR — no source code on VPS
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devops-app
+  namespace: devops-lab
+  labels:
+    app: devops-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: devops-app
+  template:
+    metadata:
+      labels:
+        app: devops-app
+    spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+        - name: devops-app
+          image: ghcr.io/kimheang-code-it/school-domnak:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3000
+          env:
+            - name: APP_ENV
+              value: production
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 20

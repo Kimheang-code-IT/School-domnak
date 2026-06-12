@@ -1,9 +1,13 @@
-name: CD Deploy to K3s on EC2
+# =============================================================================
+# CD — Build on GitHub Actions, deploy to Hostinger VPS K3s (no source on VPS)
+# =============================================================================
+name: CD Deploy to Hostinger K3s
 
 on:
   push:
     branches:
       - devops-lab
+  workflow_dispatch:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -14,30 +18,33 @@ permissions:
   packages: write
 
 concurrency:
-  group: deploy-k3s-devops-lab
+  group: deploy-hostinger-k3s
   cancel-in-progress: false
 
 jobs:
   build-and-push:
-    name: Build images and push to GHCR
+    name: Build image and push to GHCR
     runs-on: ubuntu-latest
 
     outputs:
-      image_owner: ${{ steps.meta.outputs.owner }}
-      backend_image: ${{ steps.meta.outputs.backend_image }}
-      frontend_image: ${{ steps.meta.outputs.frontend_image }}
+      image_sha: ${{ steps.image.outputs.image_sha }}
+      image_latest: ${{ steps.image.outputs.image_latest }}
 
     steps:
-      - name: Checkout
+      - name: Checkout (runner only — not copied to VPS)
         uses: actions/checkout@v6
 
-      - name: Set image metadata
-        id: meta
+      - name: Set image name (GHCR requires lowercase)
+        id: image
+        env:
+          REGISTRY: ghcr.io
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          GITHUB_SHA: ${{ github.sha }}
         run: |
-          OWNER_LC=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          echo "owner=${OWNER_LC}" >> "$GITHUB_OUTPUT"
-          echo "backend_image=ghcr.io/${OWNER_LC}/school-domnak-backend" >> "$GITHUB_OUTPUT"
-          echo "frontend_image=ghcr.io/${OWNER_LC}/school-domnak-frontend" >> "$GITHUB_OUTPUT"
+          REPO_LC=$(echo "${REPO_NAME}" | tr '[:upper:]' '[:lower:]')
+          echo "image_sha=${REGISTRY}/${GHCR_USERNAME}/${REPO_LC}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          echo "image_latest=${REGISTRY}/${GHCR_USERNAME}/${REPO_LC}:latest" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -45,122 +52,81 @@ jobs:
       - name: Login to GHCR
         uses: docker/login-action@v4
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.GHCR_USERNAME }}
+          password: ${{ secrets.GHCR_TOKEN }}
 
-      - name: Build and push backend
-        uses: docker/build-push-action@v7
-        with:
-          context: ./backend
-          push: true
-          tags: |
-            ghcr.io/${{ steps.meta.outputs.owner }}/school-domnak-backend:${{ github.sha }}
-            ghcr.io/${{ steps.meta.outputs.owner }}/school-domnak-backend:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Build and push frontend
+      - name: Build and push Docker image
         uses: docker/build-push-action@v7
         with:
           context: ./Frontend
+          file: ./Frontend/Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ steps.meta.outputs.owner }}/school-domnak-frontend:${{ github.sha }}
-            ghcr.io/${{ steps.meta.outputs.owner }}/school-domnak-frontend:latest
+            ${{ steps.image.outputs.image_sha }}
+            ${{ steps.image.outputs.image_latest }}
           build-args: |
-            NUXT_PUBLIC_API_BASE=http://${{ secrets.AWS_HOST }}:30080/api/v1
+            NUXT_PUBLIC_API_BASE=http://${{ secrets.VPS_HOST }}/api/v1
             NUXT_PUBLIC_USE_BACKEND_API=true
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
   deploy:
-    name: Deploy to K3s on AWS EC2
+    name: Deploy to Hostinger VPS (kubectl only)
     runs-on: ubuntu-latest
     needs: build-and-push
 
     steps:
-      - name: Deploy to EC2
+      - name: Checkout (runner only — deploy script sync, no app source)
+        uses: actions/checkout@v6
+
+      - name: Sync deploy script to VPS (script only, no source code)
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: 22
+          source: "scripts/deploy-image.sh"
+          target: "/opt/devops-runtime/scripts"
+          overwrite: true
+
+      - name: Deploy new image on VPS
         uses: appleboy/ssh-action@v1.2.5
         env:
-          GITHUB_SHA: ${{ github.sha }}
-          IMAGE_OWNER: ${{ needs.build-and-push.outputs.image_owner }}
+          IMAGE_SHA: ${{ needs.build-and-push.outputs.image_sha }}
           GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
         with:
-          host: ${{ secrets.AWS_HOST }}
-          username: ${{ secrets.AWS_USER }}
-          key: ${{ secrets.AWS_SSH_KEY }}
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
           port: 22
           command_timeout: 15m
-          envs: GITHUB_SHA,IMAGE_OWNER,GHCR_USERNAME,GHCR_TOKEN
+          envs: IMAGE_SHA,GHCR_USERNAME,GHCR_TOKEN
           script: |
             set -euo pipefail
 
-            APP_DIR="/home/ubuntu/school-devops-lab"
-            BRANCH="devops-lab"
-            BACKEND_IMAGE="ghcr.io/${IMAGE_OWNER}/school-domnak-backend:${GITHUB_SHA}"
-            FRONTEND_IMAGE="ghcr.io/${IMAGE_OWNER}/school-domnak-frontend:${GITHUB_SHA}"
+            echo "==> VPS runs containers only — no git clone, no docker build, no source repo"
 
-            echo "==> Using K3s embedded kubectl (no kubeconfig file needed)..."
-            kubectl() { sudo k3s kubectl "$@"; }
-
-            echo "==> Waiting for K3s API..."
-            for i in $(seq 1 18); do
-              if kubectl get nodes >/dev/null 2>&1; then
-                break
+            kubectl() {
+              if command -v k3s >/dev/null 2>&1; then
+                k3s kubectl --request-timeout=120s "$@"
+              else
+                kubectl --request-timeout=120s "$@"
               fi
-              if [ "$i" -eq 18 ]; then
-                echo "K3s API not responding. Check: sudo systemctl status k3s"
-                sudo systemctl status k3s --no-pager || true
-                exit 1
-              fi
-              echo "  attempt ${i}/18 — retrying in 10s..."
-              sleep 10
-            done
-            kubectl get nodes
+            }
 
-            cd "$APP_DIR"
+            export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
 
-            echo "==> Syncing ${BRANCH} from GitHub..."
-            git fetch origin
-            git checkout "$BRANCH"
-            git pull origin "$BRANCH"
-
-            echo "==> Configuring GHCR pull secret..."
+            echo "==> Ensure GHCR pull secret exists..."
+            kubectl create namespace devops-lab --dry-run=client -o yaml | kubectl apply -f -
             kubectl create secret docker-registry ghcr-secret \
-              --namespace school-domnak \
+              --namespace=devops-lab \
               --docker-server=ghcr.io \
               --docker-username="${GHCR_USERNAME}" \
               --docker-password="${GHCR_TOKEN}" \
               --dry-run=client -o yaml | kubectl apply -f -
 
-            kubectl patch serviceaccount default \
-              -n school-domnak \
-              -p '{"imagePullSecrets":[{"name":"ghcr-secret"}]}' \
-              --type=merge
-
-            echo "==> Applying Kubernetes manifests..."
-            kubectl apply -f k8s/namespace.yaml
-            kubectl apply -f k8s/postgres.yaml
-            kubectl apply -f k8s/redis.yaml
-            kubectl apply -f k8s/backend.yaml
-            kubectl apply -f k8s/frontend.yaml
-
-            echo "==> Updating deployments to commit images..."
-            kubectl set image deployment/backend \
-              backend="${BACKEND_IMAGE}" \
-              -n school-domnak
-            kubectl set image deployment/frontend \
-              frontend="${FRONTEND_IMAGE}" \
-              -n school-domnak
-
-            echo "==> Waiting for rollout..."
-            kubectl rollout status deployment/backend -n school-domnak --timeout=300s
-            kubectl rollout status deployment/frontend -n school-domnak --timeout=300s
-
-            echo "==> Pods:"
-            kubectl get pods -n school-domnak
-
-            echo "==> Services:"
-            kubectl get svc -n school-domnak
+            chmod +x /opt/devops-runtime/scripts/deploy-image.sh
+            /opt/devops-runtime/scripts/deploy-image.sh "${IMAGE_SHA}"
