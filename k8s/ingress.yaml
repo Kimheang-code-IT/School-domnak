@@ -9,6 +9,17 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
+    # No host = matches http://VPS_IP (e.g. http://72.62.250.194)
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: devops-app
+                port:
+                  number: 80
+    # Optional: after DNS A record points to VPS
     - host: your-domain.com
       http:
         paths:

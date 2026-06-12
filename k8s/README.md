@@ -13,9 +13,9 @@
 
 The VPS stores **only** Docker images, Kubernetes YAML, and deployment scripts under `/opt/devops-runtime/`. It never stores application source code.
 
-Workflow: [`.github/workflows/cd-k3s.yml`](../.github/workflows/cd-k3s.yml) — runs **automatically after CI passes** on branch **`devops-lab`**.
+Workflow: [`.github/workflows/cd-k3s.yml`](../.github/workflows/cd-k3s.yml) — **CD Deploy to Hostinger K3s** (not AWS).
 
-Full pipeline diagram: [docs/CI-CD.md](../docs/CI-CD.md)
+Full pipeline: [docs/CI-CD.md](../docs/CI-CD.md)
 
 ---
 
@@ -45,7 +45,7 @@ See [docs/CI-CD.md](../docs/CI-CD.md) for the full diagram.
 
 ## One-time VPS setup
 
-1. Install K3s + Docker on VPS (see `D:\hostinger-terraform` or `docs/k3s-setup.md`).
+1. Install K3s + Docker on VPS (see [docs/k3s-setup.md](../docs/k3s-setup.md)).
 2. Create runtime folders:
    ```bash
    mkdir -p /opt/devops-runtime/{k8s,scripts}
@@ -83,22 +83,20 @@ These are **not** used by the current Hostinger CD workflow:
 
 | File | Description |
 |------|-------------|
-| `postgres.yaml` | PostgreSQL (legacy EC2 setup) |
-| `redis.yaml` | Redis (legacy EC2 setup) |
-| `backend.yaml` | FastAPI backend (legacy EC2 setup) |
-| `frontend.yaml` | Frontend NodePort (legacy EC2 setup) |
+| `postgres.yaml` | PostgreSQL (legacy — not used) |
+| `redis.yaml` | Redis (legacy — not used) |
+| `backend.yaml` | FastAPI backend (legacy — not used) |
+| `frontend.yaml` | Frontend NodePort (legacy — not used) |
 | `secret.example.yaml` | Example secrets — never commit real values |
 
 ---
 
 ## Access
 
-| Method | URL |
-|--------|-----|
+| VPS IP (default) | `http://72.62.250.194` |
 | Ingress (after DNS) | `http://your-domain.com` |
-| VPS IP via Traefik | `http://<VPS_HOST>` (if no host rule match, configure DNS) |
 
-Point DNS A record for `your-domain.com` to your VPS IP. UFW must allow ports **22**, **80**, **443**.
+Ingress has a **no-host** rule so Traefik routes IP requests (not only `your-domain.com`).
 
 ---
 
