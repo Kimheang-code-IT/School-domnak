@@ -24,9 +24,36 @@ University DevOps guide for **School-domnak** — **Hostinger VPS only** (no AWS
 
 ---
 
-## 1. VPS runtime (one-time)
+## 0. Allow GitHub Actions to SSH (required for CD)
 
-Install Docker + K3s + UFW. Use the script from `D:\hostinger-terraform\install-vps-runtime.sh` or:
+CD connects from **GitHub servers** to your VPS on port **22**. If CD shows `dial tcp :22: i/o timeout`, open SSH:
+
+**On VPS (UFW):**
+```bash
+ufw allow 22/tcp
+ufw status
+```
+
+**Hostinger hPanel:** VPS → **Security / Firewall** → allow **TCP 22** from anywhere (or add GitHub Actions IP ranges).
+
+**Test from your PC:**
+```powershell
+ssh -i $env:USERPROFILE\.ssh\sdh_devops_new root@72.62.250.194
+```
+
+GitHub secret `VPS_HOST` must be `72.62.250.194` (no `http://`, no port).
+
+---
+
+## 1. One-time manual copy to VPS (no SCP in CD)
+
+```powershell
+scp -i $env:USERPROFILE\.ssh\sdh_devops_new -r .\k8s root@72.62.250.194:/opt/devops-runtime/
+scp -i $env:USERPROFILE\.ssh\sdh_devops_new .\scripts\deploy-image.sh root@72.62.250.194:/opt/devops-runtime/scripts/
+ssh -i $env:USERPROFILE\.ssh\sdh_devops_new root@72.62.250.194 "chmod +x /opt/devops-runtime/scripts/deploy-image.sh"
+```
+
+CD only runs **SSH + deploy-image.sh** — it does not copy files or configure nginx.
 
 ```powershell
 scp -i $env:USERPROFILE\.ssh\sdh_devops_new install-vps-runtime.sh root@72.62.250.194:/tmp/
@@ -121,6 +148,7 @@ From browser: `http://72.62.250.194` (Ubuntu **host** nginx → K3s NodePort 300
 
 | Problem | Fix |
 |---------|-----|
+| `dial tcp :22: i/o timeout` in CD | Open port **22** in UFW + Hostinger firewall (section 0) |
 | `ImagePullBackOff` / 401 | Recreate `ghcr-secret` — see [k8s/README.md](../k8s/README.md) |
 | `CreateContainerError` / no command | Image was wrong stage — CD must use `target: runtime` in Dockerfile build |
 | CD not running | Push to `devops-lab`; check **CD Deploy to Hostinger K3s** workflow exists |
