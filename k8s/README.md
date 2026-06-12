@@ -1,5 +1,21 @@
 # Kubernetes manifests — Hostinger VPS + K3s
 
+## Architecture (Ubuntu host nginx → K3s)
+
+```
+User browser
+    ↓  http://72.62.250.194:80
+Ubuntu nginx (on VPS host — not Docker public port)
+    ↓  proxy_pass http://127.0.0.1:30000
+K3s NodePort Service (devops-app)
+    ↓
+Pod (container nginx serves app on :3000 — internal only)
+```
+
+Traefik ingress is **not** used for public access. Host nginx owns port **80**.
+
+---
+
 ## Architecture (no source code on VPS)
 
 | Step | Where |
@@ -60,9 +76,11 @@ See [docs/CI-CD.md](../docs/CI-CD.md) for the full diagram.
    kubectl apply -f /opt/devops-runtime/k8s/namespace.yaml
    kubectl apply -f /opt/devops-runtime/k8s/deployment.yaml
    kubectl apply -f /opt/devops-runtime/k8s/service.yaml
-   kubectl apply -f /opt/devops-runtime/k8s/ingress.yaml
    ```
-5. Update `k8s/deployment.yaml` image placeholder and `k8s/ingress.yaml` host before first apply.
+4. Setup host nginx:
+   ```bash
+   /opt/devops-runtime/scripts/setup-host-nginx.sh
+   ```
 
 CD creates `ghcr-secret` automatically on each deploy.
 
@@ -74,8 +92,10 @@ CD creates `ghcr-secret` automatically on each deploy.
 |------|-------------|
 | `namespace.yaml` | Namespace `devops-lab` |
 | `deployment.yaml` | App `devops-app`, container port **3000**, pulls from GHCR |
-| `service.yaml` | ClusterIP port 80 → targetPort 3000 |
-| `ingress.yaml` | Traefik ingress, host placeholder `your-domain.com` |
+| `service.yaml` | NodePort **30000** → pod port 3000 (for host nginx) |
+| `ingress.yaml` | Removed — use host nginx instead |
+| `nginx/host-k3s-proxy.conf` | Ubuntu host nginx config |
+| `scripts/setup-host-nginx.sh` | Install/configure host nginx on VPS |
 
 ### Legacy multi-service manifests (optional)
 
@@ -93,10 +113,27 @@ These are **not** used by the current Hostinger CD workflow:
 
 ## Access
 
-| VPS IP (default) | `http://72.62.250.194` |
-| Ingress (after DNS) | `http://your-domain.com` |
+| VPS IP | `http://72.62.250.194` (Ubuntu **host** nginx on port 80) |
 
-Ingress has a **no-host** rule so Traefik routes IP requests (not only `your-domain.com`).
+---
+
+## One-time / manual host nginx setup
+
+From Windows:
+
+```powershell
+scp -i $env:USERPROFILE\.ssh\sdh_devops_new nginx/host-k3s-proxy.conf root@72.62.250.194:/opt/devops-runtime/nginx/
+scp -i $env:USERPROFILE\.ssh\sdh_devops_new scripts/setup-host-nginx.sh root@72.62.250.194:/opt/devops-runtime/scripts/
+```
+
+On VPS:
+
+```bash
+kubectl apply -f /opt/devops-runtime/k8s/service.yaml
+chmod +x /opt/devops-runtime/scripts/setup-host-nginx.sh
+/opt/devops-runtime/scripts/setup-host-nginx.sh
+curl -I http://127.0.0.1/
+```
 
 ---
 

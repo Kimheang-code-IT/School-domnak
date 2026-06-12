@@ -92,7 +92,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: 22
-          source: "scripts/deploy-image.sh,k8s/namespace.yaml,k8s/deployment.yaml,k8s/service.yaml,k8s/ingress.yaml"
+          source: "scripts/deploy-image.sh,scripts/setup-host-nginx.sh,nginx/host-k3s-proxy.conf,k8s/namespace.yaml,k8s/deployment.yaml,k8s/service.yaml"
           target: "/tmp/school-domnak-deploy"
           strip_components: 0
           overwrite: true
@@ -136,7 +136,6 @@ jobs:
             kubectl apply -f "${DEPLOY_DIR}/k8s/namespace.yaml"
             kubectl apply -f "${DEPLOY_DIR}/k8s/deployment.yaml"
             kubectl apply -f "${DEPLOY_DIR}/k8s/service.yaml"
-            kubectl apply -f "${DEPLOY_DIR}/k8s/ingress.yaml"
 
             echo "==> GHCR pull secret (private images)..."
             kubectl delete secret ghcr-secret -n devops-lab --ignore-not-found
@@ -151,7 +150,13 @@ jobs:
               -p '{"imagePullSecrets":[{"name":"ghcr-secret"}]}' \
               --type=merge
 
-            rm -rf "${DEPLOY_DIR}"
-
             echo "==> Update running deployment to new image..."
             /opt/devops-runtime/scripts/deploy-image.sh "${IMAGE_SHA}"
+
+            echo "==> Configure Ubuntu host nginx → K3s NodePort 30000..."
+            mkdir -p /opt/devops-runtime/nginx
+            install -m 644 "${DEPLOY_DIR}/nginx/host-k3s-proxy.conf" /opt/devops-runtime/nginx/host-k3s-proxy.conf
+            install -m 755 "${DEPLOY_DIR}/scripts/setup-host-nginx.sh" /opt/devops-runtime/scripts/setup-host-nginx.sh
+            /opt/devops-runtime/scripts/setup-host-nginx.sh /opt/devops-runtime/nginx/host-k3s-proxy.conf
+
+            rm -rf "${DEPLOY_DIR}"

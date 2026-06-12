@@ -1,3 +1,4 @@
+# K3s Service — NodePort so Ubuntu host nginx can proxy to the pod
 apiVersion: v1
 kind: Service
 metadata:
@@ -6,11 +7,12 @@ metadata:
   labels:
     app: devops-app
 spec:
-  type: ClusterIP
+  type: NodePort
   selector:
     app: devops-app
   ports:
     - name: http
       port: 80
       targetPort: 3000
+      nodePort: 30000
       protocol: TCP
