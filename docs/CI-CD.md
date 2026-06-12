@@ -62,15 +62,12 @@ Automatic pipeline for [School-domnak](https://github.com/Kimheang-code-IT/Schoo
 ## Automatic flow (devops-lab branch)
 
 1. You push code to **`devops-lab`**.
-2. **CI** starts automatically — tests must pass.
-3. When CI succeeds, **CD** starts automatically.
-4. CD builds the image and pushes to **GitHub Container Registry (GHCR)**.
-5. CD SSH into the VPS and runs `deploy-image.sh`.
-6. K3s pulls the new image and restarts the pod.
+2. **SchoolDomnak CI** and **CD Deploy to Hostinger K3s** both start automatically.
+3. CD builds the image and pushes to **GHCR**.
+4. CD SSH into the VPS and runs `deploy-image.sh`.
+5. K3s pulls the new image and restarts the pod.
 
-If CI fails, **CD does not run** (no broken deploy).
-
-Manual deploy anytime: **Actions → CD Deploy to Hostinger K3s → Run workflow**.
+You can also run CD manually: **Actions → CD Deploy to Hostinger K3s → Run workflow**.
 
 ---
 
@@ -137,8 +134,8 @@ CD applies Kubernetes YAML on every deploy — you do not need to copy manifests
 
 | File | Name | Trigger |
 |------|------|---------|
-| `.github/workflows/ci.yml` | CI | Every push + PR |
-| `.github/workflows/cd-k3s.yml` | CD Deploy to Hostinger K3s | After CI success on `devops-lab` push, or manual |
+| `.github/workflows/ci.yml` | SchoolDomnak CI | Every push + PR |
+| `.github/workflows/cd-k3s.yml` | CD Deploy to Hostinger K3s | Push to `devops-lab`, or manual |
 
 ---
 

@@ -21,12 +21,7 @@ Full pipeline diagram: [docs/CI-CD.md](../docs/CI-CD.md)
 
 ## Deploy flow
 
-1. Push to **`devops-lab`** → **CI** runs tests automatically.
-2. If CI passes → **CD** runs automatically:
-   - Build Docker image on GitHub
-   - Push to GHCR (`ghcr.io/kimheang-code-it/school-domnak:<sha>`)
-   - SSH to VPS (YAML + script only)
-   - K3s pulls image and restarts pods in `devops-lab`
+1. Push to **`devops-lab`** → **SchoolDomnak CI** (tests) and **CD Deploy to Hostinger K3s** (build + deploy) run together.
 
 Manual deploy: **Actions → CD Deploy to Hostinger K3s → Run workflow**
 
