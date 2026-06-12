@@ -157,6 +157,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: ./Frontend
+          target: runtime
           push: false
           provenance: false
           tags: school-frontend:ci

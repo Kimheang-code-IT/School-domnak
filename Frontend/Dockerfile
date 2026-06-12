@@ -40,7 +40,12 @@ ENV NODE_ENV=production \
 
 RUN pnpm run build
 
-# ── Runtime: Nginx serves static files on port 3000 (K3s NodePort) ───────────
+# ── Optional: export static files only (Docker Compose / host Nginx volume) ──
+FROM scratch AS export
+COPY --from=build /app/.output/public /dist
+
+# ── Runtime: Nginx serves static files on port 3000 (K3s / production) ───────
+# Last stage = default build target (must have CMD for Kubernetes)
 FROM nginx:1.27-alpine AS runtime
 
 COPY nginx-k3s.conf /etc/nginx/conf.d/default.conf
@@ -49,7 +54,3 @@ COPY --from=build /app/.output/public /usr/share/nginx/html
 EXPOSE 3000
 
 CMD ["nginx", "-g", "daemon off;"]
-
-# Optional: export static files only (Docker Compose / host Nginx volume)
-FROM scratch AS export
-COPY --from=build /app/.output/public /dist
