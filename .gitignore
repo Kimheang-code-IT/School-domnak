@@ -1,0 +1,43 @@
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+secrets/*
+!secrets/.gitkeep
+**/service-account-key.json
+**/school-domnak-*.json
+credentials/*.json
+!credentials/.gitkeep
+
+# SQLite (local dev)
+*.db
+school.db
+
+# Uploads (runtime data)
+uploads/*
+!uploads/.gitkeep
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+# Node / Nuxt
+node_modules/
+Frontend/.nuxt/
+Frontend/.output/
+Frontend/dist/
+Frontend/.env
+Frontend/.env.local
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Docker local overrides
+docker-compose.override.yml
