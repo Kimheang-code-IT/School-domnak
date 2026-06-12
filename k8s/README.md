@@ -82,7 +82,7 @@ See [docs/CI-CD.md](../docs/CI-CD.md) for the full diagram.
    /opt/devops-runtime/scripts/setup-host-nginx.sh
    ```
 
-CD creates `ghcr-secret` automatically on each deploy.
+CD applies Kubernetes YAML and updates the image only. **Host nginx is manual** (see below).
 
 ---
 

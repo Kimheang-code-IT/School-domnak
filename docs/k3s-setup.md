@@ -84,7 +84,26 @@ Manual run: **Actions → CD Deploy to Hostinger K3s → Run workflow**
 
 ---
 
-## 5. Verify deployment
+## 5. Manual Ubuntu host nginx (one-time on VPS)
+
+CD does **not** configure nginx automatically. Run this once on the VPS:
+
+```powershell
+scp -i $env:USERPROFILE\.ssh\sdh_devops_new nginx/host-k3s-proxy.conf root@72.62.250.194:/opt/devops-runtime/nginx/
+scp -i $env:USERPROFILE\.ssh\sdh_devops_new scripts/setup-host-nginx.sh root@72.62.250.194:/opt/devops-runtime/scripts/
+```
+
+```bash
+kubectl apply -f /opt/devops-runtime/k8s/service.yaml
+chmod +x /opt/devops-runtime/scripts/setup-host-nginx.sh
+/opt/devops-runtime/scripts/setup-host-nginx.sh /opt/devops-runtime/nginx/host-k3s-proxy.conf
+```
+
+Flow: **User → Ubuntu nginx :80 → K3s NodePort :30000 → Pod**
+
+---
+
+## 6. Verify deployment
 
 On VPS:
 

@@ -92,7 +92,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: 22
-          source: "scripts/deploy-image.sh,scripts/setup-host-nginx.sh,nginx/host-k3s-proxy.conf,k8s/namespace.yaml,k8s/deployment.yaml,k8s/service.yaml"
+          source: "scripts/deploy-image.sh,k8s/namespace.yaml,k8s/deployment.yaml,k8s/service.yaml"
           target: "/tmp/school-domnak-deploy"
           strip_components: 0
           overwrite: true
@@ -153,8 +153,5 @@ jobs:
             echo "==> Update running deployment to new image..."
             /opt/devops-runtime/scripts/deploy-image.sh "${IMAGE_SHA}"
 
-            echo "==> Configure Ubuntu host nginx → K3s NodePort 30000..."
-            install -m 755 "${DEPLOY_DIR}/scripts/setup-host-nginx.sh" /opt/devops-runtime/scripts/setup-host-nginx.sh
-            /opt/devops-runtime/scripts/setup-host-nginx.sh "${DEPLOY_DIR}/nginx/host-k3s-proxy.conf"
-
             rm -rf "${DEPLOY_DIR}"
+            echo "==> Done. Host nginx is configured manually on VPS (see docs/k3s-setup.md)."

@@ -2,6 +2,9 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 
 export default defineNuxtConfig({
+  // SPA static export for Docker/nginx — avoids prerender API errors in CI/CD
+  ssr: false,
+
   modules: [
     '@nuxt/ui',
     '@nuxt/image',
@@ -75,6 +78,9 @@ export default defineNuxtConfig({
 
   nitro: {
     preset: 'static',
+    prerender: {
+      crawlLinks: false,
+    },
   },
 
   vite: {
