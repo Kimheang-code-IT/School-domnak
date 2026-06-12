@@ -33,17 +33,23 @@ Docker on EC2 is **optional** (only needed for local debugging). CD no longer bu
 ## 3. Install K3s
 
 ```bash
-curl -sfL https://get.k3s.io | sh -
+# --write-kubeconfig-mode allows the ubuntu user to read the cluster config
+curl -sfL https://get.k3s.io | sh -s - --write-kubeconfig-mode 644
 ```
 
-## 4. Configure kubectl
+## 4. Configure kubectl (required for GitHub Actions CD)
 
 ```bash
 mkdir -p ~/.kube
 sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
 sudo chown ubuntu:ubuntu ~/.kube/config
 chmod 600 ~/.kube/config
+export KUBECONFIG=~/.kube/config
+kubectl get nodes
 ```
+
+If you see `permission denied` on `/etc/rancher/k3s/k3s.yaml`, run the commands above once on EC2.
+The CD workflow also copies this config automatically on each deploy.
 
 ## 5. Check node
 
