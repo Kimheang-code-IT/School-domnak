@@ -154,9 +154,7 @@ jobs:
             /opt/devops-runtime/scripts/deploy-image.sh "${IMAGE_SHA}"
 
             echo "==> Configure Ubuntu host nginx → K3s NodePort 30000..."
-            mkdir -p /opt/devops-runtime/nginx
-            install -m 644 "${DEPLOY_DIR}/nginx/host-k3s-proxy.conf" /opt/devops-runtime/nginx/host-k3s-proxy.conf
             install -m 755 "${DEPLOY_DIR}/scripts/setup-host-nginx.sh" /opt/devops-runtime/scripts/setup-host-nginx.sh
-            /opt/devops-runtime/scripts/setup-host-nginx.sh /opt/devops-runtime/nginx/host-k3s-proxy.conf
+            /opt/devops-runtime/scripts/setup-host-nginx.sh "${DEPLOY_DIR}/nginx/host-k3s-proxy.conf"
 
             rm -rf "${DEPLOY_DIR}"

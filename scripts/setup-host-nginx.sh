@@ -42,9 +42,15 @@ if [[ ! -f "${CONFIG_SRC}" ]]; then
   exit 1
 fi
 
+RUNTIME_CONFIG="/opt/devops-runtime/nginx/host-k3s-proxy.conf"
 install -d /opt/devops-runtime/nginx
-install -m 644 "${CONFIG_SRC}" /opt/devops-runtime/nginx/host-k3s-proxy.conf
-install -m 644 "${CONFIG_SRC}" "/etc/nginx/sites-available/${NGINX_SITE_NAME}"
+
+# Avoid "install: same file" when CD passes the runtime path after pre-copy
+if [[ ! "${CONFIG_SRC}" -ef "${RUNTIME_CONFIG}" ]]; then
+  install -m 644 "${CONFIG_SRC}" "${RUNTIME_CONFIG}"
+fi
+
+install -m 644 "${RUNTIME_CONFIG}" "/etc/nginx/sites-available/${NGINX_SITE_NAME}"
 
 rm -f /etc/nginx/sites-enabled/default
 ln -sf "/etc/nginx/sites-available/${NGINX_SITE_NAME}" "/etc/nginx/sites-enabled/${NGINX_SITE_NAME}"
