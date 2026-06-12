@@ -1,16 +1,29 @@
-# Build static Nuxt app (default target: runtime on port 3000 for K3s)
-FROM node:22-bookworm-slim AS build
+# syntax=docker/dockerfile:1
+
+# ── Dependencies (cached layer) ──────────────────────────────────────────────
+FROM node:22-bookworm-slim AS deps
 
 WORKDIR /app
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && corepack enable
+
+COPY package.json pnpm-lock.yaml ./
+
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
+
+# ── Build static Nuxt output ─────────────────────────────────────────────────
+FROM node:22-bookworm-slim AS build
+
+WORKDIR /app
 
 RUN corepack enable
 
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+COPY --from=deps /app/node_modules ./node_modules
 
 COPY . .
 
@@ -27,18 +40,16 @@ ENV NODE_ENV=production \
 
 RUN pnpm run build
 
-FROM node:22-bookworm-slim AS runtime
+# ── Runtime: Nginx serves static files on port 3000 (K3s NodePort) ───────────
+FROM nginx:1.27-alpine AS runtime
 
-WORKDIR /app
-
-RUN npm install -g serve@14
-
-COPY --from=build /app/.output/public ./public
+COPY nginx-k3s.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/.output/public /usr/share/nginx/html
 
 EXPOSE 3000
 
-CMD ["serve", "public", "-l", "3000"]
+CMD ["nginx", "-g", "daemon off;"]
 
-# Optional: export static files only (Docker Compose / Nginx volume)
+# Optional: export static files only (Docker Compose / host Nginx volume)
 FROM scratch AS export
 COPY --from=build /app/.output/public /dist

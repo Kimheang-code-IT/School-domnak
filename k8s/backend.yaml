@@ -15,10 +15,12 @@ spec:
       labels:
         app: backend
     spec:
+      imagePullSecrets:
+        - name: ghcr-secret
       containers:
         - name: backend
-          image: school-backend:latest
-          imagePullPolicy: Never
+          image: ghcr.io/owner/school-domnak-backend:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8000
           envFrom:

@@ -3,7 +3,13 @@ node_modules
 .output
 dist
 .git
+.github
 .env
 .env.*
-!.env.production
+!.env.example
 *.log
+coverage
+.temp
+.pnpm-store
+**/*.md
+vitest.config.ts
