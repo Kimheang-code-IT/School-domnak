@@ -18,13 +18,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Check SSH port is reachable
+        run: |
+          set -euo pipefail
+          HOST="${{ secrets.AWS_HOST }}"
+          PORT="${{ vars.AWS_SSH_PORT || '22' }}"
+          echo "Checking TCP connectivity to ${HOST}:${PORT} ..."
+          if ! timeout 20 bash -c "until nc -z -w 5 '${HOST}' '${PORT}'; do sleep 2; done"; then
+            echo "::error::Cannot reach ${HOST}:${PORT}. Fix EC2 Security Group (allow SSH), use the public IP in AWS_HOST, and ensure the instance is running."
+            exit 1
+          fi
+          echo "SSH port is reachable."
+
       - name: Deploy to AWS EC2 by SSH
         uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.AWS_HOST }}
           username: ${{ secrets.AWS_USER }}
           key: ${{ secrets.AWS_SSH_KEY }}
-          port: 22
+          port: ${{ vars.AWS_SSH_PORT || 22 }}
           command_timeout: 45m
           script: |
             set -euo pipefail
