@@ -117,7 +117,31 @@ Point DNS A record for `your-domain.com` to your VPS IP. UFW must allow ports **
 
 ---
 
-## Security notes
+## Troubleshooting
+
+| Problem | Fix |
+|---------|-----|
+| `ImagePullBackOff` / `401 Unauthorized` | Private GHCR — recreate `ghcr-secret` (see below) and re-apply `k8s/deployment.yaml` (has `imagePullSecrets`) |
+| Pod container named `app` not `devops-app` | Old Hostinger placeholder — re-apply `k8s/deployment.yaml` from this repo |
+| Rollout stuck | `kubectl get pods -n devops-lab` and `kubectl describe pod -n devops-lab <name>` |
+
+### Fix GHCR pull on VPS (manual)
+
+```bash
+kubectl delete secret ghcr-secret -n devops-lab --ignore-not-found
+kubectl create secret docker-registry ghcr-secret \
+  --namespace=devops-lab \
+  --docker-server=ghcr.io \
+  --docker-username=kimheang-code-it \
+  --docker-password=YOUR_GHCR_TOKEN
+
+kubectl apply -f /opt/devops-runtime/k8s/deployment.yaml
+kubectl delete pods -n devops-lab -l app=devops-app
+```
+
+Ensure `GHCR_TOKEN` is a PAT with **`read:packages`** (and `write:packages` for CI push).
+
+On GitHub: **Packages → school-domnak → Package settings** — link package to `School-domnak` repo or allow org access.
 
 - VPS has no git clone of the application repository.
 - Images are built only in GitHub Actions.

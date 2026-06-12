@@ -81,15 +81,16 @@ jobs:
       - name: Checkout (runner only — deploy script sync, no app source)
         uses: actions/checkout@v6
 
-      - name: Sync deploy script to VPS (script only, no source code)
+      - name: Sync deploy assets to VPS (YAML + script only, no app source)
         uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: 22
-          source: "scripts/deploy-image.sh"
-          target: "/opt/devops-runtime/scripts"
+          source: "scripts/deploy-image.sh,k8s/namespace.yaml,k8s/deployment.yaml,k8s/service.yaml,k8s/ingress.yaml"
+          target: "/tmp/school-domnak-deploy"
+          strip_components: 0
           overwrite: true
 
       - name: Deploy new image on VPS
@@ -110,6 +111,9 @@ jobs:
 
             echo "==> VPS runs containers only — no git clone, no docker build, no source repo"
 
+            GHCR_USER_LC=$(echo "${GHCR_USERNAME}" | tr '[:upper:]' '[:lower:]')
+            DEPLOY_DIR="/tmp/school-domnak-deploy"
+
             kubectl() {
               if command -v k3s >/dev/null 2>&1; then
                 k3s kubectl --request-timeout=120s "$@"
@@ -120,14 +124,28 @@ jobs:
 
             export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
 
-            echo "==> Ensure GHCR pull secret exists..."
-            kubectl create namespace devops-lab --dry-run=client -o yaml | kubectl apply -f -
+            echo "==> Install deploy script..."
+            install -m 755 "${DEPLOY_DIR}/scripts/deploy-image.sh" /opt/devops-runtime/scripts/deploy-image.sh
+
+            echo "==> Apply Kubernetes manifests (YAML only)..."
+            kubectl apply -f "${DEPLOY_DIR}/k8s/namespace.yaml"
+            kubectl apply -f "${DEPLOY_DIR}/k8s/deployment.yaml"
+            kubectl apply -f "${DEPLOY_DIR}/k8s/service.yaml"
+            kubectl apply -f "${DEPLOY_DIR}/k8s/ingress.yaml"
+
+            echo "==> Ensure GHCR pull secret exists (required for private packages)..."
+            kubectl delete secret ghcr-secret -n devops-lab --ignore-not-found
             kubectl create secret docker-registry ghcr-secret \
               --namespace=devops-lab \
               --docker-server=ghcr.io \
-              --docker-username="${GHCR_USERNAME}" \
-              --docker-password="${GHCR_TOKEN}" \
-              --dry-run=client -o yaml | kubectl apply -f -
+              --docker-username="${GHCR_USER_LC}" \
+              --docker-password="${GHCR_TOKEN}"
 
-            chmod +x /opt/devops-runtime/scripts/deploy-image.sh
+            kubectl patch serviceaccount default \
+              -n devops-lab \
+              -p '{"imagePullSecrets":[{"name":"ghcr-secret"}]}' \
+              --type=merge
+
+            rm -rf "${DEPLOY_DIR}"
+
             /opt/devops-runtime/scripts/deploy-image.sh "${IMAGE_SHA}"
