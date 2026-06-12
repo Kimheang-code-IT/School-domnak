@@ -1,0 +1,76 @@
+name: CD Deploy to K3s on EC2
+
+on:
+  push:
+    branches:
+      - devops-lab
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: deploy-k3s-devops-lab
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy devops-lab to K3s on AWS EC2
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to K3s by SSH
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.AWS_HOST }}
+          username: ${{ secrets.AWS_USER }}
+          key: ${{ secrets.AWS_SSH_KEY }}
+          port: 22
+          command_timeout: 45m
+          script: |
+            set -euo pipefail
+
+            APP_DIR="/home/ubuntu/school-devops-lab"
+            BRANCH="devops-lab"
+            EC2_HOST="${{ secrets.AWS_HOST }}"
+
+            cd "$APP_DIR"
+
+            echo "==> Syncing $BRANCH from GitHub..."
+            git fetch origin
+            git checkout "$BRANCH"
+            git reset --hard "origin/$BRANCH"
+
+            echo "==> Building Docker images on EC2..."
+            docker build -t school-backend:latest ./backend
+            docker build -t school-frontend:latest ./Frontend \
+              --build-arg NUXT_PUBLIC_API_BASE="http://${EC2_HOST}:30080/api/v1" \
+              --build-arg NUXT_PUBLIC_USE_BACKEND_API=true
+
+            echo "==> Importing images into K3s..."
+            docker save school-backend:latest | sudo k3s ctr images import -
+            docker save school-frontend:latest | sudo k3s ctr images import -
+
+            echo "==> Applying Kubernetes manifests..."
+            kubectl apply -f k8s/namespace.yaml
+            kubectl apply -f k8s/postgres.yaml
+            kubectl apply -f k8s/redis.yaml
+            kubectl apply -f k8s/backend.yaml
+            kubectl apply -f k8s/frontend.yaml
+
+            echo "==> Waiting for Postgres and Redis..."
+            kubectl wait --for=condition=available deployment/postgres -n school-domnak --timeout=180s
+            kubectl wait --for=condition=available deployment/redis -n school-domnak --timeout=120s
+
+            echo "==> Restarting application deployments..."
+            kubectl rollout restart deployment/backend -n school-domnak
+            kubectl rollout restart deployment/frontend -n school-domnak
+
+            echo "==> Waiting for rollout..."
+            kubectl rollout status deployment/backend -n school-domnak --timeout=300s
+            kubectl rollout status deployment/frontend -n school-domnak --timeout=300s
+
+            echo "==> Pods:"
+            kubectl get pods -n school-domnak
+
+            echo "==> Services:"
+            kubectl get svc -n school-domnak
