@@ -13,26 +13,24 @@
 
 The VPS stores **only** Docker images, Kubernetes YAML, and deployment scripts under `/opt/devops-runtime/`. It never stores application source code.
 
-Workflow: [`.github/workflows/cd-k3s.yml`](../.github/workflows/cd-k3s.yml) — runs on branch **`devops-lab`** only.
+Workflow: [`.github/workflows/cd-k3s.yml`](../.github/workflows/cd-k3s.yml) — runs **automatically after CI passes** on branch **`devops-lab`**.
 
-Repository: [Kimheang-code-IT/School-domnak](https://github.com/Kimheang-code-IT/School-domnak.git)
-
-GHCR image: `ghcr.io/<GHCR_USERNAME>/school-domnak:<commit-sha>`
+Full pipeline diagram: [docs/CI-CD.md](../docs/CI-CD.md)
 
 ---
 
 ## Deploy flow
 
-1. Push to **`devops-lab`** (or run workflow manually from Actions tab).
-2. **CI** runs tests on pull requests and pushes (`ci.yml`).
-3. **CD** builds the Frontend Docker image on GitHub Actions.
-4. CD pushes to GHCR:
-   - `ghcr.io/<GHCR_USERNAME>/<repo>:<commit-sha>`
-   - `ghcr.io/<GHCR_USERNAME>/<repo>:latest`
-5. CD SSH into the Hostinger VPS (no source copy).
-6. CD syncs `scripts/deploy-image.sh` only.
-7. CD runs `/opt/devops-runtime/scripts/deploy-image.sh <image>`.
-8. K3s pulls the new image and restarts pods in namespace `devops-lab`.
+1. Push to **`devops-lab`** → **CI** runs tests automatically.
+2. If CI passes → **CD** runs automatically:
+   - Build Docker image on GitHub
+   - Push to GHCR (`ghcr.io/kimheang-code-it/school-domnak:<sha>`)
+   - SSH to VPS (YAML + script only)
+   - K3s pulls image and restarts pods in `devops-lab`
+
+Manual deploy: **Actions → CD Deploy to Hostinger K3s → Run workflow**
+
+See [docs/CI-CD.md](../docs/CI-CD.md) for the full diagram.
 
 ---
 
