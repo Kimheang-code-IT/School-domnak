@@ -1,4 +1,4 @@
-from pydantic import EmailStr, Field
+from pydantic import EmailStr, Field, model_validator
 
 from app.schemas.common import CamelModel
 
@@ -36,3 +36,20 @@ class TokenResponse(CamelModel):
 class AccessTokenResponse(CamelModel):
     access_token: str
     token_type: str = "bearer"
+
+
+class SetupStatusResponse(CamelModel):
+    needs_setup: bool
+
+
+class RegisterAdminRequest(CamelModel):
+    name: str = Field(min_length=1, max_length=120)
+    email: EmailStr
+    password: str = Field(min_length=6, max_length=128)
+    confirm_password: str = Field(min_length=6, max_length=128)
+
+    @model_validator(mode="after")
+    def passwords_match(self) -> "RegisterAdminRequest":
+        if self.password != self.confirm_password:
+            raise ValueError("Passwords do not match")
+        return self

@@ -12,6 +12,8 @@ from app.schemas.auth import (
     LoginRequest,
     LogoutRequest,
     RefreshTokenRequest,
+    RegisterAdminRequest,
+    SetupStatusResponse,
     TokenResponse,
 )
 from app.schemas.common import CommonResponse
@@ -21,13 +23,27 @@ from app.services.auth_service import (
     build_auth_user,
     build_login_token,
     create_refresh_token,
+    needs_admin_setup,
     refresh_access_token,
+    register_first_admin,
     revoke_refresh_token,
 )
 
 router = APIRouter()
 DbSession = Annotated[Session, Depends(get_db)]
 CurrentUser = Annotated[User, Depends(get_current_active_user)]
+
+
+@router.get("/setup-status", response_model=SetupStatusResponse)
+def setup_status(db: DbSession):
+    return SetupStatusResponse(needs_setup=needs_admin_setup(db))
+
+
+@router.post("/register-admin", response_model=CommonResponse, status_code=status.HTTP_201_CREATED)
+def register_admin(payload: RegisterAdminRequest, db: DbSession):
+    register_first_admin(db, name=payload.name, email=payload.email, password=payload.password)
+    db.commit()
+    return CommonResponse(message="Administrator account created. You can now log in.")
 
 
 @router.post("/login", response_model=TokenResponse)

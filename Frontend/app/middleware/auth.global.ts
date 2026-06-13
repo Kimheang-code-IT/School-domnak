@@ -1,5 +1,8 @@
 import { isUiOnlyMode } from '~/composables/useBackendMode'
+import { authService } from '~/services/authService'
 import { resolveRoutePermission } from '~/utils/auth/routes'
+
+const AUTH_PUBLIC_PATHS = ['/login', '/register-admin']
 
 /** UI-only mode: ensure a fixed app session so menus and permissions resolve (admin:*). */
 const DEFAULT_SESSION = {
@@ -10,7 +13,7 @@ const DEFAULT_SESSION = {
   pageAccess: ['admin:*']
 }
 
-export default defineNuxtRouteMiddleware((to) => {
+export default defineNuxtRouteMiddleware(async (to) => {
   const config = useRuntimeConfig()
   const auth = useAuthStore()
 
@@ -29,15 +32,50 @@ export default defineNuxtRouteMiddleware((to) => {
     auth.clearAuth()
   }
 
-  if (!auth.isLoggedIn && to.path !== '/login') {
-    return navigateTo('/login')
+  if (!auth.isLoggedIn) {
+    if (to.path === '/register-admin') {
+      try {
+        const status = await authService.setupStatus()
+        if (!status.needsSetup) {
+          return navigateTo('/login')
+        }
+      } catch {
+        return navigateTo('/login')
+      }
+      return
+    }
+
+    if (to.path === '/login') {
+      try {
+        const status = await authService.setupStatus()
+        if (status.needsSetup) {
+          return navigateTo('/register-admin')
+        }
+      } catch {
+        // Allow login if setup status cannot be checked
+      }
+      return
+    }
+
+    if (!AUTH_PUBLIC_PATHS.includes(to.path)) {
+      try {
+        const status = await authService.setupStatus()
+        if (status.needsSetup) {
+          return navigateTo('/register-admin')
+        }
+      } catch {
+        // Fall through to login
+      }
+      return navigateTo('/login')
+    }
+    return
   }
 
-  if (auth.isLoggedIn && to.path === '/login') {
+  if (auth.isLoggedIn && AUTH_PUBLIC_PATHS.includes(to.path)) {
     return navigateTo('/')
   }
 
-  if (auth.isLoggedIn && to.path !== '/login') {
+  if (auth.isLoggedIn && !AUTH_PUBLIC_PATHS.includes(to.path)) {
     const routeRule = resolveRoutePermission(to.path)
     if (routeRule && !auth.hasPermission(routeRule.permission)) {
       return navigateTo('/')

@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 import secrets
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.config import settings
@@ -99,6 +99,53 @@ def user_update_data(payload: UserUpdate) -> dict:
     if payload.password:
         data["password_hash"] = get_password_hash(payload.password)
     return data
+
+
+def ensure_admin_role(db: Session) -> Role:
+    admin_role = db.scalar(select(Role).where(Role.name == "Admin"))
+    if admin_role:
+        return admin_role
+
+    from app.core.permissions import ADMIN_PERMISSIONS
+
+    admin_role = Role(name="Admin", permissions=ADMIN_PERMISSIONS)
+    db.add(admin_role)
+    db.flush()
+    return admin_role
+
+
+def needs_admin_setup(db: Session) -> bool:
+    count = db.scalar(select(func.count()).select_from(User)) or 0
+    return count == 0
+
+
+def register_first_admin(db: Session, *, name: str, email: str, password: str) -> User:
+    if not needs_admin_setup(db):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="An administrator account already exists",
+        )
+
+    existing_email = db.scalar(select(User).where(User.email == email))
+    if existing_email:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email is already registered")
+
+    admin_role = ensure_admin_role(db)
+    user = User(
+        name=name,
+        email=email,
+        password_hash=get_password_hash(password),
+        role_id=admin_role.id,
+    )
+    db.add(user)
+    db.flush()
+    write_audit_log(
+        db,
+        action="Create",
+        username=name,
+        description=f"Initial admin account created for {email}",
+    )
+    return user
 
 
 def ensure_default_admin(db: Session, *, email: str = "admin@example.com", password: str = "password123") -> User:

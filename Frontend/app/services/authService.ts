@@ -1,13 +1,27 @@
-import { apiGet, apiPost } from './apiClient'
+import { apiClient, apiGet, apiPost } from './apiClient'
 import type {
   AuthUser,
   LoginPayload,
   LoginResponse,
   RefreshTokenPayload,
-  RefreshTokenResponse
+  RefreshTokenResponse,
+  RegisterAdminPayload,
+  SetupStatusResponse
 } from '~/types/auth'
 
 export const authService = {
+  setupStatus() {
+    return apiClient<SetupStatusResponse>('/auth/setup-status', { requireAuth: false })
+  },
+
+  registerAdmin(payload: RegisterAdminPayload) {
+    return apiPost<{ success: boolean; message: string }, RegisterAdminPayload>(
+      '/auth/register-admin',
+      payload,
+      false
+    )
+  },
+
   login(payload: LoginPayload) {
     return apiPost<LoginResponse, LoginPayload>('/auth/login', payload, false)
   },

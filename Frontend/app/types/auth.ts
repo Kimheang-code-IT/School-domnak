@@ -28,3 +28,14 @@ export type RefreshTokenResponse = {
   accessToken: string
   tokenType: 'bearer' | string
 }
+
+export type SetupStatusResponse = {
+  needsSetup: boolean
+}
+
+export type RegisterAdminPayload = {
+  name: string
+  email: string
+  password: string
+  confirmPassword: string
+}
