@@ -2,7 +2,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: backend
-  namespace: school-domnak
+  namespace: devops-lab
+  labels:
+    app: backend
 spec:
   replicas: 1
   strategy:
@@ -17,26 +19,70 @@ spec:
     spec:
       imagePullSecrets:
         - name: ghcr-secret
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:16-alpine
+          envFrom:
+            - secretRef:
+                name: school-domnak-secrets
+          command:
+            - sh
+            - -c
+            - until pg_isready -h postgres -U "$POSTGRES_USER" -d "$POSTGRES_DB"; do echo waiting for postgres; sleep 2; done
       containers:
         - name: backend
-          image: ghcr.io/owner/school-domnak-backend:latest
+          image: ghcr.io/kimheang-code-it/school-domnak-backend:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
           envFrom:
             - secretRef:
                 name: school-domnak-secrets
+          env:
+            - name: RUN_DB_MIGRATIONS
+              value: "true"
+          volumeMounts:
+            - name: google-sheets-credentials
+              mountPath: /app/secrets
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 45
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+      volumes:
+        - name: google-sheets-credentials
+          secret:
+            secretName: google-sheets-credentials
+            optional: true
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: backend
-  namespace: school-domnak
+  namespace: devops-lab
+  labels:
+    app: backend
 spec:
   type: NodePort
   selector:
     app: backend
   ports:
-    - port: 8000
+    - name: http
+      port: 8000
       targetPort: 8000
       nodePort: 30080

@@ -2,7 +2,6 @@
 __pycache__/
 *.pyc
 .env
-school.db
 uploads/
 credentials/*.json
 !credentials/.gitkeep

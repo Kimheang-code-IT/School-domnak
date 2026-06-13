@@ -17,10 +17,20 @@ University DevOps guide for **School-domnak** — **Hostinger VPS only** (no AWS
 | Step | Where |
 |------|--------|
 | Source code | GitHub only |
-| Build Docker image | GitHub Actions |
-| Store image | GHCR (`ghcr.io/kimheang-code-it/school-domnak`) |
+| Build Docker images | GitHub Actions (frontend + backend) |
+| Store images | GHCR |
 | Deploy | SSH → Hostinger VPS → K3s |
 | VPS stores | **No source code** — images + k8s YAML + scripts only |
+| Database | PostgreSQL in K3s (persistent volume) |
+| Local DB tools | Connect to VPS IP port **30432** (after firewall) |
+
+```
+Browser → Ubuntu nginx :80/:443
+            ├── /        → frontend NodePort 30000
+            └── /api/    → backend NodePort 30080
+Backend → postgres:5432 (inside K3s)
+Local PC → VPS:30432 → postgres (DBeaver / pgAdmin)
+```
 
 ---
 
@@ -45,13 +55,150 @@ GitHub secret `VPS_HOST` must be `72.62.250.194` (no `http://`, no port).
 
 ---
 
-## 1. One-time manual copy to VPS (no SCP in CD)
+## 1. Copy from Windows → VPS (one-time)
+
+Run in **PowerShell** on your PC:
 
 ```powershell
-scp -i $env:USERPROFILE\.ssh\sdh_devops_new -r .\k8s root@72.62.250.194:/opt/devops-runtime/
-scp -i $env:USERPROFILE\.ssh\sdh_devops_new .\scripts\deploy-image.sh root@72.62.250.194:/opt/devops-runtime/scripts/
-ssh -i $env:USERPROFILE\.ssh\sdh_devops_new root@72.62.250.194 "chmod +x /opt/devops-runtime/scripts/deploy-image.sh"
+cd "D:\School Domnak"
+
+$KEY  = "$env:USERPROFILE\.ssh\sdh_devops_new"
+$VPS  = "root@72.62.250.194"
+
+# Create folders on VPS
+ssh -i $KEY $VPS "mkdir -p /opt/devops-runtime/k8s /opt/devops-runtime/scripts /opt/devops-runtime/nginx"
+
+# Copy k8s YAML + nginx + all scripts
+scp -i $KEY -r .\k8s\*          ${VPS}:/opt/devops-runtime/k8s/
+scp -i $KEY .\scripts\*.sh      ${VPS}:/opt/devops-runtime/scripts/
+scp -i $KEY .\nginx\host-k3s-proxy.conf ${VPS}:/opt/devops-runtime/nginx/
+
+# Fix Windows CRLF (fixes "bash\r: No such file or directory")
+ssh -i $KEY $VPS "sed -i 's/\r$//' /opt/devops-runtime/scripts/*.sh && chmod +x /opt/devops-runtime/scripts/*.sh"
 ```
+
+**If you already copied files and see `bash\r` error**, run only the fix line on VPS:
+
+```bash
+sed -i 's/\r$//' /opt/devops-runtime/scripts/*.sh
+chmod +x /opt/devops-runtime/scripts/*.sh
+```
+
+### Create secrets (one-time, on VPS)
+
+**Option A — generate on PC (recommended):**
+
+```powershell
+cd "D:\School Domnak"
+bash scripts/generate-k8s-secret.sh
+scp -i $env:USERPROFILE\.ssh\sdh_devops_new k8s/secret.yaml root@72.62.250.194:/opt/devops-runtime/k8s/
+ssh -i $env:USERPROFILE\.ssh\sdh_devops_new root@72.62.250.194 "kubectl apply -f /opt/devops-runtime/k8s/secret.yaml"
+```
+
+**Option B — edit manually on VPS:**
+
+```bash
+cp /opt/devops-runtime/k8s/secret.example.yaml /opt/devops-runtime/k8s/secret.yaml
+nano /opt/devops-runtime/k8s/secret.yaml
+# Replace REPLACE_POSTGRES_PASSWORD (same in POSTGRES_PASSWORD + DATABASE_URL)
+# Replace REPLACE_WITH_openssl_rand_hex_32 for SECRET_KEY
+kubectl apply -f /opt/devops-runtime/k8s/secret.yaml
+```
+
+**Never commit `secret.yaml`.**
+
+Secret includes: `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `DATABASE_URL`, Redis, CORS, Telegram, Google Sheets.
+
+### HTTPS + sslip.io (one-time)
+
+```bash
+/opt/devops-runtime/scripts/setup-ssl-self-signed.sh
+/opt/devops-runtime/scripts/setup-host-nginx.sh /opt/devops-runtime/nginx/host-k3s-proxy.conf
+```
+
+Site URL: **https://school.72-62-250-194.sslip.io**
+
+### Apply everything on VPS (after secret.yaml is ready)
+
+On **VPS** (SSH in as root):
+
+```bash
+# 1. Edit secret (if not done yet)
+nano /opt/devops-runtime/k8s/secret.yaml
+# Replace REPLACE_POSTGRES_PASSWORD and REPLACE_WITH_openssl_rand_hex_32
+
+# 2. One command: secret + stack + SSL + nginx
+bash /opt/devops-runtime/scripts/vps-first-time-setup.sh
+```
+
+Or step by step:
+
+```bash
+kubectl apply -f /opt/devops-runtime/k8s/secret.yaml
+/opt/devops-runtime/scripts/apply-k8s-stack.sh
+/opt/devops-runtime/scripts/setup-ssl-self-signed.sh
+/opt/devops-runtime/scripts/setup-host-nginx.sh /opt/devops-runtime/nginx/host-k3s-proxy.conf
+```
+
+### GHCR pull secret (required for private images)
+
+```bash
+kubectl create namespace devops-lab --dry-run=client -o yaml | kubectl apply -f -
+kubectl delete secret ghcr-secret -n devops-lab --ignore-not-found
+kubectl create secret docker-registry ghcr-secret \
+  --namespace=devops-lab \
+  --docker-server=ghcr.io \
+  --docker-username=kimheang-code-it \
+  --docker-password=YOUR_GHCR_PAT
+```
+
+### Deploy images
+
+Push to **`devops-lab`** on GitHub (CD builds frontend + backend), **or** manual:
+
+```bash
+/opt/devops-runtime/scripts/deploy-image.sh \
+  ghcr.io/kimheang-code-it/school-domnak:latest \
+  ghcr.io/kimheang-code-it/school-domnak-backend:latest
+```
+
+Check:
+
+```bash
+kubectl get pods -n devops-lab
+```
+
+Expected: `devops-app`, `backend`, `postgres`, `redis` all Running.
+
+### Open PostgreSQL for local DB tools
+
+From your PC, get your public IP: `curl ifconfig.me`
+
+On VPS (restrict to your IP only):
+
+```bash
+/opt/devops-runtime/scripts/open-postgres-firewall.sh YOUR_HOME_IP
+```
+
+Also open **TCP 30432** in Hostinger hPanel → VPS → Firewall.
+
+**DBeaver / pgAdmin connection:**
+
+| Field | Value |
+|-------|--------|
+| Host | `72.62.250.194` |
+| Port | `30432` |
+| Database | `school_db` (`POSTGRES_DB`) |
+| User | `postgres` (`POSTGRES_USER`) |
+| Password | `POSTGRES_PASSWORD` from secret |
+
+Connection string:
+
+```
+postgresql://postgres:YOUR_PASSWORD@72.62.250.194:30432/school_db
+```
+
+Public app: **https://school.72-62-250-194.sslip.io**
 
 CD only runs **SSH + deploy-image.sh** — it does not copy files or configure nginx.
 
@@ -105,7 +252,7 @@ scp -i $env:USERPROFILE\.ssh\sdh_devops_new .\scripts\deploy-image.sh root@72.62
 Push to **`devops-lab`**:
 
 1. **SchoolDomnak CI** — runs tests
-2. **CD Deploy to Hostinger K3s** — builds image → pushes GHCR → SSH to VPS → `kubectl` update
+2. **CD Deploy to Hostinger K3s** — builds frontend + backend → pushes GHCR → SSH → full K3s stack update
 
 Manual run: **Actions → CD Deploy to Hostinger K3s → Run workflow**
 
@@ -126,7 +273,9 @@ chmod +x /opt/devops-runtime/scripts/setup-host-nginx.sh
 /opt/devops-runtime/scripts/setup-host-nginx.sh /opt/devops-runtime/nginx/host-k3s-proxy.conf
 ```
 
-Flow: **User → Ubuntu nginx :80 → K3s NodePort :30000 → Pod**
+Flow: **User → Ubuntu nginx :80 → frontend :30000 + backend :30080 (/api)**
+
+Re-run after updating `host-k3s-proxy.conf` (adds `/api/` proxy to backend).
 
 ---
 
@@ -137,10 +286,12 @@ On VPS:
 ```bash
 kubectl get pods -n devops-lab
 kubectl get svc -n devops-lab
-curl -I http://127.0.0.1:3000
+curl -I http://127.0.0.1:30000/
+curl -I http://127.0.0.1:30080/health
+curl -I http://127.0.0.1/api/v1/auth/setup-status
 ```
 
-From browser: `http://72.62.250.194` (Ubuntu **host** nginx → K3s NodePort 30000)
+From browser: **https://school.72-62-250-194.sslip.io/register-admin**
 
 ---
 

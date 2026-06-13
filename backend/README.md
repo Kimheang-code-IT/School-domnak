@@ -11,25 +11,45 @@ FastAPI backend for the existing school/course management frontend table UI. All
 
 ## Setup
 
+### 1. Start PostgreSQL
+
+From the repo root (Docker Compose):
+
+```powershell
+docker compose up -d postgres
+```
+
+Or use any PostgreSQL 16+ instance. The default host port in `docker-compose.yml` is **15432**.
+
+### 2. Configure environment
+
+```powershell
+cd backend
+copy .env.example .env
+```
+
+```env
+DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:15432/school_db
+```
+
+Inside Docker Compose, use the service hostname instead of `localhost`:
+
+```env
+DATABASE_URL=postgresql+psycopg2://postgres:postgres@postgres:5432/school_db
+```
+
+### 3. Install and run
+
 ```powershell
 cd backend
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
+alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-The default development database is SQLite:
-
-```env
-DATABASE_URL=sqlite:///./school.db
-```
-
-To switch to PostgreSQL later, change only `DATABASE_URL`:
-
-```env
-DATABASE_URL=postgresql+psycopg2://postgres:password@localhost:5432/school_db
-```
+Only **PostgreSQL** is supported. The app rejects non-PostgreSQL `DATABASE_URL` values.
 
 ## Seed Data
 

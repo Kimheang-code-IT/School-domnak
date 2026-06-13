@@ -1,88 +1,163 @@
-# Kubernetes manifests — Hostinger VPS + K3s
+# Kubernetes manifests — Hostinger VPS + K3s (full stack)
 
-## Architecture (Ubuntu host nginx → K3s)
+## Architecture
 
 ```
-User browser
-    ↓  http://72.62.250.194:80
-Ubuntu nginx (on VPS host — not Docker public port)
-    ↓  proxy_pass http://127.0.0.1:30000
-K3s NodePort Service (devops-app)
-    ↓
-Pod (container nginx serves app on :3000 — internal only)
+Browser → Ubuntu host nginx (:80 / :443)
+            ├── /        → frontend NodePort 30000 → devops-app pod
+            └── /api/    → backend NodePort 30080 → FastAPI pod
+
+Backend → postgres:5432 (ClusterIP, inside K3s)
+Backend → redis:6379
+
+Local PC (DBeaver) → VPS:30432 → postgres NodePort
 ```
 
-Traefik ingress is **not** used for public access. Host nginx owns port **80**.
+| Component | K8s name | NodePort | Notes |
+|-----------|----------|----------|-------|
+| Frontend | `devops-app` | 30000 | Static Nuxt SPA |
+| Backend | `backend` | 30080 | FastAPI + Alembic migrations |
+| PostgreSQL | `postgres` | **30432** | Persistent volume — connect from local tools |
+| Redis | `redis` | (internal) | Celery optional (`USE_CELERY_TASKS=false` by default) |
 
----
-
-## Architecture (no source code on VPS)
-
-| Step | Where |
-|------|--------|
-| Source code | **GitHub** (checkout on Actions runner only) |
-| Build & test | **GitHub Actions** (`ci.yml`) |
-| Build Docker image | **GitHub Actions** (`cd-k3s.yml`) |
-| Store images | **GHCR** (`ghcr.io/<username>/<repo>:<sha>`) |
-| Deploy | **Hostinger VPS** — `deploy-image.sh` updates K3s only |
-| Run workloads | **K3s** pulls images from GHCR |
-
-The VPS stores **only** Docker images, Kubernetes YAML, and deployment scripts under `/opt/devops-runtime/`. It never stores application source code.
-
-Workflow: [`.github/workflows/cd-k3s.yml`](../.github/workflows/cd-k3s.yml) — **CD Deploy to Hostinger K3s** (not AWS).
-
-Full pipeline: [docs/CI-CD.md](../docs/CI-CD.md)
+Traefik is **not** used for public access. Host nginx owns port **80/443**.
 
 ---
 
 ## Deploy flow
 
-1. Push to **`devops-lab`** → **SchoolDomnak CI** (tests) and **CD Deploy to Hostinger K3s** (build + deploy) run together.
+1. Push to **`devops-lab`** → CI tests + CD builds **frontend + backend** → GHCR
+2. CD SSH to VPS → apply k8s manifests → update both images
 
-Manual deploy: **Actions → CD Deploy to Hostinger K3s → Run workflow**
-
-See [docs/CI-CD.md](../docs/CI-CD.md) for the full diagram.
-
----
-
-## Required GitHub secrets
-
-| Secret | Description |
-|--------|-------------|
-| `GHCR_TOKEN` | GitHub PAT with `write:packages` (push) and `read:packages` (VPS pull) |
-| `GHCR_USERNAME` | GitHub username for GHCR login and image path |
-| `VPS_HOST` | Hostinger VPS IP (e.g. `72.62.250.194`) |
-| `VPS_USER` | SSH user (e.g. `root`) |
-| `VPS_SSH_KEY` | Private SSH key contents (PEM) |
-
-**Do not commit secrets to the repository.**
+Workflow: [`.github/workflows/cd-k3s.yml`](../.github/workflows/cd-k3s.yml)
 
 ---
 
 ## One-time VPS setup
 
-1. Install K3s + Docker on VPS (see [docs/k3s-setup.md](../docs/k3s-setup.md)).
-2. Create runtime folders:
-   ```bash
-   mkdir -p /opt/devops-runtime/{k8s,scripts}
-   ```
-3. Copy manifests from your PC (YAML only):
-   ```powershell
-   scp -i $env:USERPROFILE\.ssh\sdh_devops_new -r .\k8s root@72.62.250.194:/opt/devops-runtime/
-   scp -i $env:USERPROFILE\.ssh\sdh_devops_new .\scripts\deploy-image.sh root@72.62.250.194:/opt/devops-runtime/scripts/
-   ```
-4. Apply manifests (namespace first):
-   ```bash
-   kubectl apply -f /opt/devops-runtime/k8s/namespace.yaml
-   kubectl apply -f /opt/devops-runtime/k8s/deployment.yaml
-   kubectl apply -f /opt/devops-runtime/k8s/service.yaml
-   ```
-4. Setup host nginx:
-   ```bash
-   /opt/devops-runtime/scripts/setup-host-nginx.sh
-   ```
+### 1. Copy files to VPS
 
-CD applies Kubernetes YAML and updates the image only. **Host nginx is manual** (see below).
+```powershell
+scp -i $env:USERPROFILE\.ssh\sdh_devops_new -r .\k8s root@72.62.250.194:/opt/devops-runtime/
+scp -i $env:USERPROFILE\.ssh\sdh_devops_new .\scripts\*.sh root@72.62.250.194:/opt/devops-runtime/scripts/
+scp -i $env:USERPROFILE\.ssh\sdh_devops_new .\nginx\host-k3s-proxy.conf root@72.62.250.194:/opt/devops-runtime/nginx/
+ssh -i $env:USERPROFILE\.ssh\sdh_devops_new root@72.62.250.194 "chmod +x /opt/devops-runtime/scripts/*.sh"
+```
+
+### 2. Create secrets (required before first deploy)
+
+**Generate automatically:**
+
+```powershell
+bash scripts/generate-k8s-secret.sh
+scp k8s/secret.yaml root@72.62.250.194:/opt/devops-runtime/k8s/
+```
+
+**Or copy template and edit** — see `k8s/secret.example.yaml` (complete list):
+
+| Key | Purpose |
+|-----|---------|
+| `POSTGRES_DB` | Database name (postgres pod) |
+| `POSTGRES_USER` | Database user (postgres pod) |
+| `POSTGRES_PASSWORD` | Database password (postgres pod) |
+| `DATABASE_URL` | Backend connection (`@postgres:5432` inside K3s) |
+| `SECRET_KEY` | JWT signing key |
+| `BACKEND_CORS_ORIGINS` | Must include `https://school.72-62-250-194.sslip.io` |
+
+```bash
+kubectl apply -f /opt/devops-runtime/k8s/secret.yaml
+```
+
+`POSTGRES_PASSWORD` must match the password inside `DATABASE_URL`.
+
+### 3. HTTPS certificate + nginx
+
+```bash
+/opt/devops-runtime/scripts/setup-ssl-self-signed.sh
+/opt/devops-runtime/scripts/setup-host-nginx.sh /opt/devops-runtime/nginx/host-k3s-proxy.conf
+```
+
+Public URL: **https://school.72-62-250-194.sslip.io**
+
+### 4. Apply stack
+
+```bash
+/opt/devops-runtime/scripts/apply-k8s-stack.sh
+```
+
+### 5. Open PostgreSQL for local DB tools
+
+```bash
+# Replace with your home public IP
+/opt/devops-runtime/scripts/open-postgres-firewall.sh YOUR_HOME_IP
+```
+
+Also allow **TCP 30432** in Hostinger hPanel firewall.
+
+**Local connection:**
+
+```
+postgresql://postgres:YOUR_PASSWORD@72.62.250.194:30432/school_db
+```
+
+---
+
+## Google Sheets backup (service account JSON)
+
+Uses `backend/credentials/school-domnak-576f89315ae9.json` (never commit this file).
+
+### 1. Share spreadsheet with service account
+
+In Google Sheets → **Share** → add as **Editor**:
+
+```
+school-domnak@school-domnak.iam.gserviceaccount.com
+```
+
+Spreadsheet ID from URL (`/d/<ID>/edit`):
+
+```
+https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit
+```
+
+### 2. Copy JSON to VPS + create K8s secret
+
+**Windows:**
+
+```powershell
+cd "D:\School Domnak"
+$KEY = "$env:USERPROFILE\.ssh\sdh_devops_new"
+$VPS = "root@72.62.250.194"
+
+scp -i $KEY .\backend\credentials\school-domnak-576f89315ae9.json ${VPS}:/tmp/google-sheets-service-account.json
+scp -i $KEY .\scripts\setup-google-sheets-secret.sh ${VPS}:/opt/devops-runtime/scripts/
+ssh -i $KEY $VPS "sed -i 's/\r$//' /opt/devops-runtime/scripts/setup-google-sheets-secret.sh && chmod +x /opt/devops-runtime/scripts/setup-google-sheets-secret.sh"
+ssh -i $KEY $VPS "/opt/devops-runtime/scripts/setup-google-sheets-secret.sh /tmp/google-sheets-service-account.json"
+```
+
+### 3. Enable in secret.yaml on VPS
+
+```yaml
+GOOGLE_SHEETS_BACKUP_ENABLED: "true"
+GOOGLE_SHEETS_CREDENTIALS_FILE: /app/secrets/google-sheets-service-account.json
+GOOGLE_SHEETS_SPREADSHEET_ID: YOUR_SPREADSHEET_ID
+```
+
+```bash
+kubectl apply -f /opt/devops-runtime/k8s/secret.yaml
+kubectl apply -f /opt/devops-runtime/k8s/backend.yaml
+kubectl rollout restart deployment/backend -n devops-lab
+```
+
+### 4. Test backup
+
+```bash
+kubectl exec -n devops-lab deploy/backend -- python scripts/run_google_sheets_backup.py
+```
+
+Automatic daily backup runs at **19:00** (`Asia/Phnom_Penh`) while backend pod is running.
+
+Manual API (admin login required): `POST https://school.72-62-250-194.sslip.io/api/v1/backup/google-sheets`
 
 ---
 
@@ -91,56 +166,34 @@ CD applies Kubernetes YAML and updates the image only. **Host nginx is manual** 
 | File | Description |
 |------|-------------|
 | `namespace.yaml` | Namespace `devops-lab` |
-| `deployment.yaml` | App `devops-app`, container port **3000**, pulls from GHCR |
-| `service.yaml` | NodePort **30000** → pod port 3000 (for host nginx) |
-| `ingress.yaml` | Removed — use host nginx instead |
-| `nginx/host-k3s-proxy.conf` | Ubuntu host nginx config |
-| `scripts/setup-host-nginx.sh` | Install/configure host nginx on VPS |
-
-### Legacy multi-service manifests (optional)
-
-These are **not** used by the current Hostinger CD workflow:
-
-| File | Description |
-|------|-------------|
-| `postgres.yaml` | PostgreSQL (legacy — not used) |
-| `redis.yaml` | Redis (legacy — not used) |
-| `backend.yaml` | FastAPI backend (legacy — not used) |
-| `frontend.yaml` | Frontend NodePort (legacy — not used) |
-| `secret.example.yaml` | Example secrets — never commit real values |
+| `postgres.yaml` | PostgreSQL 16 + PVC + NodePort **30432** |
+| `redis.yaml` | Redis 7 (internal) |
+| `backend.yaml` | FastAPI backend + NodePort **30080** |
+| `deployment.yaml` | Frontend `devops-app` |
+| `service.yaml` | Frontend NodePort **30000** |
+| `secret.example.yaml` | Template — copy to `secret.yaml` on VPS only |
 
 ---
 
-## Access
-
-| VPS IP | `http://72.62.250.194` (Ubuntu **host** nginx on port 80) |
-
----
-
-## One-time / manual host nginx setup
-
-From Windows:
-
-```powershell
-scp -i $env:USERPROFILE\.ssh\sdh_devops_new nginx/host-k3s-proxy.conf root@72.62.250.194:/opt/devops-runtime/nginx/
-scp -i $env:USERPROFILE\.ssh\sdh_devops_new scripts/setup-host-nginx.sh root@72.62.250.194:/opt/devops-runtime/scripts/
-```
-
-On VPS:
+## Reset database on VPS
 
 ```bash
-kubectl apply -f /opt/devops-runtime/k8s/service.yaml
-chmod +x /opt/devops-runtime/scripts/setup-host-nginx.sh
-/opt/devops-runtime/scripts/setup-host-nginx.sh
-curl -I http://127.0.0.1/
+kubectl scale deployment backend -n devops-lab --replicas=0
+kubectl delete pvc postgres-data -n devops-lab
+kubectl apply -f /opt/devops-runtime/k8s/postgres.yaml
+kubectl scale deployment backend -n devops-lab --replicas=1
 ```
+
+Backend runs `alembic upgrade head` on startup. Then open `/register-admin`.
 
 ---
 
-## Manual deploy (without waiting for CD)
+## Manual deploy
 
 ```bash
-/opt/devops-runtime/scripts/deploy-image.sh ghcr.io/kimheang-code-it/school-domnak:latest
+/opt/devops-runtime/scripts/deploy-image.sh \
+  ghcr.io/kimheang-code-it/school-domnak:latest \
+  ghcr.io/kimheang-code-it/school-domnak-backend:latest
 ```
 
 ---
@@ -149,11 +202,13 @@ curl -I http://127.0.0.1/
 
 | Problem | Fix |
 |---------|-----|
-| `ImagePullBackOff` / `401 Unauthorized` | Private GHCR — recreate `ghcr-secret` (see below) and re-apply `k8s/deployment.yaml` (has `imagePullSecrets`) |
-| Pod container named `app` not `devops-app` | Old Hostinger placeholder — re-apply `k8s/deployment.yaml` from this repo |
-| Rollout stuck | `kubectl get pods -n devops-lab` and `kubectl describe pod -n devops-lab <name>` |
+| CD fails: secret missing | Create `school-domnak-secrets` from `secret.example.yaml` |
+| `ImagePullBackOff` | Recreate `ghcr-secret` (see below) |
+| `/api` returns 502 | Check backend pod: `kubectl logs -n devops-lab deploy/backend` |
+| Cannot connect to DB locally | Open UFW + Hostinger firewall for port **30432** |
+| Backend crash loop | Postgres not ready — check `kubectl get pods -n devops-lab` |
 
-### Fix GHCR pull on VPS (manual)
+### Fix GHCR pull on VPS
 
 ```bash
 kubectl delete secret ghcr-secret -n devops-lab --ignore-not-found
@@ -162,16 +217,6 @@ kubectl create secret docker-registry ghcr-secret \
   --docker-server=ghcr.io \
   --docker-username=kimheang-code-it \
   --docker-password=YOUR_GHCR_TOKEN
-
-kubectl apply -f /opt/devops-runtime/k8s/deployment.yaml
-kubectl delete pods -n devops-lab -l app=devops-app
 ```
 
-Ensure `GHCR_TOKEN` is a PAT with **`read:packages`** (and `write:packages` for CI push).
-
-On GitHub: **Packages → school-domnak → Package settings** — link package to `School-domnak` repo or allow org access.
-
-- VPS has no git clone of the application repository.
-- Images are built only in GitHub Actions.
-- Use private GHCR packages + `ghcr-secret` on the cluster.
-- Rotate `GHCR_TOKEN` and SSH keys periodically.
+See also: [docs/k3s-setup.md](../docs/k3s-setup.md), [docs/CI-CD.md](../docs/CI-CD.md)

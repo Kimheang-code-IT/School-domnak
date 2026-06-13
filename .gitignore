@@ -12,9 +12,8 @@ secrets/*
 credentials/*.json
 !credentials/.gitkeep
 
-# SQLite (local dev)
+# Runtime database files (legacy)
 *.db
-school.db
 
 # Uploads (runtime data)
 uploads/*

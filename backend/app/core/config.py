@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     app_debug: bool = Field(default=False, validation_alias="APP_DEBUG")
     api_v1_prefix: str = "/api/v1"
     database_url: str = Field(
-        default="sqlite:///./school.db",
+        default="postgresql+psycopg2://postgres:postgres@localhost:15432/school_db",
         validation_alias="DATABASE_URL",
     )
     secret_key: str = Field(default="change-me-in-production", validation_alias="SECRET_KEY")
@@ -88,6 +88,16 @@ class Settings(BaseSettings):
             parsed = json.loads(raw)
             return [str(item).strip() for item in parsed if str(item).strip()]
         return [part.strip() for part in raw.split(",") if part.strip()]
+
+    @field_validator("database_url")
+    @classmethod
+    def require_postgresql(cls, value: str) -> str:
+        if not value.startswith("postgresql"):
+            raise ValueError(
+                "Only PostgreSQL is supported. "
+                "Set DATABASE_URL to a postgresql+psycopg2://... connection string."
+            )
+        return value
 
     @field_validator("upload_dir", "google_sheets_credentials_file", mode="before")
     @classmethod

@@ -1,10 +1,30 @@
+# PostgreSQL — persistent data + NodePort for local tools (DBeaver, pgAdmin)
+# Credentials from secret: POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD
+# Local connection: postgresql://<user>:<password>@72.62.250.194:30432/<db>
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-data
+  namespace: devops-lab
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 5Gi
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: postgres
-  namespace: school-domnak
+  namespace: devops-lab
+  labels:
+    app: postgres
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: postgres
@@ -20,9 +40,15 @@ spec:
             - containerPort: 5432
           env:
             - name: POSTGRES_DB
-              value: school_db
+              valueFrom:
+                secretKeyRef:
+                  name: school-domnak-secrets
+                  key: POSTGRES_DB
             - name: POSTGRES_USER
-              value: postgres
+              valueFrom:
+                secretKeyRef:
+                  name: school-domnak-secrets
+                  key: POSTGRES_USER
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -31,18 +57,40 @@ spec:
           volumeMounts:
             - name: postgres-data
               mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+            initialDelaySeconds: 30
+            periodSeconds: 10
       volumes:
         - name: postgres-data
-          emptyDir: {}
+          persistentVolumeClaim:
+            claimName: postgres-data
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: postgres
-  namespace: school-domnak
+  namespace: devops-lab
+  labels:
+    app: postgres
 spec:
+  type: NodePort
   selector:
     app: postgres
   ports:
-    - port: 5432
+    - name: postgres
+      port: 5432
       targetPort: 5432
+      nodePort: 30432

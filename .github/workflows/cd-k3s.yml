@@ -1,8 +1,8 @@
 # =============================================================================
-# CD — Build on GitHub, deploy to Hostinger VPS K3s (devops-lab branch)
+# CD — Build on GitHub, deploy full stack to Hostinger VPS K3s (devops-lab branch)
 #
-# Runs on every push to devops-lab (+ manual trigger).
-# CI (SchoolDomnak CI) runs in parallel for tests.
+# Stack: frontend + backend + postgres + redis on K3s
+# Postgres NodePort 30432 — connect from local DB tools after firewall setup
 # =============================================================================
 name: CD Deploy to Hostinger K3s
 
@@ -15,6 +15,7 @@ on:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   REGISTRY: ghcr.io
+  PUBLIC_SITE_URL: https://school.72-62-250-194.sslip.io
 
 permissions:
   contents: read
@@ -26,18 +27,20 @@ concurrency:
 
 jobs:
   build-and-push:
-    name: Build image and push to GHCR
+    name: Build images and push to GHCR
     runs-on: ubuntu-latest
 
     outputs:
-      image_sha: ${{ steps.image.outputs.image_sha }}
-      image_latest: ${{ steps.image.outputs.image_latest }}
+      frontend_sha: ${{ steps.image.outputs.frontend_sha }}
+      frontend_latest: ${{ steps.image.outputs.frontend_latest }}
+      backend_sha: ${{ steps.image.outputs.backend_sha }}
+      backend_latest: ${{ steps.image.outputs.backend_latest }}
 
     steps:
       - name: Checkout (GitHub runner only — never copied to VPS)
         uses: actions/checkout@v6
 
-      - name: Set image name (GHCR requires lowercase)
+      - name: Set image names (GHCR requires lowercase)
         id: image
         env:
           REGISTRY: ghcr.io
@@ -47,8 +50,10 @@ jobs:
         run: |
           OWNER_LC=$(echo "${GHCR_USERNAME}" | tr '[:upper:]' '[:lower:]')
           REPO_LC=$(echo "${REPO_NAME}" | tr '[:upper:]' '[:lower:]')
-          echo "image_sha=${REGISTRY}/${OWNER_LC}/${REPO_LC}:${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
-          echo "image_latest=${REGISTRY}/${OWNER_LC}/${REPO_LC}:latest" >> "$GITHUB_OUTPUT"
+          echo "frontend_sha=${REGISTRY}/${OWNER_LC}/${REPO_LC}:${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "frontend_latest=${REGISTRY}/${OWNER_LC}/${REPO_LC}:latest" >> "$GITHUB_OUTPUT"
+          echo "backend_sha=${REGISTRY}/${OWNER_LC}/${REPO_LC}-backend:${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "backend_latest=${REGISTRY}/${OWNER_LC}/${REPO_LC}-backend:latest" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -60,7 +65,7 @@ jobs:
           username: ${{ secrets.GHCR_USERNAME }}
           password: ${{ secrets.GHCR_TOKEN }}
 
-      - name: Build and push Docker image
+      - name: Build and push frontend image
         uses: docker/build-push-action@v7
         with:
           context: ./Frontend
@@ -69,23 +74,36 @@ jobs:
           push: true
           provenance: false
           tags: |
-            ${{ steps.image.outputs.image_sha }}
-            ${{ steps.image.outputs.image_latest }}
+            ${{ steps.image.outputs.frontend_sha }}
+            ${{ steps.image.outputs.frontend_latest }}
           build-args: |
-            NUXT_PUBLIC_API_BASE=http://${{ secrets.VPS_HOST }}/api/v1
+            NUXT_PUBLIC_API_BASE=${{ env.PUBLIC_SITE_URL }}/api/v1
             NUXT_PUBLIC_USE_BACKEND_API=true
           cache-from: type=gha
 
+      - name: Build and push backend image
+        uses: docker/build-push-action@v7
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          provenance: false
+          tags: |
+            ${{ steps.image.outputs.backend_sha }}
+            ${{ steps.image.outputs.backend_latest }}
+          cache-from: type=gha
+
   deploy:
-    name: Deploy to Hostinger VPS (SSH only)
+    name: Deploy full stack to Hostinger VPS (SSH only)
     runs-on: ubuntu-latest
     needs: build-and-push
 
     steps:
-      - name: Deploy new image on VPS (SSH only — no SCP, manual nginx)
+      - name: Deploy stack on VPS (SSH only — no SCP, manual nginx)
         uses: appleboy/ssh-action@v1.2.5
         env:
-          IMAGE_SHA: ${{ needs.build-and-push.outputs.image_sha }}
+          FRONTEND_IMAGE: ${{ needs.build-and-push.outputs.frontend_sha }}
+          BACKEND_IMAGE: ${{ needs.build-and-push.outputs.backend_sha }}
           GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
         with:
@@ -95,16 +113,17 @@ jobs:
           port: 22
           timeout: 120s
           command_timeout: 15m
-          envs: IMAGE_SHA,GHCR_USERNAME,GHCR_TOKEN
+          envs: FRONTEND_IMAGE,BACKEND_IMAGE,GHCR_USERNAME,GHCR_TOKEN
           script: |
             set -euo pipefail
 
-            echo "==> VPS: kubectl + deploy-image.sh only (no source code, no SCP)"
+            echo "==> VPS: full stack deploy (frontend + backend + postgres + redis)"
             echo "==> Nginx on Ubuntu is configured manually — not by CD"
 
             GHCR_USER_LC=$(echo "${GHCR_USERNAME}" | tr '[:upper:]' '[:lower:]')
             K8S_DIR="/opt/devops-runtime/k8s"
             DEPLOY_SCRIPT="/opt/devops-runtime/scripts/deploy-image.sh"
+            APPLY_SCRIPT="/opt/devops-runtime/scripts/apply-k8s-stack.sh"
 
             kubectl() {
               if command -v k3s >/dev/null 2>&1; then
@@ -118,16 +137,23 @@ jobs:
 
             if [[ ! -x "${DEPLOY_SCRIPT}" ]]; then
               echo "ERROR: ${DEPLOY_SCRIPT} missing."
-              echo "Copy once from your PC (see docs/k3s-setup.md):"
-              echo "  scp scripts/deploy-image.sh root@VPS:/opt/devops-runtime/scripts/"
+              echo "Copy once from your PC (see docs/k3s-setup.md)"
               exit 1
             fi
 
-            if [[ -d "${K8S_DIR}" ]]; then
-              echo "==> Apply k8s manifests from ${K8S_DIR} (if present)..."
-              kubectl apply -f "${K8S_DIR}/namespace.yaml" 2>/dev/null || true
-              kubectl apply -f "${K8S_DIR}/deployment.yaml" 2>/dev/null || true
-              kubectl apply -f "${K8S_DIR}/service.yaml" 2>/dev/null || true
+            if [[ -x "${APPLY_SCRIPT}" ]]; then
+              "${APPLY_SCRIPT}"
+            elif [[ -d "${K8S_DIR}" ]]; then
+              echo "==> Apply k8s manifests from ${K8S_DIR}..."
+              for f in namespace.yaml postgres.yaml redis.yaml backend.yaml deployment.yaml service.yaml; do
+                [[ -f "${K8S_DIR}/${f}" ]] && kubectl apply -f "${K8S_DIR}/${f}" || true
+              done
+            fi
+
+            if ! kubectl get secret school-domnak-secrets -n devops-lab >/dev/null 2>&1; then
+              echo "ERROR: Secret school-domnak-secrets missing in devops-lab."
+              echo "Create once on VPS from k8s/secret.example.yaml (see docs/k3s-setup.md)."
+              exit 1
             fi
 
             echo "==> GHCR pull secret..."
@@ -139,7 +165,9 @@ jobs:
               --docker-username="${GHCR_USER_LC}" \
               --docker-password="${GHCR_TOKEN}"
 
-            echo "==> Deploy image: ${IMAGE_SHA}"
-            "${DEPLOY_SCRIPT}" "${IMAGE_SHA}"
+            echo "==> Deploy images:"
+            echo "    frontend: ${FRONTEND_IMAGE}"
+            echo "    backend:  ${BACKEND_IMAGE}"
+            "${DEPLOY_SCRIPT}" "${FRONTEND_IMAGE}" "${BACKEND_IMAGE}"
 
             echo "==> Done."

@@ -67,11 +67,11 @@ else
   echo "    WARNING: NodePort not responding yet — check: kubectl get svc -n devops-lab"
 fi
 
-echo "==> Verify host nginx on port 80..."
-if curl -sf "http://127.0.0.1/" -o /dev/null; then
-  echo "    Host nginx OK — users open http://VPS_IP"
+echo "==> Verify host nginx on HTTPS..."
+if curl -ksf "https://127.0.0.1/health" -o /dev/null 2>/dev/null || curl -ksf "https://school.72-62-250-194.sslip.io/health" -o /dev/null 2>/dev/null; then
+  echo "    HTTPS OK — https://school.72-62-250-194.sslip.io"
 else
-  echo "    WARNING: host nginx not responding — check: systemctl status nginx"
+  echo "    WARNING: HTTPS not responding — run setup-ssl-self-signed.sh first"
 fi
 
-echo "==> Done. Public URL: http://$(curl -sf ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')"
+echo "==> Done. Public URL: https://school.72-62-250-194.sslip.io"

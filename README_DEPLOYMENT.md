@@ -132,80 +132,66 @@ Telegram/Google Sheets failures **do not** roll back registration.
 
 ---
 
-## SQLite → PostgreSQL migration
+## Database setup and reset (PostgreSQL)
 
-### Step 1: Backup SQLite
-
-```bash
-cp backend/school.db backend/school.db.backup-$(date +%Y%m%d)
-```
-
-### Step 2: Start PostgreSQL only
+The project uses **PostgreSQL only**. Start the database:
 
 ```bash
 docker compose up -d postgres
 ```
 
-### Step 3: Update `DATABASE_URL`
+Apply migrations:
 
-In `.env`:
-
+```bash
+cd backend
+alembic upgrade head
+# or inside Docker:
+docker compose exec backend alembic upgrade head
 ```
-DATABASE_URL=postgresql+psycopg2://postgres:postgres@postgres:5432/school_db
+
+### Reset database (delete all data)
+
+```bash
+docker compose down -v
+docker compose up -d postgres redis backend
 ```
 
-For host-side tools use port **15432**:
+Migrations run automatically when the backend container starts (`RUN_DB_MIGRATIONS=true`).
+
+Optional sample data (roles, courses, etc. — no users):
+
+```bash
+docker compose exec backend python scripts/seed_data.py
+```
+
+Create the first admin at **`/register-admin`** in the frontend.
+
+### Host-side tools
+
+Use port **15432** when connecting from your PC (not from inside Docker):
 
 ```
 DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:15432/school_db
 ```
 
-### Step 4: Run Alembic migrations
+Migrations live in `backend/alembic/versions/`. Alembic reads `DATABASE_URL` from settings via `alembic/env.py`.
 
-```bash
-cd backend
-# with venv active and DATABASE_URL pointing at Postgres
-alembic upgrade head
-```
-
-Migrations live in `backend/alembic/versions/`.
-
-### Step 5: If Alembic was never used on this DB
-
-Alembic is already configured (`backend/alembic.ini`, `alembic/env.py` reads `DATABASE_URL` from settings). Run `alembic upgrade head` on an empty Postgres DB before importing data.
-
-### Step 6: Export from SQLite / import to PostgreSQL
-
-```bash
-cd backend
-export SQLITE_URL=sqlite:///./school.db
-export DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:15432/school_db
-python scripts/migrate_sqlite_to_postgres.py
-```
-
-Tables are copied in FK-safe order: roles → users → categories → courses → classes → students → enrollments → invoices → invoice_lines → commissions → finance → audit_logs → refresh_tokens.
-
-### Step 7: Verify row counts
-
-Compare counts in SQLite vs PostgreSQL per table (e.g. `SELECT COUNT(*) FROM students`).
-
-### Step 8: Test backend against PostgreSQL
+### Test backend
 
 ```bash
 docker compose up -d backend
 curl http://localhost:18000/health
-curl http://localhost:18000/api/v1/auth/login -X POST -H "Content-Type: application/json" -d '{"username":"admin","password":"..."}'
 ```
 
-### Step 9: Run full Docker system
+### Run full Docker system
 
 ```bash
 docker compose up -d --build
 ```
 
-### Step 10: Smoke test UI
+### Smoke test UI
 
-Open http://localhost:18080, log in, create a test student, confirm Telegram alert (if configured).
+Open http://localhost:18080, register the first admin at `/register-admin`, create a test student, confirm Telegram alert (if configured).
 
 ---
 
