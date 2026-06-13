@@ -1,4 +1,5 @@
 import type { TableQuery } from '~/types/api'
+import { resolveApiBase } from '~/utils/constants/apiBase'
 
 export const ACCESS_TOKEN_STORAGE_KEY = 'school_access_token'
 export const REFRESH_TOKEN_STORAGE_KEY = 'school_refresh_token'
@@ -18,7 +19,7 @@ type FetchBody = Record<string, unknown> | BodyInit | null | undefined
 
 function getBaseURL() {
   const config = useRuntimeConfig()
-  return config.public.apiBase || 'http://localhost:8000/api/v1'
+  return resolveApiBase(config.public.apiBase as string | undefined)
 }
 
 export function getStoredAccessToken() {

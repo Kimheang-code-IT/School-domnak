@@ -1,6 +1,8 @@
 // nuxt.config.ts
 // https://nuxt.com/docs/api/configuration/nuxt-config
 
+import { DEV_API_BASE, PRODUCTION_API_BASE } from './app/utils/constants/apiBase'
+
 export default defineNuxtConfig({
   // SPA static export for Docker/nginx — avoids prerender API errors in CI/CD
   ssr: false,
@@ -65,9 +67,9 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       apiBase:
-        import.meta.env.NUXT_PUBLIC_API_BASE
-        || import.meta.env.VITE_API_BASE_URL
-        || 'http://localhost:8000/api/v1',
+        process.env.NUXT_PUBLIC_API_BASE
+        || process.env.VITE_API_BASE_URL
+        || (process.env.NODE_ENV === 'production' ? PRODUCTION_API_BASE : DEV_API_BASE),
       useBackendApi: import.meta.env.NUXT_PUBLIC_USE_BACKEND_API !== 'false',
       /** Layout/design mode: auto session, no auth gates, no API calls, permissive login form */
       uiOnly: import.meta.env.NUXT_PUBLIC_UI_ONLY === 'true'

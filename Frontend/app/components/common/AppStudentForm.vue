@@ -5,7 +5,7 @@ import { onClickOutside } from '@vueuse/core'
 import { CAMBODIA_PROVINCE_NAMES, normalizeCambodiaProvince } from '~/utils/constants/cambodiaProvinces'
 import { normalizeKhmerText } from '~/utils/format/khmerText'
 import { normalizeCambodiaPhone } from '~/utils/format/phone'
-import { mapProductViewStudentRow } from '~/utils/helpers/mapProductViewStudentRow'
+import { resolveApiBase } from '~/utils/constants/apiBase'
 
 const customerType = defineModel<string>('customerType', { required: true })
 const customerName = defineModel<string>('customerName', { required: true })
@@ -70,7 +70,7 @@ const {
   execute: loadStudents
 } = await useLazyFetch<StudentsApiList>('/students', {
   key: 'app-student-form-lookup',
-  baseURL: config.public.apiBase as string,
+  baseURL: resolveApiBase(config.public.apiBase as string | undefined),
   query: { page: 1, limit: 500 },
   immediate: false,
   headers: computed((): Record<string, string> => {

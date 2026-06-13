@@ -27,7 +27,7 @@ COPY --from=deps /app/node_modules ./node_modules
 
 COPY . .
 
-ARG NUXT_PUBLIC_API_BASE=http://localhost:30080/api/v1
+ARG NUXT_PUBLIC_API_BASE=https://school.72-62-250-194.sslip.io/api/v1
 ARG NUXT_PUBLIC_USE_BACKEND_API=true
 
 ENV NODE_ENV=production \

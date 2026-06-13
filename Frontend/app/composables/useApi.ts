@@ -1,5 +1,6 @@
 import type { Pinia } from 'pinia'
 import { isLiveBackendApi, isUiOnlyMode } from '~/composables/useBackendMode'
+import { resolveApiBase } from '~/utils/constants/apiBase'
 import { useAuthStore } from '~/stores/auth'
 import { useAuthSessionManager } from '~/utils/auth/session-manager'
 import { normalizeListQuery } from '~/utils/constants/apiPagination'
@@ -20,8 +21,8 @@ export function useApi() {
     const authStore = useAuthStore(pinia)
     const session = useAuthSessionManager(pinia)
 
-    // Base URL from nuxt.config (fallback to localhost for dev)
-    const baseURL = config.public.apiBase || 'http://localhost:8000/api/v1'
+    // Base URL from nuxt.config — HTTPS in production (see utils/constants/apiBase.ts)
+    const baseURL = resolveApiBase(config.public.apiBase as string | undefined)
 
     type ApiErrorPayload = {
         message?: string

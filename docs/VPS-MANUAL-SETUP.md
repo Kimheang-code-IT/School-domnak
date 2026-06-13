@@ -44,6 +44,7 @@ Replace:
 | `SECRET_KEY`                   | output of `openssl rand -hex 32`         |
 | `POSTGRES_PASSWORD`            | plain password (letters+numbers easiest) |
 | `DATABASE_URL`                 | same password in URL — see below         |
+| `BACKEND_CORS_ORIGINS`         | `https://school.72-62-250-194.sslip.io` (HTTPS only — no `http://` IP) |
 | `GOOGLE_SHEETS_SPREADSHEET_ID` | your spreadsheet ID                      |
 
 
