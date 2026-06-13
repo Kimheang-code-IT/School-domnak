@@ -28,7 +28,7 @@ spec:
           command:
             - sh
             - -c
-            - until pg_isready -h postgres -U "$POSTGRES_USER" -d "$POSTGRES_DB"; do echo waiting for postgres; sleep 2; done
+            - until pg_isready -h postgres -U "${POSTGRES_USER:-postgres}" -d "${POSTGRES_DB:-school_db}"; do echo waiting for postgres; sleep 2; done
       containers:
         - name: backend
           image: ghcr.io/kimheang-code-it/school-domnak-backend:latest

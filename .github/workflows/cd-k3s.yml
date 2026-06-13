@@ -1,8 +1,6 @@
 # =============================================================================
 # CD — Build on GitHub, deploy full stack to Hostinger VPS K3s (devops-lab branch)
-#
-# Stack: frontend + backend + postgres + redis on K3s
-# Postgres NodePort 30432 — connect from local DB tools after firewall setup
+# VPS setup is manual — see docs/VPS-MANUAL-SETUP.md
 # =============================================================================
 name: CD Deploy to Hostinger K3s
 
@@ -99,7 +97,7 @@ jobs:
     needs: build-and-push
 
     steps:
-      - name: Deploy stack on VPS (SSH only — no SCP, manual nginx)
+      - name: Deploy via kubectl on VPS (no shell scripts on VPS)
         uses: appleboy/ssh-action@v1.2.5
         env:
           FRONTEND_IMAGE: ${{ needs.build-and-push.outputs.frontend_sha }}
@@ -117,13 +115,9 @@ jobs:
           script: |
             set -euo pipefail
 
-            echo "==> VPS: full stack deploy (frontend + backend + postgres + redis)"
-            echo "==> Nginx on Ubuntu is configured manually — not by CD"
-
             GHCR_USER_LC=$(echo "${GHCR_USERNAME}" | tr '[:upper:]' '[:lower:]')
             K8S_DIR="/opt/devops-runtime/k8s"
-            DEPLOY_SCRIPT="/opt/devops-runtime/scripts/deploy-image.sh"
-            APPLY_SCRIPT="/opt/devops-runtime/scripts/apply-k8s-stack.sh"
+            NAMESPACE="devops-lab"
 
             kubectl() {
               if command -v k3s >/dev/null 2>&1; then
@@ -135,39 +129,40 @@ jobs:
 
             export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
 
-            if [[ ! -x "${DEPLOY_SCRIPT}" ]]; then
-              echo "ERROR: ${DEPLOY_SCRIPT} missing."
-              echo "Copy once from your PC (see docs/k3s-setup.md)"
+            if ! kubectl get secret school-domnak-secrets -n "${NAMESPACE}" >/dev/null 2>&1; then
+              echo "ERROR: Secret school-domnak-secrets missing."
+              echo "Create manually — see docs/VPS-MANUAL-SETUP.md"
               exit 1
             fi
 
-            if [[ -x "${APPLY_SCRIPT}" ]]; then
-              "${APPLY_SCRIPT}"
-            elif [[ -d "${K8S_DIR}" ]]; then
-              echo "==> Apply k8s manifests from ${K8S_DIR}..."
-              for f in namespace.yaml postgres.yaml redis.yaml backend.yaml deployment.yaml service.yaml; do
-                [[ -f "${K8S_DIR}/${f}" ]] && kubectl apply -f "${K8S_DIR}/${f}" || true
-              done
-            fi
-
-            if ! kubectl get secret school-domnak-secrets -n devops-lab >/dev/null 2>&1; then
-              echo "ERROR: Secret school-domnak-secrets missing in devops-lab."
-              echo "Create once on VPS from k8s/secret.example.yaml (see docs/k3s-setup.md)."
-              exit 1
-            fi
+            echo "==> Apply Kubernetes manifests..."
+            kubectl apply -f "${K8S_DIR}/namespace.yaml"
+            kubectl apply -f "${K8S_DIR}/postgres.yaml"
+            kubectl apply -f "${K8S_DIR}/redis.yaml"
+            kubectl wait --for=condition=ready pod -l app=postgres -n "${NAMESPACE}" --timeout=180s
+            kubectl wait --for=condition=ready pod -l app=redis -n "${NAMESPACE}" --timeout=120s
+            kubectl apply -f "${K8S_DIR}/backend.yaml"
+            kubectl apply -f "${K8S_DIR}/deployment.yaml"
+            kubectl apply -f "${K8S_DIR}/service.yaml"
 
             echo "==> GHCR pull secret..."
-            kubectl create namespace devops-lab --dry-run=client -o yaml | kubectl apply -f -
-            kubectl delete secret ghcr-secret -n devops-lab --ignore-not-found
+            kubectl create namespace "${NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
+            kubectl delete secret ghcr-secret -n "${NAMESPACE}" --ignore-not-found
             kubectl create secret docker-registry ghcr-secret \
-              --namespace=devops-lab \
+              --namespace="${NAMESPACE}" \
               --docker-server=ghcr.io \
               --docker-username="${GHCR_USER_LC}" \
               --docker-password="${GHCR_TOKEN}"
 
-            echo "==> Deploy images:"
+            echo "==> Update images..."
             echo "    frontend: ${FRONTEND_IMAGE}"
             echo "    backend:  ${BACKEND_IMAGE}"
-            "${DEPLOY_SCRIPT}" "${FRONTEND_IMAGE}" "${BACKEND_IMAGE}"
+            kubectl set image "deployment/devops-app" "devops-app=${FRONTEND_IMAGE}" -n "${NAMESPACE}"
+            kubectl set image "deployment/backend" "backend=${BACKEND_IMAGE}" -n "${NAMESPACE}"
 
+            echo "==> Wait for rollouts..."
+            kubectl rollout status "deployment/devops-app" -n "${NAMESPACE}" --timeout=300s
+            kubectl rollout status "deployment/backend" -n "${NAMESPACE}" --timeout=600s
+
+            kubectl get pods,svc -n "${NAMESPACE}"
             echo "==> Done."

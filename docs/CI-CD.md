@@ -39,7 +39,7 @@ Automatic pipeline for [School-domnak](https://github.com/Kimheang-code-IT/Schoo
 │  • K3s Kubernetes                                           │
 │  • Namespace: devops-lab                                    │
 │  • No git clone, no docker build, no app source             │
-│  • Only: images + k8s YAML + deploy-image.sh                │
+│  • Only: images + k8s YAML (no source code, no shell scripts) │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -64,7 +64,7 @@ Automatic pipeline for [School-domnak](https://github.com/Kimheang-code-IT/Schoo
 1. You push code to **`devops-lab`**.
 2. **SchoolDomnak CI** and **CD Deploy to Hostinger K3s** both start automatically.
 3. CD builds the image and pushes to **GHCR**.
-4. CD SSH into the VPS and runs `deploy-image.sh`.
+4. CD SSH into the VPS and runs `kubectl` directly (apply manifests + update images).
 5. K3s pulls the new image and restarts the pod.
 
 You can also run CD manually: **Actions → CD Deploy to Hostinger K3s → Run workflow**.
@@ -118,15 +118,15 @@ Watch progress: **GitHub → Actions**
 
 ## VPS one-time setup
 
-See [k8s/README.md](../k8s/README.md) and [k3s-setup.md](./k3s-setup.md).
+See [VPS-MANUAL-SETUP.md](./VPS-MANUAL-SETUP.md) and [k8s/README.md](../k8s/README.md).
 
 Minimum:
 
 - K3s installed
-- `/opt/devops-runtime/scripts/` exists
-- UFW ports 22, 80, 443 open
+- `/opt/devops-runtime/k8s/` with manifests + `secret.yaml`
+- UFW ports 22, 80, 443, 30432 (optional, for DBeaver)
 
-CD applies Kubernetes YAML on every deploy — you do not need to copy manifests manually after the first successful CD run.
+CD applies Kubernetes YAML on every deploy via inline SSH commands.
 
 ---
 
