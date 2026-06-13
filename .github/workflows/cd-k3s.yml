@@ -110,7 +110,7 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           port: 22
           timeout: 120s
-          command_timeout: 15m
+          command_timeout: 8m
           envs: FRONTEND_IMAGE,BACKEND_IMAGE,GHCR_USERNAME,GHCR_TOKEN
           script: |
             set -euo pipefail
@@ -135,12 +135,25 @@ jobs:
               exit 1
             fi
 
+            DB_URL="$(kubectl get secret school-domnak-secrets -n "${NAMESPACE}" -o jsonpath='{.data.DATABASE_URL}' | base64 -d)"
+            if echo "${DB_URL}" | grep -qE 'REPLACE_|\$@postgres|\$\{'; then
+              echo "ERROR: Invalid DATABASE_URL in secret (fix on VPS before CD can succeed):"
+              echo "  ${DB_URL}"
+              echo "See docs/VPS-MANUAL-SETUP.md"
+              exit 1
+            fi
+            if ! echo "${DB_URL}" | grep -q '@postgres:5432/'; then
+              echo "ERROR: DATABASE_URL must use host postgres:5432 inside K3s:"
+              echo "  ${DB_URL}"
+              exit 1
+            fi
+
             echo "==> Apply Kubernetes manifests..."
             kubectl apply -f "${K8S_DIR}/namespace.yaml"
             kubectl apply -f "${K8S_DIR}/postgres.yaml"
             kubectl apply -f "${K8S_DIR}/redis.yaml"
-            kubectl wait --for=condition=ready pod -l app=postgres -n "${NAMESPACE}" --timeout=180s
-            kubectl wait --for=condition=ready pod -l app=redis -n "${NAMESPACE}" --timeout=120s
+            kubectl wait --for=condition=ready pod -l app=postgres -n "${NAMESPACE}" --timeout=120s
+            kubectl wait --for=condition=ready pod -l app=redis -n "${NAMESPACE}" --timeout=60s
             kubectl apply -f "${K8S_DIR}/backend.yaml"
             kubectl apply -f "${K8S_DIR}/deployment.yaml"
             kubectl apply -f "${K8S_DIR}/service.yaml"
@@ -160,9 +173,22 @@ jobs:
             kubectl set image "deployment/devops-app" "devops-app=${FRONTEND_IMAGE}" -n "${NAMESPACE}"
             kubectl set image "deployment/backend" "backend=${BACKEND_IMAGE}" -n "${NAMESPACE}"
 
-            echo "==> Wait for rollouts..."
-            kubectl rollout status "deployment/devops-app" -n "${NAMESPACE}" --timeout=300s
-            kubectl rollout status "deployment/backend" -n "${NAMESPACE}" --timeout=600s
+            echo "==> Wait for frontend rollout (max 3 min)..."
+            kubectl rollout status "deployment/devops-app" -n "${NAMESPACE}" --timeout=180s
+
+            echo "==> Wait for backend rollout (max 2 min)..."
+            if ! kubectl rollout status "deployment/backend" -n "${NAMESPACE}" --timeout=120s; then
+              echo ""
+              echo "ERROR: Backend did not become ready."
+              kubectl get pods -n "${NAMESPACE}" -l app=backend
+              kubectl logs -n "${NAMESPACE}" -l app=backend -c backend --tail=40 || true
+              echo ""
+              echo "Fix on VPS:"
+              echo "  nano /opt/devops-runtime/k8s/secret.yaml"
+              echo "  kubectl apply -f /opt/devops-runtime/k8s/secret.yaml"
+              echo "  kubectl delete pod -n devops-lab -l app=backend"
+              exit 1
+            fi
 
             kubectl get pods,svc -n "${NAMESPACE}"
             echo "==> Done."

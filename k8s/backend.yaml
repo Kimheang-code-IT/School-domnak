@@ -7,6 +7,7 @@ metadata:
     app: backend
 spec:
   replicas: 1
+  progressDeadlineSeconds: 180
   strategy:
     type: RollingUpdate
   selector:

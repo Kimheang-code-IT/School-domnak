@@ -253,6 +253,8 @@ kubectl scale deployment backend -n devops-lab --replicas=1
 
 | Problem                                   | Fix                                                               |
 | ----------------------------------------- | ----------------------------------------------------------------- |
+| CD fails ~10 min (`progress deadline`)    | Fix `DATABASE_URL` in `secret.yaml` on VPS first                  |
+| CD fails ~2 min with backend logs         | Same — backend CrashLoopBackOff                                   |
 | Backend `CrashLoopBackOff` + `$@postgres` | Fix `DATABASE_URL` — password must match, no unencoded `@` or `$` |
 | `ImagePullBackOff`                        | Recreate `ghcr-secret` (Part 5)                                   |
 | `/api` 502                                | `kubectl logs -n devops-lab deploy/backend --tail=50`             |
