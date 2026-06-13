@@ -7,7 +7,6 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from app.core.database import Base, SessionLocal, engine
 from app.core.permissions import DEFAULT_ROLE_PERMISSIONS
-from app.core.security import get_password_hash
 from app.models.audit_log import AuditLog
 from app.models.category import Category
 from app.models.class_model import SchoolClass
@@ -18,8 +17,6 @@ from app.models.finance import Finance
 from app.models.invoice import Invoice, InvoiceLine
 from app.models.role import Role
 from app.models.student import Student
-from app.models.user import User
-from app.services.auth_service import ensure_default_admin
 from app.services.invoice_service import format_invoice_no
 
 
@@ -41,36 +38,11 @@ def seed() -> None:
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        roles = ensure_default_roles(db)
+        ensure_default_roles(db)
         if db.query(Category).count() > 0:
-            ensure_default_admin(db)
             db.commit()
-            print("Default admin and role permissions updated; seed data already exists")
+            print("Seed data already exists; default roles refreshed (no users created)")
             return
-
-        admin = User(
-            name="Admin User",
-            email="admin@example.com",
-            password_hash=get_password_hash("password123"),
-            role_id=roles["Admin"].id,
-            commission=Decimal("0"),
-        )
-        staff = User(
-            name="Staff User",
-            email="staff@example.com",
-            password_hash=get_password_hash("password123"),
-            role_id=roles["Staff"].id,
-            commission=Decimal("0"),
-        )
-        teacher = User(
-            name="Teacher One",
-            email="teacher@example.com",
-            password_hash=get_password_hash("password123"),
-            role_id=roles["Teacher"].id,
-            commission=Decimal("10"),
-        )
-        db.add_all([admin, staff, teacher])
-        db.flush()
 
         programming = Category(name="Programming", description="Coding and software courses")
         language = Category(name="Languages", description="English and communication courses")
@@ -82,12 +54,13 @@ def seed() -> None:
         db.add_all([python_course, english_course])
         db.flush()
 
+        demo_teacher = "Demo Teacher"
         python_class = SchoolClass(
             name="Python A1",
             category_id=programming.id,
             course_id=python_course.id,
-            teacher_id=teacher.id,
-            teacher_name=teacher.name,
+            teacher_id=None,
+            teacher_name=demo_teacher,
             level="Beginner",
             level_km="Beginner",
             class_duration="3 months",
@@ -103,8 +76,8 @@ def seed() -> None:
             name="English Morning",
             category_id=language.id,
             course_id=english_course.id,
-            teacher_id=teacher.id,
-            teacher_name=teacher.name,
+            teacher_id=None,
+            teacher_name=demo_teacher,
             level="Foundation",
             level_km="Foundation",
             class_duration="2 months",
@@ -129,19 +102,30 @@ def seed() -> None:
         db.add_all([enrollment_one, enrollment_two])
         db.flush()
 
-        invoice = Invoice(invoice_no=format_invoice_no(1), student_id=student_one.id, student_name=student_one.name_en, student_phone=student_one.phone, address="Phnom Penh", seller=admin.name, source="Walk-in", subtotal=Decimal("160"), discount_amount=Decimal("0"), total=Decimal("160"))
+        invoice = Invoice(
+            invoice_no=format_invoice_no(1),
+            student_id=student_one.id,
+            student_name=student_one.name_en,
+            student_phone=student_one.phone,
+            address="Phnom Penh",
+            seller="System",
+            source="Walk-in",
+            subtotal=Decimal("160"),
+            discount_amount=Decimal("0"),
+            total=Decimal("160"),
+        )
         invoice.lines.append(InvoiceLine(class_id=python_class.id, product_name=python_class.name, qty=1, price=Decimal("160"), total=Decimal("160")))
         db.add(invoice)
 
         db.add_all([
             Finance(class_id=python_class.id, electricity=Decimal("10"), water=Decimal("5"), internet=Decimal("15"), total_commission=Decimal("16"), facebook=Decimal("12"), other=Decimal("3"), amount=Decimal("160"), final_price=Decimal("99"), in_price_for_pos=Decimal("160")),
             Finance(class_id=english_class.id, electricity=Decimal("8"), water=Decimal("4"), internet=Decimal("12"), total_commission=Decimal("11"), facebook=Decimal("5"), other=Decimal("2"), amount=Decimal("110"), final_price=Decimal("68"), in_price_for_pos=Decimal("110")),
-            Commission(class_id=python_class.id, class_name=python_class.name, student_name=student_one.name_en, teacher_name=teacher.name, source="Walk-in", amount=Decimal("160"), commission=Decimal("16")),
-            Commission(class_id=english_class.id, class_name=english_class.name, student_name=student_two.name_en, teacher_name=teacher.name, source="Facebook", amount=Decimal("110"), commission=Decimal("11")),
-            AuditLog(type_action="Create", username="system", description="Seeded sample data"),
+            Commission(class_id=python_class.id, class_name=python_class.name, student_name=student_one.name_en, teacher_name=demo_teacher, source="Walk-in", amount=Decimal("160"), commission=Decimal("16")),
+            Commission(class_id=english_class.id, class_name=english_class.name, student_name=student_two.name_en, teacher_name=demo_teacher, source="Facebook", amount=Decimal("110"), commission=Decimal("11")),
+            AuditLog(type_action="Create", username="system", description="Seeded sample data (no default users)"),
         ])
         db.commit()
-        print("Seed data created")
+        print("Seed data created (roles + sample data only; create admin via /register-admin)")
     finally:
         db.close()
 

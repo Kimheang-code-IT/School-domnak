@@ -39,14 +39,21 @@ cd backend
 python scripts\seed_data.py
 ```
 
-This creates sample categories, courses, classes, students, users, roles, enrollments, invoices, finance rows, commissions, and audit logs.
+This creates sample categories, courses, classes, students, roles, enrollments, invoices, finance rows, commissions, and audit logs.
 
-Default login seed:
+It does **not** create any user accounts. Create the first administrator through the frontend **`/register-admin`** page (or `POST /api/v1/auth/register-admin` when the database has zero users).
 
-- Email: `admin@example.com`
-- Password: `password123`
-- Staff: `staff@example.com` / `password123`
-- Teacher: `teacher@example.com` / `password123`
+### Remove old default seed users (if already in DB)
+
+If you previously ran an older seed script, remove demo accounts:
+
+```powershell
+cd backend
+.venv\Scripts\activate
+python scripts\remove_static_seed_users.py
+```
+
+This deletes legacy emails such as `admin@example.com`, `staff@example.com`, and `teacher@example.com`.
 
 ## Authentication And Permissions
 

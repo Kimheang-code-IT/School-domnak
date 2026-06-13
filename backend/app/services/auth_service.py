@@ -147,29 +147,3 @@ def register_first_admin(db: Session, *, name: str, email: str, password: str) -
     )
     return user
 
-
-def ensure_default_admin(db: Session, *, email: str = "admin@example.com", password: str = "password123") -> User:
-    admin = db.scalar(select(User).where(User.email == email))
-    if admin:
-        if not verify_password(password, admin.password_hash):
-            admin.password_hash = get_password_hash(password)
-            db.flush()
-        return admin
-
-    admin_role = db.scalar(select(Role).where(Role.name == "Admin"))
-    if not admin_role:
-        from app.core.permissions import ADMIN_PERMISSIONS
-
-        admin_role = Role(name="Admin", permissions=ADMIN_PERMISSIONS)
-        db.add(admin_role)
-        db.flush()
-
-    admin = User(
-        name="Admin User",
-        email=email,
-        password_hash=get_password_hash(password),
-        role_id=admin_role.id,
-    )
-    db.add(admin)
-    db.flush()
-    return admin
