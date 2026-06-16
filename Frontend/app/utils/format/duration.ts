@@ -1,11 +1,41 @@
 /** Extract month count from stored duration (e.g. `3`, `1.5`, `"3 months"`). */
+export function normalizeDurationMonthsInput(value: unknown): string {
+  const khmerDigits = '០១២៣៤៥៦៧៨៩'
+  let s = String(value ?? '').replace(',', '.').trim()
+  s = s.replace(/[០-៩]/g, (ch) => {
+    const i = khmerDigits.indexOf(ch)
+    return i >= 0 ? String(i) : ch
+  })
+  s = s.replace(/[^\d.]/g, '')
+  const dot = s.indexOf('.')
+  if (dot !== -1) {
+    s = `${s.slice(0, dot + 1)}${s.slice(dot + 1).replace(/\./g, '')}`
+  }
+  return s
+}
+
 export function parseDurationMonthsDecimal(value: unknown): number | null {
-  const raw = String(value ?? '').trim().replace(',', '.')
+  const raw = normalizeDurationMonthsInput(value).trim()
   if (!raw) return null
-  const match = raw.match(/^(\d+(?:\.\d+)?)/)
+  const withoutTrailingDot = raw.endsWith('.') ? raw.slice(0, -1) : raw
+  if (!withoutTrailingDot) return null
+  const match = withoutTrailingDot.match(/^(\d+(?:\.\d+)?)/)
   if (!match) return null
   const n = Number.parseFloat(match[1]!)
   return Number.isFinite(n) && n > 0 ? n : null
+}
+
+/** Validate student study duration against optional class max (months). */
+export function validateEnrollmentDurationMonths(
+  value: unknown,
+  maxMonths?: number | null,
+): 'empty' | 'invalid' | 'too_large' | 'ok' {
+  const raw = normalizeDurationMonthsInput(value).trim()
+  if (!raw) return 'empty'
+  const months = parseDurationMonthsDecimal(raw)
+  if (months == null) return 'invalid'
+  if (maxMonths != null && maxMonths > 0 && months > maxMonths) return 'too_large'
+  return 'ok'
 }
 
 /** @deprecated Use {@link parseDurationMonthsDecimal} */
@@ -65,26 +95,49 @@ export function prorateByDuration(
   return Math.round(fullPrice * ratio * 100) / 100
 }
 
+const KHMER_DIGITS = '០១២៣៤៥៦៧៨៩'
+
+/** Convert Western digits in a string to Khmer numerals (e.g. `3` → `៣`, `1.5` → `១.៥`). */
+export function toKhmerDigits(value: string | number): string {
+  return String(value).replace(/\d/g, (digit) => KHMER_DIGITS[Number(digit)] ?? digit)
+}
+
 type DurationTranslate = (key: string, params?: Record<string, unknown>) => string
+
+type FormatClassDurationOptions = {
+  useKhmerDigits?: boolean
+  locale?: string
+}
+
+function shouldUseKhmerDigits(options?: FormatClassDurationOptions): boolean {
+  if (options?.useKhmerDigits != null) return options.useKhmerDigits
+  return options?.locale?.toLowerCase().startsWith('km') ?? false
+}
 
 /** Display label such as `2 months` / `២ ខែ` from a numeric or legacy string value. */
 export function formatClassDuration(
   value: unknown,
   t: DurationTranslate,
-  te?: (key: string) => boolean
+  te?: (key: string) => boolean,
+  options?: FormatClassDurationOptions,
 ): string {
   const raw = String(value ?? '').trim()
   if (!raw) return ''
 
+  const useKhmer = shouldUseKhmerDigits(options)
   const months = parseDurationMonthsDecimal(raw)
   if (months != null) {
+    const count = useKhmer ? toKhmerDigits(months) : months
     if (Number.isInteger(months)) {
       const key =
         months === 1 ? 'pages.allclass.durationMonth' : 'pages.allclass.durationMonths'
-      if (!te || te(key)) return t(key, { count: months })
+      if (!te || te(key)) return t(key, { count })
+    }
+    if (useKhmer) {
+      return months === 1 ? `${count} ខែ` : `${count} ខែ`
     }
     return months === 1 ? `${months} month` : `${months} months`
   }
 
-  return raw
+  return useKhmer ? toKhmerDigits(raw) : raw
 }

@@ -41,6 +41,7 @@ class ClassEnrollmentRead(CamelModel):
     status: str
     expires_soon: bool = False
     duration_months: Decimal | None = None
+    register_date: date | None = None
     total_price: Decimal = Decimal("0")
     discount_price: Decimal = Decimal("0")
     price_after_discount: Decimal = Decimal("0")

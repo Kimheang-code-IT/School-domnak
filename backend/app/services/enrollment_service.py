@@ -37,7 +37,9 @@ def apply_enrollment_end_date(
     if enrollment.end_date:
         return changed
 
-    months = parse_duration_months(school_class.class_duration)
+    months = parse_duration_months(enrollment.duration_months)
+    if months is None:
+        months = parse_duration_months(school_class.class_duration)
     if not months:
         return changed
 
@@ -124,6 +126,7 @@ def to_class_enrollment_read(
         status=status,
         expires_soon=expires_soon,
         duration_months=enrollment.duration_months,
+        register_date=enrollment.register_date,
         total_price=enrollment.total_price or Decimal("0"),
         discount_price=enrollment.discount_price or Decimal("0"),
         price_after_discount=enrollment.price_after_discount or Decimal("0"),

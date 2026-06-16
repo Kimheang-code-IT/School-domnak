@@ -18,6 +18,8 @@ const {
   newCourseNameKm,
   newCourseDescription,
   handleAdd,
+  canCreateCourse,
+  canUpdateCourse,
   isConfirmOpen,
   confirmConfig,
   finalizeAction,
@@ -59,6 +61,7 @@ function getInitial(name: string) {
     <div class="flex flex-col lg:flex-row flex-1 gap-3 p-2 overflow-hidden min-h-0">
       <!-- Left: add / edit form -->
       <div
+        v-if="canCreateCourse || canUpdateCourse"
         :class="[
           mobileView === 'form' ? 'flex' : 'hidden',
           'lg:flex w-full lg:w-[30%] lg:shrink-0 flex-col gap-4 p-5 border border-default overflow-y-auto',

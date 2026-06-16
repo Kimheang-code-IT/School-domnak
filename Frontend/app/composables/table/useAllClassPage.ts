@@ -22,8 +22,15 @@ import {
   normalizeIsoDate,
   parseDurationMonthsDecimal,
   prorateByDuration,
+  validateEnrollmentDurationMonths,
 } from '~/utils/format/duration'
 import { resolveUploadUrl } from '~/utils/helpers/mediaUrl'
+import {
+  resolveEnrollmentEndIso,
+  resolveEnrollmentStartIso,
+} from '~/utils/helpers/enrollmentDisplay'
+import { PERMISSIONS } from '~/utils/auth/permissions'
+import { isForbiddenError } from '~/utils/api/errors'
 
 function todayIsoDate() {
   const d = new Date()
@@ -31,6 +38,7 @@ function todayIsoDate() {
 }
 
 export function useAllClassPage() {
+  const auth = useAuthStore()
   const { t, toast, isFormOpen, isConfirmOpen } = useBaseTable({})
 
   /** Enrollment wizard: 0 select class → 1 student info → 2 invoice */
@@ -97,9 +105,11 @@ export function useAllClassPage() {
   )
 
   const enrollmentClassDurationMax = computed(() => {
-    const line = enrollmentCartLines.value[0]
-    if (!line) return null
-    return parseDurationMonthsDecimal(line.product.classDuration)
+    const parsed = enrollmentCartLines.value
+      .map((line) => parseDurationMonthsDecimal(line.product.classDuration))
+      .filter((n): n is number => n != null && n > 0)
+    if (!parsed.length) return null
+    return Math.min(...parsed)
   })
 
   const enrollmentStudentMonths = computed(() =>
@@ -180,6 +190,7 @@ export function useAllClassPage() {
     date: new Date().toISOString(),
     startDate: normalizeIsoDate(enrollmentStartDate.value) || todayIsoDate(),
     endDate: enrollmentEndDateIso.value || undefined,
+    durationMonths: enrollmentDurationMonths.value.trim() || undefined,
     registeredAt: todayIsoDate(),
     customer: customerName.value,
     nameKm: nameKm.value,
@@ -264,7 +275,15 @@ export function useAllClassPage() {
     }
   }
 
+  const canCreateClass = computed(() => auth.hasPermission(PERMISSIONS.allClassCreate))
+  const canUpdateClass = computed(() => auth.hasPermission(PERMISSIONS.allClassUpdate))
+  const canDeleteClass = computed(() => auth.hasPermission(PERMISSIONS.allClassDelete))
+  const canViewClassRoster = computed(() => auth.hasPermission(PERMISSIONS.allClassViewRoster))
+  const canRemoveClassStudent = computed(() => auth.hasPermission(PERMISSIONS.allClassRemoveStudent))
+  const canContinueClassPayment = computed(() => auth.hasPermission(PERMISSIONS.allClassContinuePayment))
+
   function openClassStudentsModal(product: Product) {
+    if (!canViewClassRoster.value) return
     classStudentsProduct.value = product
     classStudentsPagination.value = { ...classStudentsPagination.value, pageIndex: 0 }
     isClassStudentsModalOpen.value = true
@@ -360,6 +379,7 @@ export function useAllClassPage() {
   }
 
   function continueClassFromEnrollmentRow(row: Record<string, unknown>) {
+    if (!canContinueClassPayment.value) return
     const cls = classStudentsProduct.value
     if (!cls) {
       toast.add({
@@ -395,11 +415,11 @@ export function useAllClassPage() {
 
     gender.value = normalizeEnrollmentGender(row.gender ?? row.studentGender)
     birthdate.value = pickEnrollmentRowStr(row, ['birthdate', 'birthDate', 'dateOfBirth'])
-    const rowEnd = pickEnrollmentRowStr(row, ['endDate', 'enddate', 'end_date'])
-    const rowStart = pickEnrollmentRowStr(row, ['startDate', 'startdate', 'start_date'])
+    const rowEnd = resolveEnrollmentEndIso(row)
+    const rowStart = resolveEnrollmentStartIso(row)
     enrollmentStartDate.value =
       (rowEnd ? dayAfterIsoDate(rowEnd) : '') ||
-      normalizeIsoDate(rowStart) ||
+      rowStart ||
       todayIsoDate()
     province.value = pickEnrollmentRowStr(row, ['province', 'studentProvince'])
     customerPhone.value = pickEnrollmentRowStr(row, [
@@ -424,14 +444,7 @@ export function useAllClassPage() {
       'duration_months',
       'studentDuration',
     ])
-    if (rowMonths) {
-      enrollmentDurationMonths.value = rowMonths
-    } else {
-      const classMonths = parseDurationMonthsDecimal(
-        classStudentsProduct.value?.classDuration,
-      )
-      if (classMonths) enrollmentDurationMonths.value = String(classMonths)
-    }
+    enrollmentDurationMonths.value = rowMonths
     syncEnrollmentCartPrices()
 
     isClassStudentsModalOpen.value = false
@@ -444,6 +457,7 @@ export function useAllClassPage() {
   }
 
   function openCancelEnrollmentConfirm(row: Record<string, unknown>) {
+    if (!canRemoveClassStudent.value) return
     pendingCancelEnrollmentRow.value = row
     isCancelEnrollmentConfirmOpen.value = true
   }
@@ -477,6 +491,7 @@ export function useAllClassPage() {
       })
       await loadClassStudents()
     } catch (err: unknown) {
+      if (isForbiddenError(err)) return
       const e = err as { data?: { message?: string }; message?: string }
       toast.add({
         title: t('pages.allclass.studentListModal.toast.withdrawFailed'),
@@ -812,9 +827,11 @@ export function useAllClassPage() {
         })
         return
       }
-      const months = parseDurationMonthsDecimal(enrollmentDurationMonths.value)
-      const maxMonths = enrollmentClassDurationMax.value
-      if (!months) {
+      const durationStatus = validateEnrollmentDurationMonths(
+        enrollmentDurationMonths.value,
+        enrollmentClassDurationMax.value,
+      )
+      if (durationStatus === 'empty') {
         toast.add({
           title: t('common.error'),
           description: t('pages.allclass.validation.durationRequired'),
@@ -822,10 +839,20 @@ export function useAllClassPage() {
         })
         return
       }
-      if (maxMonths && months > maxMonths) {
+      if (durationStatus === 'invalid') {
         toast.add({
           title: t('common.error'),
-          description: t('pages.allclass.validation.durationExceedsClass', { max: maxMonths }),
+          description: t('pages.allclass.validation.durationInvalid'),
+          color: 'warning'
+        })
+        return
+      }
+      if (durationStatus === 'too_large') {
+        toast.add({
+          title: t('common.error'),
+          description: t('pages.allclass.validation.durationExceedsClass', {
+            max: enrollmentClassDurationMax.value,
+          }),
           color: 'warning'
         })
         return
@@ -856,9 +883,11 @@ export function useAllClassPage() {
       })
       return null
     }
-    const durationMonths = parseDurationMonthsDecimal(enrollmentDurationMonths.value)
-    const maxMonths = enrollmentClassDurationMax.value
-    if (!durationMonths) {
+    const durationStatus = validateEnrollmentDurationMonths(
+      enrollmentDurationMonths.value,
+      enrollmentClassDurationMax.value,
+    )
+    if (durationStatus === 'empty') {
       toast.add({
         title: t('common.error'),
         description: t('pages.allclass.validation.durationRequired'),
@@ -866,14 +895,25 @@ export function useAllClassPage() {
       })
       return null
     }
-    if (maxMonths && durationMonths > maxMonths) {
+    if (durationStatus === 'invalid') {
       toast.add({
         title: t('common.error'),
-        description: t('pages.allclass.validation.durationExceedsClass', { max: maxMonths }),
+        description: t('pages.allclass.validation.durationInvalid'),
         color: 'warning'
       })
       return null
     }
+    if (durationStatus === 'too_large') {
+      toast.add({
+        title: t('common.error'),
+        description: t('pages.allclass.validation.durationExceedsClass', {
+          max: enrollmentClassDurationMax.value,
+        }),
+        color: 'warning'
+      })
+      return null
+    }
+    const durationMonths = parseDurationMonthsDecimal(enrollmentDurationMonths.value)
 
     try {
       const response = await checkoutState.checkout({
@@ -921,6 +961,7 @@ export function useAllClassPage() {
 
   /** Toggle one class row in/out of `enrollmentCartLines` (multi-class cart). */
   function toggleEnrollmentClassSelect(product: Product, selected: boolean) {
+    if (!canContinueClassPayment.value) return
     const id = product.id
     const lines = enrollmentCartLines.value
     if (!selected) {
@@ -931,10 +972,6 @@ export function useAllClassPage() {
     const synced =
       productsState.filteredProducts.value.find((p) => p.id === id) ?? product
     enrollmentCartLines.value = [...lines, { product: synced, qty: 1 }]
-    const classMonths = parseDurationMonthsDecimal(synced.classDuration)
-    if (classMonths && !enrollmentDurationMonths.value.trim()) {
-      enrollmentDurationMonths.value = String(classMonths)
-    }
     syncEnrollmentCartPrices()
   }
 
@@ -977,16 +1014,19 @@ export function useAllClassPage() {
   })
 
   function handleAddNew() {
+    if (!canCreateClass.value) return
     editingClass.value = null
     isFormOpen.value = true
   }
 
   function openEditClass(classItem: Product) {
+    if (!canUpdateClass.value) return
     editingClass.value = classItem
     isFormOpen.value = true
   }
 
   function requestDeleteClass(classItem: Product) {
+    if (!canDeleteClass.value) return
     pendingDeleteClass.value = classItem
     isDeleteClassConfirmOpen.value = true
   }
@@ -1011,6 +1051,11 @@ export function useAllClassPage() {
         color: 'primary',
       })
     } catch (err: unknown) {
+      if (isForbiddenError(err)) {
+        isDeleteClassConfirmOpen.value = false
+        pendingDeleteClass.value = null
+        return
+      }
       const e = err as { data?: { message?: string }; message?: string }
       toast.add({
         title: t('common.error'),
@@ -1166,6 +1211,12 @@ export function useAllClassPage() {
       isFormOpen.value = false
       editingClass.value = null
     } catch (err: unknown) {
+      if (isForbiddenError(err)) {
+        isConfirmOpen.value = false
+        pendingPayload.value = null
+        pendingImageFile.value = null
+        return
+      }
       const e = err as { data?: { message?: string }; message?: string }
       toast.add({
         title: t('common.error'),
@@ -1244,6 +1295,12 @@ export function useAllClassPage() {
     dismissDeleteClassConfirm,
     handleSaveRequest,
     finalizeAction,
+    canCreateClass,
+    canUpdateClass,
+    canDeleteClass,
+    canViewClassRoster,
+    canRemoveClassStudent,
+    canContinueClassPayment,
     reloadLookups: loadLookupData,
     isClassStudentsModalOpen,
     classStudentsProduct,

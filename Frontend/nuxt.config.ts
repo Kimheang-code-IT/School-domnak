@@ -74,6 +74,20 @@ export default defineNuxtConfig({
 
   compatibilityDate: '2024-07-11',
 
+  /** Docker/CI builds have no reliable access to fonts.gstatic.com — runtime CDN links in app.vue still apply. */
+  fonts:
+    process.env.NUXT_FONT_DOWNLOAD === 'false'
+      ? {
+          providers: {
+            google: false,
+            bunny: false,
+            fontshare: false,
+            fontsource: false,
+            adobe: false,
+          },
+        }
+      : {},
+
   nitro: {
     preset: 'static',
   },

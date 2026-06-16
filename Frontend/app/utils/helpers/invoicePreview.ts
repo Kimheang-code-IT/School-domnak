@@ -6,6 +6,7 @@ export type InvoicePreviewRow = {
   date?: string
   startDate?: string
   endDate?: string
+  durationMonths?: string | number
   registeredAt?: string
   product?: string
   courseName?: string

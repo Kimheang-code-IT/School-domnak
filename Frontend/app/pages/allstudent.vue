@@ -39,6 +39,8 @@ const {
   handleSaveRequest,
   finalizeAction,
   handleAddNew,
+  canCreateStudent,
+  canViewEnrollments,
   isEnrollmentModalOpen,
   enrollmentStudentId,
   enrollmentStudentName,
@@ -123,6 +125,7 @@ function displayName(row: Product) {
           <span class="hidden sm:inline">{{ $t('common.export') }}</span>
         </UButton>
         <UButton
+          v-if="canCreateStudent"
           icon="i-lucide-circle-plus"
           color="primary"
           variant="solid"
@@ -210,6 +213,7 @@ function displayName(row: Product) {
 
         <template #totalCourse-cell="{ row }">
           <UButton
+            v-if="canViewEnrollments"
             color="primary"
             variant="soft"
             size="xs"
@@ -219,6 +223,9 @@ function displayName(row: Product) {
           >
             {{ Number(row.original.totalCourse || 0) }}
           </UButton>
+          <span v-else class="text-sm tabular-nums text-muted-foreground">
+            {{ Number(row.original.totalCourse || 0) }}
+          </span>
         </template>
 
         <template #createdAt-cell="{ row }">

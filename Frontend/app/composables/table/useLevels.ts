@@ -7,8 +7,11 @@ import { useLevelsApi } from '~/utils/api'
 import type { ApiQueryParams } from '~/utils/api'
 import { useServerTableResource } from '~/composables/table/useServerTable'
 import { useMutation } from '~/composables/data/useMutation'
+import { PERMISSIONS } from '~/utils/auth/permissions'
+import { isForbiddenError } from '~/utils/api/errors'
 
 export function useLevels() {
+  const auth = useAuthStore()
   const useBackendApi = useBackendMode()
   const levelsApi = useLevelsApi()
   const { t, toast, rowSelection, columnVisibility, isConfirmOpen } = useBaseTable({})
@@ -83,7 +86,13 @@ export function useLevels() {
     pendingPayload.value = null
   }
 
+  const canCreateLevel = computed(() => auth.hasPermission(PERMISSIONS.levelsCreate))
+  const canUpdateLevel = computed(() => auth.hasPermission(PERMISSIONS.levelsUpdate))
+  const canDeleteLevel = computed(() => auth.hasPermission(PERMISSIONS.levelsDelete))
+
   function handleAdd() {
+    if (editingId.value && !canUpdateLevel.value) return
+    if (!editingId.value && !canCreateLevel.value) return
     const nameEn = newLevelNameEn.value.trim()
     const nameKm = newLevelNameKm.value.trim()
     if (!nameEn || !nameKm) return
@@ -133,31 +142,33 @@ export function useLevels() {
   })
 
   function getDropdownActions(entry: Level): DropdownMenuItem[][] {
-    return [
-      [
-        {
-          label: t('actions.edit'),
-          icon: 'i-lucide-edit',
-          onSelect: () => {
-            newLevelNameKm.value = entry.levelNameKm ?? ''
-            newLevelNameEn.value = entry.levelNameEn ?? ''
-            newLevelDescription.value = entry.description ?? ''
-            editingId.value = entry.id
-            editingSnapshot.value = { totalClass: entry.totalClass }
-          }
-        },
-        {
-          label: t('actions.delete'),
-          icon: 'i-lucide-trash',
-          color: 'error' as const,
-          onSelect: () => {
-            pendingDeleteId.value = entry.id
-            confirmMode.value = 'delete'
-            isConfirmOpen.value = true
-          }
+    const actions: DropdownMenuItem[] = []
+    if (canUpdateLevel.value) {
+      actions.push({
+        label: t('actions.edit'),
+        icon: 'i-lucide-edit',
+        onSelect: () => {
+          newLevelNameKm.value = entry.levelNameKm ?? ''
+          newLevelNameEn.value = entry.levelNameEn ?? ''
+          newLevelDescription.value = entry.description ?? ''
+          editingId.value = entry.id
+          editingSnapshot.value = { totalClass: entry.totalClass }
         }
-      ]
-    ]
+      })
+    }
+    if (canDeleteLevel.value) {
+      actions.push({
+        label: t('actions.delete'),
+        icon: 'i-lucide-trash',
+        color: 'error' as const,
+        onSelect: () => {
+          pendingDeleteId.value = entry.id
+          confirmMode.value = 'delete'
+          isConfirmOpen.value = true
+        }
+      })
+    }
+    return actions.length ? [actions] : []
   }
 
   async function finalizeAction() {
@@ -197,6 +208,10 @@ export function useLevels() {
         resetForm()
       }
     } catch (err: unknown) {
+      if (isForbiddenError(err)) {
+        isConfirmOpen.value = false
+        return
+      }
       const e = err as { data?: { message?: string }; message?: string }
       toast.add({
         title: t('common.error'),
@@ -223,6 +238,8 @@ export function useLevels() {
     newLevelNameEn,
     newLevelDescription,
     handleAdd,
+    canCreateLevel,
+    canUpdateLevel,
     isConfirmOpen,
     confirmConfig,
     finalizeAction,

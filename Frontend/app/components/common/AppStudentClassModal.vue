@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import type { DropdownMenuItem } from '~/types/nuxt-ui'
-import { formatDate } from '~/utils/format/date'
+import { formatDateShort } from '~/utils/format/date'
+import { formatClassDuration } from '~/utils/format/duration'
+import {
+    pickEnrollmentDurationMonths,
+    resolveEnrollmentEndIso,
+    resolveEnrollmentStartIso,
+} from '~/utils/helpers/enrollmentDisplay'
 
 const open = defineModel<boolean>('open', { default: false })
 const range = defineModel<{ start?: unknown; end?: unknown }>('range', {
@@ -19,7 +25,7 @@ const props = defineProps<{
     total: number
 }>()
 
-const { t } = useI18n()
+const { t, te, locale } = useI18n()
 
 const emit = defineEmits<{
     continueClass: [row: Record<string, unknown>]
@@ -114,9 +120,8 @@ function pickStr(row: Record<string, unknown>, keys: string[]): string {
     return ''
 }
 
-function cellDate(row: Record<string, unknown>, keys: string[]) {
-    const raw = pickStr(row, keys)
-    return formatDate(raw || undefined)
+function cellEnrollmentDate(iso: string) {
+    return iso ? formatDateShort(iso) : '—'
 }
 
 function isExpiresSoon(row: Record<string, unknown>) {
@@ -144,6 +149,7 @@ const columns = computed(() => [
     },
     { accessorKey: 'gender', header: t('pages.allclass.studentListModal.columns.gender') },
     { accessorKey: 'startdate', header: t('pages.allclass.studentListModal.columns.startdate') },
+    { accessorKey: 'durationMonths', header: t('pages.allclass.studentListModal.columns.duration') },
     { accessorKey: 'enddate', header: t('pages.allclass.studentListModal.columns.enddate') },
     { accessorKey: 'status', header: t('pages.allclass.studentListModal.columns.status') },
     /** Match `useAllStudent` (`{ id: "action", header: t("common.actions") }`). */
@@ -198,7 +204,7 @@ watch(open, (isOpen) => {
                     :selectable="false"
                     :virtualize="false"
                     :get-row-actions="getDropdownActions"
-                    class="min-h-0 flex-1 min-w-[940px]"
+                    class="min-h-0 flex-1 min-w-[1040px]"
                     :ui="{ root: 'min-w-full', td: 'empty:p-2' }"
                 >
                     <template #id-cell="{ row }">
@@ -226,12 +232,24 @@ watch(open, (isOpen) => {
                     </template>
                     <template #startdate-cell="{ row }">
                         <span class="text-sm text-muted-foreground">
-                            {{ cellDate(row.original, ['startdate', 'startDate', 'start_date']) }}
+                            {{ cellEnrollmentDate(resolveEnrollmentStartIso(row.original)) }}
+                        </span>
+                    </template>
+                    <template #durationMonths-cell="{ row }">
+                        <span class="text-sm text-muted-foreground">
+                            {{
+                                formatClassDuration(
+                                    pickEnrollmentDurationMonths(row.original),
+                                    t,
+                                    te,
+                                    { locale: locale.value },
+                                ) || '—'
+                            }}
                         </span>
                     </template>
                     <template #enddate-cell="{ row }">
                         <span class="text-sm text-muted-foreground">
-                            {{ cellDate(row.original, ['enddate', 'endDate', 'end_date']) }}
+                            {{ cellEnrollmentDate(resolveEnrollmentEndIso(row.original)) }}
                         </span>
                     </template>
                     <template #status-cell="{ row }">

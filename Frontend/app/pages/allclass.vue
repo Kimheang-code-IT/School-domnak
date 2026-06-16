@@ -99,6 +99,8 @@ const {
     dismissDeleteClassConfirm,
     handleSaveRequest,
     finalizeAction,
+    canCreateClass,
+    canContinueClassPayment,
     isClassStudentsModalOpen,
     classStudentsProduct,
     classStudentsRows,
@@ -139,6 +141,7 @@ type ReportInvoiceDisplay = {
     grandTotal?: number
     startDate?: string
     endDate?: string
+    durationMonths?: string | number
     registeredAt?: string
     product?: string
     courseName?: string
@@ -158,6 +161,7 @@ function buildReportInvoiceDisplay(row: InvoicePreviewRow | null | undefined): R
         date: String(row.date || ''),
         startDate: row.startDate,
         endDate: row.endDate,
+        durationMonths: row.durationMonths,
         registeredAt: row.registeredAt,
         product: row.product,
         courseName: row.courseName,
@@ -469,12 +473,19 @@ async function printAllPreviewInvoices() {
                             class="flex w-[132px] shrink-0 sm:hidden" />
                         <UStepper v-model="currentStep" :items="enrollmentStepItems" size="xs" :linear="false"
                             class="hidden w-[280px] shrink-0 sm:flex" />
-                        <UButton v-if="currentStep === 0 && enrollmentItemCount > 0" trailing-icon="i-lucide-arrow-right"
+                        <UButton
+                            v-if="canContinueClassPayment && currentStep === 0 && enrollmentItemCount > 0"
+                            trailing-icon="i-lucide-arrow-right"
                             color="primary" variant="solid" class="font-normal shadow-sm shrink-0" @click="goNextStep">
                             <span class="hidden sm:inline">{{ t('pages.allclass.nav.next') }}</span>
                         </UButton>
-                        <UButton icon="i-lucide-circle-plus" color="primary" variant="solid"
-                            class="font-normal shadow-sm shrink-0" @click="handleAddNew">
+                        <UButton
+                            v-if="canCreateClass"
+                            icon="i-lucide-circle-plus"
+                            color="primary"
+                            variant="solid"
+                            class="font-normal shadow-sm shrink-0"
+                            @click="handleAddNew">
                             <span class="hidden sm:inline">{{ t('pages.allclass.addBtn') }}</span>
                         </UButton>
                     </template>
@@ -600,6 +611,7 @@ async function printAllPreviewInvoices() {
                                             :delivery-type="deliveryType"
                                             :delivery-price="0"
                                             :selected-report-invoice="slide.display"
+                                            :enrollment-duration-months="String(slide.header?.durationMonths ?? '')"
                                             checkout-invoice-no=""
                                             :display-subtotal="slide.subtotal"
                                             :display-discount="0"
@@ -620,6 +632,7 @@ async function printAllPreviewInvoices() {
                                 :delivery-type="deliveryType"
                                 :delivery-price="hasReportPreviewInvoices ? 0 : deliveryPrice"
                                 :selected-report-invoice="activeInvoiceForDisplay"
+                                :enrollment-duration-months="enrollmentDurationMonths"
                                 :checkout-invoice-no="enrollmentInvoiceNo"
                                 :display-subtotal="hasReportPreviewInvoices ? reportPreviewSubtotal : enrollmentSubtotal"
                                 :display-discount="hasReportPreviewInvoices ? 0 : enrollmentDiscountAmount"

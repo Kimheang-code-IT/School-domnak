@@ -2,11 +2,13 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import type { DropdownMenuItem } from '~/types/nuxt-ui'
 import { formatCurrency } from '~/utils/format/currency'
-import { formatClassDuration } from '~/utils/format/duration'
+import { formatClassDuration, normalizeDurationMonthsInput } from '~/utils/format/duration'
+import { pickEnrollmentDurationMonths } from '~/utils/helpers/enrollmentDisplay'
 import { resolveUploadUrl } from '~/utils/helpers/mediaUrl'
 import type { StudentEnrollmentRow } from '~/types'
 import { totalEnrollmentDiscountAmount } from '~/utils/helpers/mapStudentEnrollmentRow'
 import { formatStudentCode } from '~/utils/format/studentCode'
+import { PERMISSIONS } from '~/utils/auth/permissions'
 import certificateImageUrl from '~/assets/images/certificate.png'
 
 const open = defineModel<boolean>('open', { default: false })
@@ -28,8 +30,9 @@ const props = defineProps<{
   total: number
 }>()
 
-const { t, te } = useI18n()
+const { t, te, locale } = useI18n()
 const toast = useToast()
+const auth = useAuthStore()
 
 const displayStudentCode = computed(() =>
   formatStudentCode(props.studentId) || props.studentId?.trim() || '',
@@ -68,6 +71,7 @@ function filePartSlug(raw: string) {
 }
 
 async function downloadCertificate() {
+  if (!auth.hasPermission(PERMISSIONS.allStudentDownloadCertificate)) return
   const row = certificatePreviewRow.value
   const sid = filePartSlug(displayStudentCode.value || props.studentId?.trim() || 'student')
   const eid = row?.id != null ? filePartSlug(String(row.id)) : 'enrollment'
@@ -152,6 +156,38 @@ function toKhmerDigits(raw: string) {
   return raw.replace(/\d/g, (digit) => khmerDigits[digit] || digit)
 }
 
+function formatStudentDurationEn(value: unknown) {
+  const raw = String(value ?? '').trim()
+  if (!raw) return '—'
+  return formatClassDuration(raw, (key, params) => t(key, params, { locale: 'en' }), te) || raw
+}
+
+function formatStudentDurationKm(value: unknown) {
+  const raw = String(value ?? '').trim()
+  if (!raw) return '—'
+  return formatClassDuration(raw, (key, params) => t(key, params, { locale: 'km' }), te, { useKhmerDigits: true }) || toKhmerCertificateText(raw)
+}
+
+function formatStudentDurationForLocale(value: unknown) {
+  return locale.value === 'km'
+    ? formatStudentDurationKm(value)
+    : formatStudentDurationEn(value)
+}
+
+function enrollmentDurationFromRow(row?: StudentEnrollmentRow | null) {
+  return pickEnrollmentDurationMonths((row || {}) as Record<string, unknown>)
+}
+
+function isDurationCertificateField(key: CertificateDataKey) {
+  return key === 'durationEn' || key === 'durationKm'
+}
+
+function durationCertificateTrailing(key: CertificateDataKey) {
+  if (key === 'durationKm') return t('pages.allclass.fields.durationUnit', {}, { locale: 'km' })
+  if (key === 'durationEn') return t('pages.allclass.fields.durationUnit', {}, { locale: 'en' })
+  return ''
+}
+
 function toKhmerCertificateText(raw: string) {
   const text = raw.trim()
   const mapped = certificateKhmerTextMap[text.toLowerCase()]
@@ -209,14 +245,7 @@ function baseCertificateDetails(): CertificateData {
   const courseKmStored = firstText([row?.courseNameKm, ''])
   const level = firstText([row?.level, row?.classLevel, row?.courseLevel, '—'])
   const levelKmStored = firstText([row?.levelKm, row?.levelNameKm, ''])
-  const duration = firstText([
-    row?.classDuration,
-    row?.duration,
-    row?.durationClass,
-    row?.courseDuration,
-    [cellDate(row?.startDate), cellDate(row?.endDate)].filter((v) => v && v !== '—').join(' - '),
-    '—',
-  ])
+  const durationRaw = enrollmentDurationFromRow(row)
   return {
     nameKm: firstText([row?.nameKm, split.km, fallbackName, '—']),
     nameEn: firstText([row?.nameEn, split.en, fallbackName, '—']),
@@ -228,10 +257,16 @@ function baseCertificateDetails(): CertificateData {
     courseKm: courseKmStored || toKhmerCertificateText(course),
     levelEn: level,
     levelKm: levelKmStored || toKhmerCertificateText(level),
-    durationEn: duration,
-    durationKm: toKhmerCertificateText(duration),
+    durationEn: durationRaw || '—',
+    durationKm: durationRaw ? toKhmerDigits(durationRaw) : '—',
     issuedDate: cellDate(new Date().toISOString()),
   }
+}
+
+function certificateDurationRaw(data: ReturnType<typeof certificateDetails>) {
+  const raw = String(data.durationEn ?? '').trim()
+  if (!raw || raw === '—') return ''
+  return normalizeDurationMonthsInput(raw)
 }
 
 function certificateDetails(): CertificateData {
@@ -260,7 +295,16 @@ function updateCertificateData(key: CertificateDataKey, value: string | number) 
   if (key === 'levelEn' && !next.levelKm?.trim()) next.levelKm = toKhmerCertificateText(text)
   if (key === 'levelKm') next.levelKm = text
   if (key === 'courseKm') next.courseKm = text
-  if (key === 'durationEn') next.durationKm = toKhmerCertificateText(text)
+  if (key === 'durationEn') {
+    const normalized = normalizeDurationMonthsInput(text).trim()
+    next.durationEn = normalized
+    next.durationKm = normalized ? toKhmerDigits(normalized) : ''
+  }
+  if (key === 'durationKm') {
+    const normalized = normalizeDurationMonthsInput(text).trim()
+    next.durationKm = normalized ? toKhmerDigits(normalized) : ''
+    if (!next.durationEn?.trim()) next.durationEn = normalized
+  }
   if (key === 'genderEn') next.genderKm = genderLabels(text).km
 
   certificateDataEdits.value = next
@@ -402,6 +446,7 @@ function certificateTextFields(data: ReturnType<typeof certificateDetails>) {
   const kmTextFont = 'bold 36px "Khmer OS Battambang", "Khmer OS Siemreap", "Khmer UI", "Noto Serif Khmer", serif'
   const enFont = 'bold 36px "Times New Roman", serif'
   const enBoldFont = 'bold 36px "Times New Roman", serif'
+  const durationRaw = certificateDurationRaw(data)
 
   return [
     { key: 'nameKm' as const, text: data.nameKm, font: kmFont, fillStyle: black, maxWidth: 520 },
@@ -409,13 +454,13 @@ function certificateTextFields(data: ReturnType<typeof certificateDetails>) {
     { key: 'birthdateKm' as const, text: data.birthdateKm, font: kmTextFont, fillStyle: black, maxWidth: 300 },
     { key: 'courseKm' as const, text: data.courseKm, font: kmTextFont, fillStyle: black, maxWidth: 560 },
     { key: 'levelKm' as const, text: data.levelKm, font: kmTextFont, fillStyle: black, maxWidth: 420 },
-    { key: 'durationKm' as const, text: data.durationKm, font: kmTextFont, fillStyle: black, maxWidth: 500 },
+    { key: 'durationKm' as const, text: formatStudentDurationKm(durationRaw), font: kmTextFont, fillStyle: black, maxWidth: 500 },
     { key: 'nameEn' as const, text: data.nameEn, font: 'bold 48px "Times New Roman", serif', fillStyle: blue, align: 'center' as const, maxWidth: 700 },
     { key: 'genderEn' as const, text: data.genderEn, font: enFont, fillStyle: black, maxWidth: 220 },
     { key: 'birthdateEn' as const, text: data.birthdateEn, font: enFont, fillStyle: black, maxWidth: 300 },
     { key: 'courseEn' as const, text: data.courseEn, font: enFont, fillStyle: black, maxWidth: 560 },
     { key: 'levelEn' as const, text: data.levelEn, font: enFont, fillStyle: black, maxWidth: 420 },
-    { key: 'durationEn' as const, text: data.durationEn, font: enFont, fillStyle: black, maxWidth: 500 },
+    { key: 'durationEn' as const, text: formatStudentDurationEn(durationRaw), font: enFont, fillStyle: black, maxWidth: 500 },
     { key: 'issuedDate' as const, text: data.issuedDate, font: enBoldFont, fillStyle: blue, maxWidth: 280 },
   ]
 }
@@ -548,21 +593,23 @@ function onCertificatePointerUp(event: PointerEvent) {
 }
 
 function getDropdownActions(entry: StudentEnrollmentRow): DropdownMenuItem[][] {
-  return [
-    [
-      {
-        label: t('pages.allstudent.enrollmentModal.actions.certificate'),
-        icon: 'i-lucide-award',
-        onSelect: () => openCertificatePreview(entry),
-      },
-      {
-        label: t('actions.delete'),
-        icon: 'i-lucide-trash',
-        color: 'error' as const,
-        onSelect: () => emit('deleteEnrollment', entry),
-      },
-    ],
-  ]
+  const actions: DropdownMenuItem[] = []
+  if (auth.hasPermission(PERMISSIONS.allStudentPreviewCertificate)) {
+    actions.push({
+      label: t('pages.allstudent.enrollmentModal.actions.certificate'),
+      icon: 'i-lucide-award',
+      onSelect: () => openCertificatePreview(entry),
+    })
+  }
+  if (auth.hasPermission(PERMISSIONS.allStudentDeleteEnrollment)) {
+    actions.push({
+      label: t('actions.delete'),
+      icon: 'i-lucide-trash',
+      color: 'error' as const,
+      onSelect: () => emit('deleteEnrollment', entry),
+    })
+  }
+  return actions.length ? [actions] : []
 }
 
 watch(open, (isOpen) => {
@@ -689,7 +736,7 @@ const columns = computed(() => [
             Edit Data
           </UButton>
           <UButton
-            v-if="showCertificatePreview"
+            v-if="showCertificatePreview && auth.hasPermission(PERMISSIONS.allStudentDownloadCertificate)"
             icon="i-lucide-download"
             color="neutral"
             variant="outline"
@@ -802,7 +849,13 @@ const columns = computed(() => [
                   size="md"
                   class="w-full"
                   @update:model-value="updateCertificateData(field.key, $event)"
-                />
+                >
+                  <template v-if="isDurationCertificateField(field.key)" #trailing>
+                    <span class="text-sm text-muted-foreground shrink-0 pe-0.5 tabular-nums">
+                      {{ durationCertificateTrailing(field.key) }}
+                    </span>
+                  </template>
+                </UInput>
               </UFormField>
             </div>
           </div>
@@ -829,11 +882,9 @@ const columns = computed(() => [
           <template #durationMonths-cell="{ row }">
             <span class="text-sm text-muted-foreground">
               {{
-                formatClassDuration(
-                  row.original.durationMonths || row.original.classDuration || '',
-                  t,
-                  te,
-                ) || '—'
+                formatStudentDurationForLocale(
+                  enrollmentDurationFromRow(row.original as StudentEnrollmentRow),
+                )
               }}
             </span>
           </template>

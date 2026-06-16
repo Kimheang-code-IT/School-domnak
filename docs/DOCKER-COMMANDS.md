@@ -5,14 +5,18 @@ Quick reference for **School Domnak** (Docker Compose + Nginx).
 ## Start / stop
 
 ```powershell
-# From repo root (loads .env)
-docker compose up -d --build
-
-# With load-balanced backends (reads BACKEND_REPLICAS from .env)
+# Recommended: rebuild images + start (reads BACKEND_REPLICAS from .env)
 .\scripts\deploy-docker.ps1
 
-docker compose down
-docker compose ps
+# After pulling or editing frontend/backend code only
+.\scripts\docker-update.ps1
+
+# Manual (use project name so DB volume and container names stay consistent)
+$env:COMPOSE_PROJECT_NAME = "schooldomnak"
+docker compose up -d --build --scale backend=2 --scale celery_worker=2
+
+docker compose -p schooldomnak down
+docker compose -p schooldomnak ps
 ```
 
 ## Logs

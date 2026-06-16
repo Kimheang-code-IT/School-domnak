@@ -210,7 +210,9 @@
         "noStudentMatches": "No matching students",
         "provincePlaceholder": "Select province",
         "durationOnClass": "Student study duration (months)",
-        "durationPlaceholderMax": "e.g. up to {max}",
+        "durationPlaceholderMax": "e.g. 1, 2, or up to {max}",
+        "durationHint": "Enter months (e.g. 1, 2, 3). Half months like 1.5 are allowed.",
+        "durationHintMax": "Enter 1 to {max} months for this class (e.g. 1, 2, 1.5).",
         "classDurationHint": "Class is {max} months total. Enter 1, 1.5, 2, … up to {max}. Fee is calculated from this.",
         "proratedFee": "Estimated fee: ${amount} (class full price ${full} for {months} months)",
         "startDate": "Study start date",
@@ -249,6 +251,7 @@
         "lookup": "Could not resolve the selected course or teacher.",
         "price": "Please enter valid prices.",
         "durationRequired": "Enter how many months the student will study this class.",
+        "durationInvalid": "Enter a valid number of months (e.g. 1, 2, or 1.5).",
         "classDurationRequired": "Enter the class duration in months.",
         "durationExceedsClass": "Student duration cannot be more than {max} months for this class.",
         "startDateRequired": "Please select when the student starts this class."
@@ -298,6 +301,7 @@
           "studentName": "Student name",
           "gender": "Gender",
           "startdate": "Start date",
+          "duration": "Duration",
           "enddate": "End date",
           "status": "Status"
         },

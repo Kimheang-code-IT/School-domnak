@@ -210,7 +210,9 @@
         "noStudentMatches": "រកមិនឃើញសិស្ស",
         "provincePlaceholder": "ជ្រើសរើសខេត្ត",
         "durationOnClass": "រយៈពេលសិក្សារបស់សិស្ស (ខែ)",
-        "durationPlaceholderMax": "ឧ. រហូតដល់ {max}",
+        "durationPlaceholderMax": "ឧ. ១, ២, ឬរហូត {max}",
+        "durationHint": "បញ្ចូលចំនួនខែ (ឧ. ១, ២, ៣)។ អាចប្រើ ១.៥ ខែបាន។",
+        "durationHintMax": "បញ្ចូល ១ ដល់ {max} ខែសម្រាប់ថ្នាក់នេះ (ឧ. ១, ២, ១.៥)។",
         "classDurationHint": "ថ្នាក់នេះ {max} ខែ។ បញ្ចូល ១, ១.៥, ២, … រហូតដល់ {max}។ ថ្លៃគណនាតាមរយៈពេលនេះ។",
         "proratedFee": "ថ្លៃប៉ាន់ស្មាន៖ ${amount} (តម្លៃពេញ ${full} សម្រាប់ {months} ខែ)",
         "startDate": "ថ្ងៃចាប់ផ្តើមសិក្សា",
@@ -249,6 +251,7 @@
         "lookup": "រកមិនឃើញវគ្គ ឬគ្រូដែលបានជ្រើស។",
         "price": "សូមបញ្ចូលតម្លៃឱ្យបានត្រឹមត្រូវ។",
         "durationRequired": "សូមបញ្ចូលចំនួនខែដែលសិស្សនឹងរៀនថ្នាក់នេះ។",
+        "durationInvalid": "សូមបញ្ចូលចំនួនខែត្រឹមត្រូវ (ឧ. ១, ២, ឬ ១.៥)។",
         "classDurationRequired": "សូមបញ្ចូលរយៈពេលថ្នាក់ជាខែ។",
         "durationExceedsClass": "រយៈពេលសិស្សមិនអាចលើស {max} ខែសម្រាប់ថ្នាក់នេះបានទេ។",
         "startDateRequired": "សូមជ្រើសថ្ងៃដែលសិស្សចាប់ផ្តើមរៀនថ្នាក់នេះ។"
@@ -298,6 +301,7 @@
           "studentName": "ឈ្មោះសិស្ស",
           "gender": "ភេទ",
           "startdate": "ថ្ងៃចាប់ផ្តើម",
+          "duration": "រយៈពេល",
           "enddate": "ថ្ងៃបញ្ចប់",
           "status": "ស្ថានភាព"
         },

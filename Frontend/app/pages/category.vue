@@ -6,6 +6,7 @@ const {
     pagination, selectedClassifications,
     filteredEntries, columns, totalRows,
     newName, newDescription, handleAdd,
+    canCreateCategory, canUpdateCategory,
     isConfirmOpen, confirmConfig, finalizeAction,
     getDropdownActions,
 } = useTotalRevenue()
@@ -46,6 +47,7 @@ function getInitial(name: string) {
         <div class="flex flex-col lg:flex-row flex-1 gap-3 p-2 overflow-hidden min-h-0">
             <!-- Left: Add Form Panel -->
             <div
+                v-if="canCreateCategory || canUpdateCategory"
                 :class="[
                     mobileView === 'form' ? 'flex' : 'hidden',
                     'lg:flex w-full lg:w-[30%] lg:shrink-0 flex-col gap-4 p-5 border border-default overflow-y-auto'

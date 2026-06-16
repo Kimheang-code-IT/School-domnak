@@ -18,6 +18,8 @@ const {
   newLevelNameEn,
   newLevelDescription,
   handleAdd,
+  canCreateLevel,
+  canUpdateLevel,
   isConfirmOpen,
   confirmConfig,
   finalizeAction,
@@ -45,6 +47,7 @@ const canSubmit = computed(
 
     <div class="flex flex-col lg:flex-row flex-1 gap-3 p-2 overflow-hidden min-h-0">
       <div
+        v-if="canCreateLevel || canUpdateLevel"
         :class="[
           mobileView === 'form' ? 'flex' : 'hidden',
           'lg:flex w-full lg:w-[30%] lg:shrink-0 flex-col gap-4 p-5 border border-default overflow-y-auto',

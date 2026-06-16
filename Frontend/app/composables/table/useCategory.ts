@@ -6,8 +6,11 @@ import type { Category } from "~/types";
 import { useCategoryApi } from '~/utils/api'
 import type { ApiQueryParams } from '~/utils/api'
 import { useServerTableResource } from "~/composables/table/useServerTable";
+import { PERMISSIONS } from "~/utils/auth/permissions";
+import { isForbiddenError } from "~/utils/api/errors";
 
 export function useTotalRevenue() {
+  const auth = useAuthStore();
   const useBackendApi = useBackendMode();
   const categoryApi = useCategoryApi();
   const { t, toast, rowSelection, columnVisibility, isConfirmOpen } =
@@ -77,35 +80,43 @@ export function useTotalRevenue() {
     { id: "action", header: t("common.actions") },
   ]);
 
+  const canCreateCategory = computed(() => auth.hasPermission(PERMISSIONS.categoryCreate));
+  const canUpdateCategory = computed(() => auth.hasPermission(PERMISSIONS.categoryUpdate));
+  const canDeleteCategory = computed(() => auth.hasPermission(PERMISSIONS.categoryDelete));
+
   // --- Row Actions ---
   function getDropdownActions(entry: Category): DropdownMenuItem[][] {
-    return [
-      [
-        {
-          label: t("actions.edit"),
-          icon: "i-lucide-edit",
-          onSelect: () => {
-            newName.value = entry.name;
-            newDescription.value = entry.description;
-            editingId.value = entry.id;
-          },
+    const actions: DropdownMenuItem[] = [];
+    if (canUpdateCategory.value) {
+      actions.push({
+        label: t("actions.edit"),
+        icon: "i-lucide-edit",
+        onSelect: () => {
+          newName.value = entry.name;
+          newDescription.value = entry.description;
+          editingId.value = entry.id;
         },
-        {
-          label: t("actions.delete"),
-          icon: "i-lucide-trash",
-          color: "error" as const,
-          onSelect: () => {
-            pendingDeleteId.value = entry.id;
-            confirmMode.value = "delete";
-            isConfirmOpen.value = true;
-          },
+      });
+    }
+    if (canDeleteCategory.value) {
+      actions.push({
+        label: t("actions.delete"),
+        icon: "i-lucide-trash",
+        color: "error" as const,
+        onSelect: () => {
+          pendingDeleteId.value = entry.id;
+          confirmMode.value = "delete";
+          isConfirmOpen.value = true;
         },
-      ],
-    ];
+      });
+    }
+    return actions.length ? [actions] : [];
   }
 
   // --- Request Intent (open confirm first) ---
   async function handleAdd() {
+    if (editingId.value !== null && !canUpdateCategory.value) return;
+    if (editingId.value === null && !canCreateCategory.value) return;
     const name = newName.value.trim();
     if (!name) return;
 
@@ -162,6 +173,10 @@ export function useTotalRevenue() {
 
       await resource.refresh();
     } catch (err: any) {
+      if (isForbiddenError(err)) {
+        isConfirmOpen.value = false;
+        return;
+      }
       console.error('Action failed:', err)
       const msg = err.data?.message || err.message || t("pages.category.error.tryAgain");
       toast.add({
@@ -222,6 +237,8 @@ export function useTotalRevenue() {
     newName,
     newDescription,
     handleAdd,
+    canCreateCategory,
+    canUpdateCategory,
     // Delete
     isConfirmOpen,
     confirmConfig,

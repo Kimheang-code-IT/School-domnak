@@ -16,6 +16,8 @@ import { mapProductViewStudentRow } from "~/utils/helpers/mapProductViewStudentR
 import { mapStudentEnrollmentRow } from "~/utils/helpers/mapStudentEnrollmentRow";
 import { normalizeCambodiaProvince } from "~/utils/constants/cambodiaProvinces";
 import { clampApiPageLimit } from "~/utils/constants/apiPagination";
+import { PERMISSIONS } from "~/utils/auth/permissions";
+import { isForbiddenError } from "~/utils/api/errors";
 
 type ProductFormPayload = Omit<Product, "image"> & {
   image?: unknown;
@@ -45,6 +47,7 @@ type ProductApiPayload = {
 };
 
 export function useProduct() {
+  const auth = useAuthStore();
   const { locale } = useI18n();
   const useBackendApi = useBackendMode();
   const productApi = useProductApi('students');
@@ -270,30 +273,38 @@ export function useProduct() {
   ];
   });
 
+  const canCreateStudent = computed(() => auth.hasPermission(PERMISSIONS.allStudentCreate));
+  const canUpdateStudent = computed(() => auth.hasPermission(PERMISSIONS.allStudentUpdate));
+  const canDeleteStudent = computed(() => auth.hasPermission(PERMISSIONS.allStudentDelete));
+  const canViewEnrollments = computed(() => auth.hasPermission(PERMISSIONS.allStudentViewEnrollments));
+  const canDeleteEnrollment = computed(() => auth.hasPermission(PERMISSIONS.allStudentDeleteEnrollment));
+
   // --- Row Actions ---
   function getDropdownActions(entry: Product): DropdownMenuItem[][] {
-    return [
-      [
-        {
-          label: t("actions.edit"),
-          icon: "i-lucide-edit",
-          onSelect: () => {
-            selectedEntry.value = { ...entry };
-            isFormOpen.value = true;
-          },
+    const actions: DropdownMenuItem[] = [];
+    if (canUpdateStudent.value) {
+      actions.push({
+        label: t("actions.edit"),
+        icon: "i-lucide-edit",
+        onSelect: () => {
+          selectedEntry.value = { ...entry };
+          isFormOpen.value = true;
         },
-        {
-          label: t("actions.delete"),
-          icon: "i-lucide-trash",
-          color: "error" as const,
-          onSelect: () => {
-            selectedEntry.value = entry;
-            confirmMode.value = "delete";
-            isConfirmOpen.value = true;
-          },
+      });
+    }
+    if (canDeleteStudent.value) {
+      actions.push({
+        label: t("actions.delete"),
+        icon: "i-lucide-trash",
+        color: "error" as const,
+        onSelect: () => {
+          selectedEntry.value = entry;
+          confirmMode.value = "delete";
+          isConfirmOpen.value = true;
         },
-      ],
-    ];
+      });
+    }
+    return actions.length ? [actions] : [];
   }
 
   function resolveImageForSave(data: ProductFormPayload): string {
@@ -459,6 +470,7 @@ export function useProduct() {
   }
 
   function handleAddNew() {
+    if (!canCreateStudent.value) return;
     selectedEntry.value = null;
     pendingImageFile.value = null;
     isFormOpen.value = true;
@@ -566,6 +578,7 @@ export function useProduct() {
   );
 
   function openEnrollmentModal(entry: Product) {
+    if (!canViewEnrollments.value) return;
     enrollmentStudentId.value = String(entry.id ?? "").trim();
     enrollmentStudentName.value = [entry.nameKm, entry.nameEn]
       .map((s) => String(s || "").trim())
@@ -649,6 +662,7 @@ export function useProduct() {
   }
 
   function requestDeleteEnrollment(row: StudentEnrollmentRow) {
+    if (!canDeleteEnrollment.value) return;
     pendingEnrollmentDeleteRow.value = row;
     isEnrollmentDeleteConfirmOpen.value = true;
   }
@@ -681,6 +695,7 @@ export function useProduct() {
       await loadStudentEnrollments();
       await resource.refresh();
     } catch (err: unknown) {
+      if (isForbiddenError(err)) return;
       const e = err as { data?: { message?: string }; message?: string };
       toast.add({
         title: t("pages.allstudent.enrollmentModal.toast.enrollmentDeleteFailed"),
@@ -722,6 +737,8 @@ export function useProduct() {
     handleSaveRequest,
     finalizeAction,
     handleAddNew,
+    canCreateStudent,
+    canViewEnrollments,
     stockAdjustMode,
     stockAdjustQty,
     stockAdjustNote,

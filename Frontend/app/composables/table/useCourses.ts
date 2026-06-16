@@ -7,8 +7,11 @@ import { useCoursesApi } from '~/utils/api'
 import type { ApiQueryParams } from '~/utils/api'
 import { useServerTableResource } from '~/composables/table/useServerTable'
 import { useMutation } from '~/composables/data/useMutation'
+import { PERMISSIONS } from '~/utils/auth/permissions'
+import { isForbiddenError } from '~/utils/api/errors'
 
 export function useCourses() {
+  const auth = useAuthStore()
   const useBackendApi = useBackendMode()
   const coursesApi = useCoursesApi()
   const { t, toast, rowSelection, columnVisibility, isConfirmOpen } = useBaseTable({})
@@ -83,7 +86,13 @@ export function useCourses() {
     pendingPayload.value = null
   }
 
+  const canCreateCourse = computed(() => auth.hasPermission(PERMISSIONS.coursesCreate))
+  const canUpdateCourse = computed(() => auth.hasPermission(PERMISSIONS.coursesUpdate))
+  const canDeleteCourse = computed(() => auth.hasPermission(PERMISSIONS.coursesDelete))
+
   function handleAdd() {
+    if (editingId.value && !canUpdateCourse.value) return
+    if (!editingId.value && !canCreateCourse.value) return
     const name = newCourseName.value.trim()
     if (!name) return
 
@@ -132,33 +141,35 @@ export function useCourses() {
   })
 
   function getDropdownActions(entry: Course): DropdownMenuItem[][] {
-    return [
-      [
-        {
-          label: t('actions.edit'),
-          icon: 'i-lucide-edit',
-          onSelect: () => {
-            newCourseName.value = entry.courseName
-            newCourseNameKm.value = entry.courseNameKm ?? ''
-            newCourseDescription.value = entry.description ?? ''
-            editingId.value = entry.id
-            editingSnapshot.value = {
-              totalClass: entry.totalClass
-            }
-          }
-        },
-        {
-          label: t('actions.delete'),
-          icon: 'i-lucide-trash',
-          color: 'error' as const,
-          onSelect: () => {
-            pendingDeleteId.value = entry.id
-            confirmMode.value = 'delete'
-            isConfirmOpen.value = true
+    const actions: DropdownMenuItem[] = []
+    if (canUpdateCourse.value) {
+      actions.push({
+        label: t('actions.edit'),
+        icon: 'i-lucide-edit',
+        onSelect: () => {
+          newCourseName.value = entry.courseName
+          newCourseNameKm.value = entry.courseNameKm ?? ''
+          newCourseDescription.value = entry.description ?? ''
+          editingId.value = entry.id
+          editingSnapshot.value = {
+            totalClass: entry.totalClass
           }
         }
-      ]
-    ]
+      })
+    }
+    if (canDeleteCourse.value) {
+      actions.push({
+        label: t('actions.delete'),
+        icon: 'i-lucide-trash',
+        color: 'error' as const,
+        onSelect: () => {
+          pendingDeleteId.value = entry.id
+          confirmMode.value = 'delete'
+          isConfirmOpen.value = true
+        }
+      })
+    }
+    return actions.length ? [actions] : []
   }
 
   async function finalizeAction() {
@@ -198,6 +209,10 @@ export function useCourses() {
         resetForm()
       }
     } catch (err: unknown) {
+      if (isForbiddenError(err)) {
+        isConfirmOpen.value = false
+        return
+      }
       const e = err as { data?: { message?: string }; message?: string }
       toast.add({
         title: t('common.error'),
@@ -224,6 +239,8 @@ export function useCourses() {
     newCourseNameKm,
     newCourseDescription,
     handleAdd,
+    canCreateCourse,
+    canUpdateCourse,
     isConfirmOpen,
     confirmConfig,
     finalizeAction,

@@ -17,6 +17,7 @@ interface ReportInvoice {
   date: string
   startDate?: string
   endDate?: string
+  durationMonths?: string | number
   registeredAt?: string
   product?: string
   courseName?: string
@@ -52,8 +53,12 @@ const props = withDefaults(
     displaySubtotal: number
     displayDiscount: number
     displayTotal: number
+    /** Student study duration from enrollment form (months). */
+    enrollmentDurationMonths?: string
   }>(),
-  {},
+  {
+    enrollmentDurationMonths: '',
+  },
 )
 
 /** Study start/end from student form (checkout) or saved invoice preview. */
@@ -121,14 +126,13 @@ const invoiceCourse = computed(() => {
 })
 
 const invoiceClassDuration = computed(() => {
-  const durations = uniqueText(
-    invoiceProducts.value.map((product) => {
-      const raw =
-        product.classDuration || product.durationClass || product.courseDuration || product.duration
-      return raw ? formatClassDuration(raw, t, te) : ''
-    })
-  )
-  return durations.join(', ') || 'N/A'
+  const fromReport = props.selectedReportInvoice?.durationMonths
+  const fromForm = props.enrollmentDurationMonths
+  const raw = fromReport ?? fromForm
+  if (raw != null && String(raw).trim() !== '') {
+    return formatClassDuration(raw, t, te, { locale: locale.value }) || 'N/A'
+  }
+  return 'N/A'
 })
 
 const invoiceTimeInOut = computed(() => {

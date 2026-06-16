@@ -6,7 +6,7 @@ import { CAMBODIA_PROVINCE_NAMES, normalizeCambodiaProvince } from '~/utils/cons
 import { normalizeKhmerText } from '~/utils/format/khmerText'
 import { formatStudentCode } from '~/utils/format/studentCode'
 import { normalizeCambodiaPhone } from '~/utils/format/phone'
-import { formatClassDuration } from '~/utils/format/duration'
+import { normalizeDurationMonthsInput, validateEnrollmentDurationMonths } from '~/utils/format/duration'
 import { mapProductViewStudentRow } from '~/utils/helpers/mapProductViewStudentRow'
 import { resolveUploadUrl } from '~/utils/helpers/mediaUrl'
 
@@ -39,7 +39,7 @@ const props = withDefaults(
   }
 )
 
-const { t, locale, te } = useI18n()
+const { t, locale } = useI18n()
 const auth = useAuthStore()
 const config = useRuntimeConfig()
 
@@ -184,6 +184,34 @@ function onPhoneInput(event: Event) {
   if (target && target.value !== digits) target.value = digits
 }
 
+const enrollmentDurationField = computed({
+  get: () => enrollmentDurationMonths.value,
+  set: (value: string | number | null | undefined) => {
+    enrollmentDurationMonths.value = normalizeDurationMonthsInput(value)
+  },
+})
+
+const durationFieldError = computed(() => {
+  const raw = enrollmentDurationMonths.value.trim()
+  if (!raw) return ''
+  const status = validateEnrollmentDurationMonths(raw, props.classDurationMaxMonths)
+  if (status === 'invalid') return t('pages.allclass.validation.durationInvalid')
+  if (status === 'too_large') {
+    return t('pages.allclass.validation.durationExceedsClass', {
+      max: props.classDurationMaxMonths,
+    })
+  }
+  return ''
+})
+
+const durationFieldHint = computed(() => {
+  const max = props.classDurationMaxMonths
+  if (max != null && max > 0) {
+    return t('pages.allclass.student.durationHintMax', { max })
+  }
+  return t('pages.allclass.student.durationHint')
+})
+
 function onSelectCustomerType(type: string) {
   customerType.value = type
 
@@ -264,13 +292,7 @@ const enrollmentStartCalendar = computed({
   },
 })
 
-const durationInputTrailing = computed(() => {
-  const unit = t('pages.allclass.fields.durationUnit')
-  if (props.classDurationMaxMonths) {
-    return formatClassDuration(props.classDurationMaxMonths, t, te)
-  }
-  return unit
-})
+const durationInputTrailing = computed(() => t('pages.allclass.fields.durationUnit'))
 
 const birthdateCalendar = computed({
   get(): DateValue | undefined {
@@ -590,12 +612,11 @@ function clearStudentImage() {
                 <span class="text-error">*</span>
               </label>
               <UInput
-                v-model="enrollmentDurationMonths"
-                type="number"
-                min="0.5"
-                :max="classDurationMaxMonths ?? undefined"
-                step="0.5"
+                v-model="enrollmentDurationField"
+                type="text"
                 inputmode="decimal"
+                autocomplete="off"
+                :color="durationFieldError ? 'error' : undefined"
                 :placeholder="
                   classDurationMaxMonths
                     ? $t('pages.allclass.student.durationPlaceholderMax', { max: classDurationMaxMonths })
@@ -610,6 +631,8 @@ function clearStudentImage() {
                   </span>
                 </template>
               </UInput>
+              <p v-if="durationFieldError" class="text-xs text-error">{{ durationFieldError }}</p>
+              <p v-else class="text-xs text-muted-foreground">{{ durationFieldHint }}</p>
             </div>
           </div>
         </div>

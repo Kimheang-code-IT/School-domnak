@@ -5,6 +5,9 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
+# Keep the same project name across deploys (reuses DB volume; avoids container-name conflicts).
+$env:COMPOSE_PROJECT_NAME = "schooldomnak"
+
 function Get-EnvInt([string]$Name, [int]$Default) {
     if (-not (Test-Path ".env")) { return $Default }
     $line = Get-Content ".env" | Where-Object { $_ -match "^\s*$([regex]::Escape($Name))\s*=" } | Select-Object -First 1

@@ -39,9 +39,12 @@ def validate_settings(settings: Settings) -> None:
 
     if settings.telegram_bot_token.strip() and not settings.telegram_webhook_secret.strip():
         if not settings.telegram_use_polling:
-            logger.critical(
-                "Production Telegram webhook mode requires TELEGRAM_WEBHOOK_SECRET to be set."
-            )
-            sys.exit(1)
+            role = (settings.telegram_polling_role or "").strip().lower()
+            # Docker: API/celery set TELEGRAM_POLLING_ROLE=disabled; school-telegram-bot polls.
+            if role != "disabled":
+                logger.critical(
+                    "Production Telegram webhook mode requires TELEGRAM_WEBHOOK_SECRET to be set."
+                )
+                sys.exit(1)
 
     logger.info("Production settings validation passed.")

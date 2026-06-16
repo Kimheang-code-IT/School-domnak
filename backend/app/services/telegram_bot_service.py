@@ -647,9 +647,9 @@ async def handle_manual_backup(chat_id: int | str) -> None:
         )
         return
 
-    from app.utils.task_dispatch import _celery_available, dispatch_google_sheets_backup
+    from app.utils.task_dispatch import celery_available_cached, dispatch_google_sheets_backup
 
-    if _celery_available():
+    if celery_available_cached():
         await send_message(
             chat_id,
             "⏳ <b>Backup queued</b>\nCelery worker is exporting to Google Sheets…",

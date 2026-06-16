@@ -106,6 +106,10 @@ export function useApi() {
             }
             if (!silent && fetchErr?.name === 'FetchError') {
               const statusCode = fetchErr.response?.status
+              // Permission denied: hide UI via RBAC instead of showing an error toast.
+              if (statusCode === 403) {
+                throw err
+              }
               if (statusCode) {
                 toast.add({
                   title: `API Error: ${statusCode}`,

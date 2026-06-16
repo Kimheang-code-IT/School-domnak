@@ -4,6 +4,7 @@ import type { Product } from "~/types";
 import { formatCurrency } from "~/utils/format/currency";
 import { formatClassDuration, parseDurationMonthsDecimal } from "~/utils/format/duration";
 import { resolveUploadUrl } from "~/utils/helpers/mediaUrl";
+import { PERMISSIONS } from "~/utils/auth/permissions";
 
 /** Same row shape as product grid / API; named for class-card UI semantics. */
 const props = withDefaults(
@@ -23,6 +24,9 @@ const props = withDefaults(
 );
 
 const isSchool = computed(() => props.variant === "school");
+const canSelectForEnrollment = computed(
+  () => auth.hasPermission(PERMISSIONS.allClassContinuePayment),
+);
 
 const emit = defineEmits<{
   (e: "add", classItem: Product): void;
@@ -37,7 +41,8 @@ const emit = defineEmits<{
   ): void;
 }>();
 
-const { t, te } = useI18n();
+const { t, te, locale } = useI18n();
+const auth = useAuthStore();
 
 const CATEGORY_BADGE_COLORS = [
   "primary",
@@ -101,7 +106,7 @@ const classLevel = computed(() =>
 const classDurationLabel = computed(() => {
   const raw = pickFirstText([props.classItem.classDuration]);
   if (!raw) return "";
-  const formatted = formatClassDuration(raw, t, te);
+  const formatted = formatClassDuration(raw, t, te, { locale: locale.value });
   if (formatted) return formatted;
   const months = parseDurationMonthsDecimal(raw);
   return months != null ? String(months) : raw;
@@ -199,26 +204,32 @@ const showSeparatorAbovePricing = computed(
   () => showPricingSeparator.value || hasScheduleBadges.value,
 );
 
-const classActionItems = computed<DropdownMenuItem[][]>(() => [
-  [
-    {
+const classActionItems = computed<DropdownMenuItem[][]>(() => {
+  const actions: DropdownMenuItem[] = [];
+  if (auth.hasPermission(PERMISSIONS.allClassViewRoster)) {
+    actions.push({
       label: t("pages.school.classCard.view"),
       icon: "i-lucide-eye",
       onSelect: () => emit("view", props.classItem),
-    },
-    {
+    });
+  }
+  if (auth.hasPermission(PERMISSIONS.allClassUpdate)) {
+    actions.push({
       label: t("actions.edit"),
       icon: "i-lucide-pencil",
       onSelect: () => emit("edit", props.classItem),
-    },
-    {
+    });
+  }
+  if (auth.hasPermission(PERMISSIONS.allClassDelete)) {
+    actions.push({
       label: t("actions.delete"),
       icon: "i-lucide-trash",
       color: "error" as const,
       onSelect: () => emit("delete", props.classItem),
-    },
-  ],
-]);
+    });
+  }
+  return actions.length ? [actions] : [];
+});
 </script>
 
 <template>
@@ -256,7 +267,7 @@ const classActionItems = computed<DropdownMenuItem[][]>(() => [
         />
         <div class="absolute top-2 left-2 z-10 flex max-w-[calc(100%-5.5rem)] items-center gap-2 sm:top-3 sm:left-3">
           <label
-            v-if="isSchool"
+            v-if="isSchool && canSelectForEnrollment"
             class="flex min-w-0 cursor-pointer select-none items-center gap-1.5 rounded-lg bg-background/92 px-1.5 py-1 shadow-md ring-1 ring-white/20 backdrop-blur-sm transition-colors hover:bg-background dark:bg-background/85 sm:gap-2 sm:px-2.5 sm:py-1.5"
             :aria-label="$t('pages.allclass.card.selectClassForEnrollment')"
             @click.stop.prevent="
@@ -271,7 +282,11 @@ const classActionItems = computed<DropdownMenuItem[][]>(() => [
             <span class="max-w-20 truncate text-[11px] font-medium text-foreground sm:max-w-28 sm:text-xs">{{ $t('pages.allclass.card.selectClass') }}</span>
           </label>
 
-          <UDropdownMenu :items="classActionItems" :content="{ align: 'start' }">
+          <UDropdownMenu
+            v-if="classActionItems.length"
+            :items="classActionItems"
+            :content="{ align: 'start' }"
+          >
             <UButton
               icon="i-lucide-ellipsis-vertical"
               color="neutral"
