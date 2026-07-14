@@ -2,6 +2,8 @@
 import { useCourses } from '~/composables/table/useCourses'
 
 const { t } = useI18n()
+const { can, PERMISSIONS } = useCan()
+const canManageForm = computed(() => can(PERMISSIONS.coursesCreate) || can(PERMISSIONS.coursesUpdate))
 
 const {
   rowSelection,
@@ -18,8 +20,6 @@ const {
   newCourseNameKm,
   newCourseDescription,
   handleAdd,
-  canCreateCourse,
-  canUpdateCourse,
   isConfirmOpen,
   confirmConfig,
   finalizeAction,
@@ -29,7 +29,7 @@ const {
 const mobileView = ref<'table' | 'form'>('table')
 const mobileViewItems = computed(() => [
   { label: t('pages.courses.tableTitle'), value: 'table' },
-  { label: t('pages.courses.addTitle'), value: 'form' },
+  ...(canManageForm.value ? [{ label: t('pages.courses.addTitle'), value: 'form' }] : []),
 ])
 
 function getAvatarColor(name: string) {
@@ -61,7 +61,7 @@ function getInitial(name: string) {
     <div class="flex flex-col lg:flex-row flex-1 gap-3 p-2 overflow-hidden min-h-0">
       <!-- Left: add / edit form -->
       <div
-        v-if="canCreateCourse || canUpdateCourse"
+        v-if="canManageForm"
         :class="[
           mobileView === 'form' ? 'flex' : 'hidden',
           'lg:flex w-full lg:w-[30%] lg:shrink-0 flex-col gap-4 p-5 border border-default overflow-y-auto',
@@ -138,6 +138,7 @@ function getInitial(name: string) {
           :data="filteredCourses"
           :loading="isLoading"
           :total-rows="totalRows"
+          server-pagination
           :columns="columns"
           :selectable="false"
           :get-row-actions="getDropdownActions"

@@ -1,5 +1,10 @@
-# Show Wi-Fi/LAN URLs for Docker Compose (nginx is published on port 18080).
-$Port = 18080
+# Show localhost / LAN URLs for Docker Compose (nginx on APP_PUBLIC_PORT, default 80).
+$Port = if ($env:APP_PUBLIC_PORT) { $env:APP_PUBLIC_PORT } else { 80 }
+if ($Port -eq "80") {
+  Write-Host "App: http://localhost"
+} else {
+  Write-Host "App: http://localhost:$Port"
+}
 $ErrorActionPreference = "Stop"
 
 function Get-LanIpv4 {

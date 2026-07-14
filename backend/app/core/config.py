@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     app_debug: bool = Field(default=False, validation_alias="APP_DEBUG")
     api_v1_prefix: str = "/api/v1"
     database_url: str = Field(
-        default="sqlite:///./school.db",
+        default="postgresql+psycopg2://postgres:postgres@127.0.0.1:15432/school_db",
         validation_alias="DATABASE_URL",
     )
     secret_key: str = Field(default="change-me-in-production", validation_alias="SECRET_KEY")
@@ -30,7 +30,7 @@ class Settings(BaseSettings):
         validation_alias="BACKEND_CORS_ORIGINS",
     )
     cors_allow_lan: bool = Field(default=True, validation_alias="BACKEND_CORS_ALLOW_LAN")
-    app_public_port: int = Field(default=18080, validation_alias="APP_PUBLIC_PORT")
+    app_public_port: int = Field(default=8080, validation_alias="APP_PUBLIC_PORT")
     upload_dir: Path = Field(default=Path("uploads"), validation_alias="UPLOAD_DIR")
 
     redis_url: str = Field(default="redis://localhost:6379/0", validation_alias="REDIS_URL")

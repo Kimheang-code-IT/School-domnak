@@ -23,6 +23,7 @@ function filterItemValue(entry: unknown): string {
 
 export function useAuditHistory() {
     const useBackendApi = useBackendMode()
+    const { can, PERMISSIONS } = useCan()
     const historyApi = useHistoryApi()
     const { t, te } = useI18n()
     const { formattedRange } = useGlobalFilter()
@@ -71,7 +72,7 @@ export function useAuditHistory() {
         serverQuery: mergedServerQuery,
         localData: logs,
         listFn: (query, signal) => historyApi.list(query, signal),
-        debounceMs: 220
+        debounceMs: 150
     })
     const effectiveLogs = computed(() => resource.rows.value)
 
@@ -89,6 +90,7 @@ export function useAuditHistory() {
     }
 
     function getDropdownActions(log: AuditLog): DropdownMenuItem[][] {
+        if (!can(PERMISSIONS.historyDetail)) return []
         return [[
             {
                 label: t('pages.history.actions.viewDetails'), icon: 'i-lucide-eye',

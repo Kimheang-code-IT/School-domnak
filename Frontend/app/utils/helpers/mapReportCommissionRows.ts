@@ -65,7 +65,6 @@ export function mapReportViewRow(raw: Record<string, unknown>): ReportRow {
     receipt,
     seller: str(raw.seller) || str(raw.sellerName),
     phoneSaler: str(raw.phoneSaler) || str(raw.phone_saler),
-    source: str(raw.source),
     address:
       str(raw.address) ||
       str(raw.customerAddress) ||
@@ -120,7 +119,6 @@ export function mapCommissionViewRow(raw: Record<string, unknown>): ComissionEnt
     teacher_key: teacherName,
     className,
     studentName,
-    source: str(raw.source),
     date: str(raw.date),
     amount: num(raw.amount),
     commission: num(raw.commission),

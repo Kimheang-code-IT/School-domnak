@@ -32,7 +32,3 @@ export const routePermissionMap: RoutePermissionEntry[] = [
 export function resolveRoutePermission(path: string): RoutePermissionEntry | undefined {
   return routePermissionMap.find((entry) => entry.match(path))
 }
-
-export function useRoutePermissionMap() {
-  return routePermissionMap
-}

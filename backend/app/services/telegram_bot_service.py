@@ -573,7 +573,7 @@ def run_report_for_action(
 
 def report_menu_text() -> str:
     return (
-        "📋 <b>School Domnak Reports</b>\n\n"
+        "📋 <b>Learn Computer Reports</b>\n\n"
         "<b>Step 1:</b> Choose report type\n"
         "<b>Step 2:</b> Finance / Category / Course / Class / Teacher — pick item or <b>📋 All</b>\n"
         "<b>Step 3:</b> Choose period (<b>All Time</b> = no date filter)\n\n"
@@ -587,7 +587,7 @@ def help_text() -> str:
     hour = settings.backup_schedule_hour
     minute = settings.backup_schedule_minute
     return (
-        "🤖 <b>School Domnak Bot</b>\n\n"
+        "🤖 <b>Learn Computer Bot</b>\n\n"
         f"{report_menu_text()}\n\n"
         f"Tap <b>{_esc(BTN_BACKUP)}</b> to back up the database to Google Sheets now.\n"
         f"Automatic backup runs daily at {hour:02d}:{minute:02d} ({_esc(tz)})."

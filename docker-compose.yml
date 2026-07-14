@@ -50,10 +50,11 @@ services:
       - school_network
     restart: "no"
 
-  # Run DB migrations once before any API replica starts (avoids races when scaling backend).
+  # Shared Python image for API / migrate / Celery / Telegram (build once to avoid BuildKit tag races).
   backend_migrate:
     build:
       context: ./backend
+    image: schooldomnak-backend:latest
     container_name: school-backend-migrate
     restart: "no"
     env_file:
@@ -70,8 +71,7 @@ services:
   # Scale with: docker compose up -d --scale backend=N (or deploy-docker.ps1 reads BACKEND_REPLICAS).
   # Nginx load-balances across all replicas via Docker DNS (see nginx/conf.d/app.conf).
   backend:
-    build:
-      context: ./backend
+    image: schooldomnak-backend:latest
     restart: unless-stopped
     env_file:
       - .env
@@ -105,8 +105,7 @@ services:
       start_period: 40s
 
   telegram_bot:
-    build:
-      context: ./backend
+    image: schooldomnak-backend:latest
     container_name: school-telegram-bot
     restart: unless-stopped
     env_file:
@@ -131,8 +130,7 @@ services:
 
   # Scale with: --scale celery_worker=N (see CELERY_WORKER_REPLICAS in .env).
   celery_worker:
-    build:
-      context: ./backend
+    image: schooldomnak-backend:latest
     restart: unless-stopped
     env_file:
       - .env
@@ -158,8 +156,7 @@ services:
       - exec celery -A app.core.celery_app.celery_app worker --loglevel=info --concurrency=$$CELERY_WORKER_CONCURRENCY
 
   celery_beat:
-    build:
-      context: ./backend
+    image: schooldomnak-backend:latest
     container_name: school-celery-beat
     restart: unless-stopped
     env_file:
@@ -187,8 +184,8 @@ services:
     image: nginx:1.27-alpine
     container_name: school-nginx
     ports:
-      - "18080:80"
-      - "18443:443"
+      # Plain http://localhost — stop WSL/Ubuntu nginx if bind fails
+      - "80:80"
     volumes:
       - frontend_dist:/usr/share/nginx/html:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro

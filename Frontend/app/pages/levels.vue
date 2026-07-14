@@ -2,6 +2,8 @@
 import { useLevels } from '~/composables/table/useLevels'
 
 const { t } = useI18n()
+const { can, PERMISSIONS } = useCan()
+const canManageForm = computed(() => can(PERMISSIONS.levelsCreate) || can(PERMISSIONS.levelsUpdate))
 
 const {
   rowSelection,
@@ -18,8 +20,6 @@ const {
   newLevelNameEn,
   newLevelDescription,
   handleAdd,
-  canCreateLevel,
-  canUpdateLevel,
   isConfirmOpen,
   confirmConfig,
   finalizeAction,
@@ -29,7 +29,7 @@ const {
 const mobileView = ref<'table' | 'form'>('table')
 const mobileViewItems = computed(() => [
   { label: t('pages.levels.tableTitle'), value: 'table' },
-  { label: t('pages.levels.addTitle'), value: 'form' },
+  ...(canManageForm.value ? [{ label: t('pages.levels.addTitle'), value: 'form' }] : []),
 ])
 
 const canSubmit = computed(
@@ -47,7 +47,7 @@ const canSubmit = computed(
 
     <div class="flex flex-col lg:flex-row flex-1 gap-3 p-2 overflow-hidden min-h-0">
       <div
-        v-if="canCreateLevel || canUpdateLevel"
+        v-if="canManageForm"
         :class="[
           mobileView === 'form' ? 'flex' : 'hidden',
           'lg:flex w-full lg:w-[30%] lg:shrink-0 flex-col gap-4 p-5 border border-default overflow-y-auto',
@@ -119,6 +119,7 @@ const canSubmit = computed(
           :data="filteredLevels"
           :loading="isLoading"
           :total-rows="totalRows"
+          server-pagination
           :columns="columns"
           :selectable="false"
           :get-row-actions="getDropdownActions"

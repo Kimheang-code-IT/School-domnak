@@ -6,6 +6,7 @@ import { formatDate } from '~/utils/format/date'
 import { usePosApi } from '~/utils/api'
 
 const { t } = useI18n()
+const { can, PERMISSIONS } = useCan()
 const router = useRouter()
 const toast = useToast()
 const posApi = usePosApi()
@@ -48,13 +49,6 @@ const toolbarFilters = useTableToolbarFilters(
       class: 'w-24 sm:w-36',
     },
     {
-      key: 'source',
-      model: selections.source,
-      items: catalog.sourceItems,
-      placeholder: t('pages.report.columns.source'),
-      class: 'w-24 sm:w-32',
-    },
-    {
       key: 'classId',
       model: selections.classId,
       items: catalog.classItems,
@@ -79,7 +73,6 @@ interface PosInvoicePayload {
   phoneCustomer: string
   seller: string
   phoneSaler?: string
-  source?: string
   address: string
   amount: number
 }
@@ -93,7 +86,6 @@ function mapRowToInvoicePayload(row: Record<string, unknown>): PosInvoicePayload
     phoneCustomer: String(row?.phoneCustomer || ''),
     seller: String(row?.seller || ''),
     phoneSaler: String(row?.phoneSaler || ''),
-    source: String(row?.source || ''),
     address: String(row?.address || ''),
     amount: Number(row?.amount || 0),
   }
@@ -155,6 +147,7 @@ function goToSelectedInvoices() {
     <LayoutAppHeader :title="t('pages.report.title')" show-datepicker>
       <template #right>
         <UButton
+          v-if="can(PERMISSIONS.reportPreviewInvoice)"
           icon="i-lucide-receipt-text"
           color="primary"
           variant="solid"
@@ -165,6 +158,7 @@ function goToSelectedInvoices() {
           <span class="hidden sm:inline">{{ $t('common.preview') }}</span>
         </UButton>
         <UButton
+          v-if="can(PERMISSIONS.reportExport)"
           icon="i-lucide-download"
           color="neutral"
           variant="subtle"
@@ -237,11 +231,6 @@ function goToSelectedInvoices() {
             {{ row.original.className || row.original.product || '—' }}
           </UBadge>
         </template>
-        <template #source-cell="{ row }">
-          <UBadge color="primary" variant="soft" class="font-normal">
-            {{ row.original.source }}
-          </UBadge>
-        </template>
         <template #address-cell="{ row }">
           <span class="text-sm text-foreground line-clamp-2" :title="row.original.address">
             {{ row.original.address || '—' }}
@@ -251,6 +240,7 @@ function goToSelectedInvoices() {
           <div class="flex items-center gap-2">
             <span class="text-sm font-medium">{{ row.original.invoiceNo }}</span>
             <UButton
+              v-if="can(PERMISSIONS.reportPreviewInvoice)"
               icon="i-lucide-receipt-text"
               color="primary"
               variant="ghost"

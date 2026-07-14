@@ -2,7 +2,23 @@ import type { ComissionEntry, Product, ReportRow } from '~/types'
 import { normalizeCambodiaProvince } from '~/utils/constants/cambodiaProvinces'
 
 export type ChartPoint = { name: string; value: number }
-export type BarChartData = { labels: string[]; values: number[] }
+export type NestedPieChild = { name: string; value: number }
+export type NestedPieGroup = {
+  name: string
+  value: number
+  children?: NestedPieChild[]
+}
+export type BarChartData = {
+  labels: string[]
+  /** Left-axis bars (e.g. enrolled students). */
+  values: number[]
+  /** Right-axis line (e.g. available seats). Optional — falls back to values. */
+  lineValues?: number[]
+}
+
+function classStudentCount(row: Product): number {
+  return Number(row.studentCount ?? row.sold ?? row.totalStock ?? 0)
+}
 
 function studentKey(row: ReportRow): string {
   const phone = String(row.phoneCustomer || row.studentPhone || '').trim()
@@ -48,19 +64,79 @@ export function buildCommissionByTeacher(rows: ComissionEntry[]): ChartPoint[] {
     .sort((a, b) => b.value - a.value)
 }
 
-/** Active enrollments per class (`studentCount` on class rows). */
+/** Active enrollments + available seats per class (bar + line mix chart). */
 export function buildClassEnrollmentBar(classes: Product[], limit = 14): BarChartData {
   const items = classes
-    .map((row) => ({
-      name: String(row.name || row.courseName || '—').trim() || '—',
-      count: Number(row.studentCount ?? row.sold ?? row.totalStock ?? 0),
-    }))
-    .filter((item) => item.count > 0)
-    .sort((a, b) => b.count - a.count)
+    .map((row) => {
+      const students = classStudentCount(row)
+      const seats = Number(row.inStock ?? 0)
+      return {
+        name: String(row.name || row.courseName || '—').trim() || '—',
+        students,
+        seats: Number.isFinite(seats) ? Math.max(0, seats) : 0,
+      }
+    })
+    .filter((item) => item.students > 0 || item.seats > 0)
+    .sort((a, b) => b.students - a.students || b.seats - a.seats)
     .slice(0, limit)
 
   return {
     labels: items.map((item) => item.name),
-    values: items.map((item) => item.count),
+    values: items.map((item) => item.students),
+    lineValues: items.map((item) => item.seats),
   }
+}
+
+/**
+ * Nested pie: inner = course totals, outer = classes under each course.
+ * Uses enrollment counts from class rows.
+ */
+export function buildClassEnrollmentNested(
+  classes: Product[],
+  outerLimit = 24,
+): NestedPieGroup[] {
+  type Acc = { total: number; children: Map<string, number> }
+  const byCourse = new Map<string, Acc>()
+
+  for (const row of classes) {
+    const count = classStudentCount(row)
+    if (count <= 0) continue
+
+    const course =
+      String(row.courseName || row.category || '—').trim() || '—'
+    const className = String(row.name || '—').trim() || '—'
+
+    let group = byCourse.get(course)
+    if (!group) {
+      group = { total: 0, children: new Map() }
+      byCourse.set(course, group)
+    }
+    group.total += count
+    group.children.set(className, (group.children.get(className) || 0) + count)
+  }
+
+  const groups = Array.from(byCourse.entries())
+    .map(([name, group]) => ({
+      name,
+      value: group.total,
+      children: Array.from(group.children.entries())
+        .map(([childName, value]) => ({ name: childName, value }))
+        .sort((a, b) => b.value - a.value),
+    }))
+    .sort((a, b) => b.value - a.value)
+
+  // Cap outer slices while keeping course totals consistent with visible children.
+  let remaining = outerLimit
+  const capped: NestedPieGroup[] = []
+
+  for (const group of groups) {
+    if (remaining <= 0) break
+    const children = group.children!.slice(0, remaining)
+    remaining -= children.length
+    const value = children.reduce((sum, c) => sum + c.value, 0)
+    if (value <= 0) continue
+    capped.push({ name: group.name, value, children })
+  }
+
+  return capped
 }

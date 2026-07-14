@@ -6,16 +6,18 @@ const {
     pagination, selectedClassifications,
     filteredEntries, columns, totalRows,
     newName, newDescription, handleAdd,
-    canCreateCategory, canUpdateCategory,
     isConfirmOpen, confirmConfig, finalizeAction,
     getDropdownActions,
 } = useTotalRevenue()
+
+const { can, PERMISSIONS } = useCan()
+const canManageForm = computed(() => can(PERMISSIONS.categoryCreate) || can(PERMISSIONS.categoryUpdate))
 
 const isExportOpen = ref(false)
 const mobileView = ref<'table' | 'form'>('table')
 const mobileViewItems = computed(() => [
     { label: $t('category.tableTitle'), value: 'table' },
-    { label: $t('category.addTitle'), value: 'form' }
+    ...(canManageForm.value ? [{ label: $t('category.addTitle'), value: 'form' }] : []),
 ])
 
 // Generate avatar color from name
@@ -47,7 +49,7 @@ function getInitial(name: string) {
         <div class="flex flex-col lg:flex-row flex-1 gap-3 p-2 overflow-hidden min-h-0">
             <!-- Left: Add Form Panel -->
             <div
-                v-if="canCreateCategory || canUpdateCategory"
+                v-if="canManageForm"
                 :class="[
                     mobileView === 'form' ? 'flex' : 'hidden',
                     'lg:flex w-full lg:w-[30%] lg:shrink-0 flex-col gap-4 p-5 border border-default overflow-y-auto'
@@ -113,6 +115,7 @@ function getInitial(name: string) {
                     v-model:filter-value="selectedClassifications"
                     :data="filteredEntries"
                     :total-rows="totalRows"
+                    server-pagination
                     :columns="columns"
                     :selectable="false"
                     :get-row-actions="getDropdownActions"

@@ -10,6 +10,16 @@ class LoginRequest(CamelModel):
     password: str
 
 
+class SetupRequest(CamelModel):
+    name: str = Field(min_length=1, max_length=150)
+    email: EmailStr
+    password: str = Field(min_length=6, max_length=128)
+
+
+class SetupStatusRead(CamelModel):
+    needs_setup: bool
+
+
 class RefreshTokenRequest(CamelModel):
     refresh_token: str
 

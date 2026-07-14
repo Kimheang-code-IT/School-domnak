@@ -22,7 +22,7 @@ function onSubmitUser(data: Record<string, any>) {
 
 <template>
     <div class="flex flex-col h-full bg-background overflow-hidden text-foreground tracking-tight">
-        <LayoutAppHeader :title="$t('pages.userManagement.title')" show-datepicker>
+        <LayoutAppHeader :title="$t('pages.userManagement.title')">
             <template #right>
                 <UButton
                     v-if="canCreateUser"
@@ -42,7 +42,8 @@ function onSubmitUser(data: Record<string, any>) {
                 v-model:sorting="sorting"
                 v-model:column-visibility="columnVisibility" v-model:pagination="pagination"
                 v-model:column-filters="columnFilters" v-model:filter-value="selectedRoles" :filter-items="roleItems"
-                :data="filteredUsers" :columns="columns" :selectable="true" :total-rows="totalRows" :get-row-actions="getDropdownActions">
+                :data="filteredUsers" :columns="columns" :selectable="true" :total-rows="totalRows"
+                server-pagination :get-row-actions="getDropdownActions">
                 <template #header>
                     <div class="w-full max-w-[280px]">
                         <CommonAppSearch v-model="searchQuery" />

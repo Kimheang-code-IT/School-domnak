@@ -3,35 +3,32 @@ import type { Product } from '~/types'
 import { formatCurrency } from '~/utils/format/currency'
 import { formatDateShort } from '~/utils/format/date'
 import { formatClassDuration, normalizeIsoDate } from '~/utils/format/duration'
-import logo from '~/assets/images/logo.png'
+import logo from '~/assets/images/logoapp.png'
 const { t, te, locale } = useI18n()
 const authStore = useAuthStore()
 
-const telegramPriceUrl = 'https://t.me/REANCOMPUTERFREE'
-const telegramBrandUrl = 'https://t.me/damanksiksaa'
-const buildQrUrl = (value: string) =>
-  `https://api.qrserver.com/v1/create-qr-code/?size=160x160&margin=0&data=${encodeURIComponent(value)}`
 interface ReportInvoice {
   id?: number | string
   invoiceNo: string
   date: string
   startDate?: string
   endDate?: string
-  durationMonths?: string | number
   registeredAt?: string
   product?: string
   courseName?: string
   timeSlot?: string
   timeIn?: string
   timeOut?: string
+  durationMonths?: string | number | null
+  classDuration?: string | number | null
   studentName?: string
   nameKm?: string
   nameEn?: string
   customer: string
   phoneCustomer: string
   seller: string
-  source?: string
   grandTotal?: number
+  paymentNote?: string
 }
 
 interface CartItem {
@@ -53,11 +50,11 @@ const props = withDefaults(
     displaySubtotal: number
     displayDiscount: number
     displayTotal: number
-    /** Student study duration from enrollment form (months). */
-    enrollmentDurationMonths?: string
+    /** Optional checkout note shown where QR codes used to be. */
+    note?: string
   }>(),
   {
-    enrollmentDurationMonths: '',
+    note: '',
   },
 )
 
@@ -126,13 +123,22 @@ const invoiceCourse = computed(() => {
 })
 
 const invoiceClassDuration = computed(() => {
-  const fromReport = props.selectedReportInvoice?.durationMonths
-  const fromForm = props.enrollmentDurationMonths
-  const raw = fromReport ?? fromForm
-  if (raw != null && String(raw).trim() !== '') {
-    return formatClassDuration(raw, t, te, { locale: locale.value }) || 'N/A'
+  const report = props.selectedReportInvoice
+  if (report?.durationMonths != null && report.durationMonths !== '') {
+    return formatClassDuration(report.durationMonths, t, te) || 'N/A'
   }
-  return 'N/A'
+  const durations = uniqueText(
+    invoiceProducts.value.map((product) => {
+      const raw =
+        product.durationMonths ||
+        product.classDuration ||
+        product.durationClass ||
+        product.courseDuration ||
+        product.duration
+      return raw ? formatClassDuration(raw, t, te) : ''
+    })
+  )
+  return durations.join(', ') || 'N/A'
 })
 
 const invoiceTimeInOut = computed(() => {
@@ -185,6 +191,10 @@ const invoiceShiftDays = computed(() => {
     return t('pages.courses.shift.evening')
   })).join(', ') || 'N/A'
 })
+
+const displayNote = computed(() =>
+  String(props.selectedReportInvoice?.paymentNote || props.note || '').trim()
+)
 </script>
 
 <template>
@@ -194,7 +204,7 @@ const invoiceShiftDays = computed(() => {
         <div class="px-6 pb-4 flex flex-col gap-5 bg-white">
           <div class="flex justify-between items-start">
             <div class="flex items-center gap-3 mt-2">
-              <img :src="logo" alt="PDME-Revenue logo" class="w-36 h-20 shrink-0 object-contain" loading="eager" decoding="sync">
+              <img :src="logo" alt="Learn Computer logo" class="w-36 h-20 shrink-0 object-contain" loading="eager" decoding="sync">
             </div>
             <h1 class="text-2xl font-black text-slate-800 uppercase italic mr-10 mt-8">{{ t('pages.school.invoice.title') }}</h1>
           </div>
@@ -282,21 +292,13 @@ const invoiceShiftDays = computed(() => {
                   <p class="text-[11px] text-slate-400 font-bold">{{ t('pages.school.invoice.terms.en') }}</p>
                 </div>
 
-                <div class="flex gap-4">
-                  <div class="space-y-1 text-center">
-                    <div class="size-20 border border-slate-200 p-1 bg-white">
-                      <img :src="buildQrUrl(telegramPriceUrl)" alt="Telegram price QR" class="size-full object-contain"
-                        loading="eager" decoding="sync">
-                    </div>
-                    <p class="text-[9px] font-bold text-slate-500 mt-1">រៀនកុំព្យូទ័រក្រៅសាលា</p>
-                  </div>
-                  <div class="space-y-1 text-center">
-                    <div class="size-20 border border-slate-200 p-1 bg-white">
-                      <img :src="buildQrUrl(telegramBrandUrl)" alt="Telegram brand QR" class="size-full object-contain"
-                        loading="eager" decoding="sync">
-                    </div>
-                    <p class="text-[9px] font-bold text-slate-500 mt-1">ដំណាក់សិក្សា</p>
-                  </div>
+                <div class="min-h-20 rounded-sm border border-slate-200 bg-white p-2">
+                  <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                    {{ t('pages.allclass.payment.note') }}
+                  </p>
+                  <p class="mt-1 text-[11px] font-bold text-slate-700 whitespace-pre-wrap break-words">
+                    {{ displayNote }}
+                  </p>
                 </div>
               </div>
 

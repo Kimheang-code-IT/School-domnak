@@ -15,7 +15,7 @@ Quick list in terminal: `.\scripts\docker-commands.ps1`
 ## Run the app
 
 ```powershell
-cd "D:\project\School Domnak"
+cd "D:\project\School Learn Computer"
 .\scripts\deploy-docker.ps1
 ```
 

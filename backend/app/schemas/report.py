@@ -13,7 +13,6 @@ class ReportSalesLineRead(CamelModel):
     phone_customer: str | None = None
     address: str | None = None
     seller: str | None = None
-    source: str | None = None
     amount: Decimal
     date: datetime
     product: str | None = None

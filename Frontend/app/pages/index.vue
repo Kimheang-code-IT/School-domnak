@@ -21,7 +21,7 @@ const {
 const {
   chartsLoading,
   provinceStudentData,
-  commissionPieData,
+  classEnrollmentNested,
   classEnrollmentBar,
 } = useDashboardCharts({
   chartsReady: dashboardChartsReady,
@@ -32,6 +32,14 @@ const {
   filteredClasses,
   allClasses,
 })
+
+const { t } = useI18n()
+const pieInnerSeriesName = computed(() => t('pages.dashboard.pieInnerCourse'))
+const pieOuterSeriesName = computed(() => t('pages.dashboard.pieOuterClass'))
+const barSeriesName = computed(() => t('pages.dashboard.barSeriesStudents'))
+const lineSeriesName = computed(() => t('pages.dashboard.barSeriesSeats'))
+const barAxisName = computed(() => t('pages.dashboard.barAxisStudents'))
+const lineAxisName = computed(() => t('pages.dashboard.barAxisSeats'))
 
 const SECTION_HEIGHT = {
   DASHBOARD: 'clamp(560px, calc(100vh - 220px), 760px)',
@@ -107,6 +115,8 @@ const summaryStats = computed(() => apiStats.value ?? [])
           <div class="w-full relative flex-1 min-h-0">
             <CommonAppLoadingState
               v-if="chartsLoading"
+              icon="i-lucide-map"
+              :label="$t('components.loadingMap')"
               class="absolute inset-0 top-10"
             />
             <ChartAppChartMap
@@ -127,16 +137,24 @@ const summaryStats = computed(() => apiStats.value ?? [])
           >
             <template #header>
               <h3 class="font-normal text-sm">
-                {{ $t('pages.dashboard.commissionByTeacher') }}
+                {{ $t('pages.dashboard.studentsByCourseClass') }}
               </h3>
             </template>
             <div class="w-full relative flex-1 min-h-0 p-2">
               <CommonAppLoadingState
                 v-if="chartsLoading"
                 compact
+                icon="i-lucide-chart-pie"
+                :label="$t('common.loadingChart')"
                 class="absolute inset-0"
               />
-              <ChartAppChartPie v-else :key="`pie-${chartsRenderKey}`" :data="commissionPieData" />
+              <ChartAppChartPie
+                v-else
+                :key="`pie-${chartsRenderKey}`"
+                :data="classEnrollmentNested"
+                :inner-series-name="pieInnerSeriesName"
+                :outer-series-name="pieOuterSeriesName"
+              />
             </div>
           </UCard>
 
@@ -150,9 +168,19 @@ const summaryStats = computed(() => apiStats.value ?? [])
               <CommonAppLoadingState
                 v-if="chartsLoading"
                 compact
+                icon="i-lucide-chart-column"
+                :label="$t('common.loadingChart')"
                 class="absolute inset-0"
               />
-              <ChartAppChartBar v-else :key="`bar-${chartsRenderKey}`" :data="classEnrollmentBar" />
+              <ChartAppChartBar
+                v-else
+                :key="`bar-${chartsRenderKey}`"
+                :data="classEnrollmentBar"
+                :bar-series-name="barSeriesName"
+                :line-series-name="lineSeriesName"
+                :bar-axis-name="barAxisName"
+                :line-axis-name="lineAxisName"
+              />
             </div>
           </UCard>
         </div>

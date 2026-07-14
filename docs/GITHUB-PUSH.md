@@ -3,7 +3,7 @@
 ## Before you push (this PC)
 
 ```powershell
-cd "D:\project\School Domnak"
+cd "D:\project\School Learn Computer"
 .\scripts\pre-push-check.ps1
 git status
 ```

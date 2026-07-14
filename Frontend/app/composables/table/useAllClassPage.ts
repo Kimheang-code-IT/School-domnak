@@ -22,24 +22,32 @@ import {
   normalizeIsoDate,
   parseDurationMonthsDecimal,
   prorateByDuration,
-  validateEnrollmentDurationMonths,
 } from '~/utils/format/duration'
-import { resolveUploadUrl } from '~/utils/helpers/mediaUrl'
 import {
-  resolveEnrollmentEndIso,
-  resolveEnrollmentStartIso,
-} from '~/utils/helpers/enrollmentDisplay'
-import { PERMISSIONS } from '~/utils/auth/permissions'
-import { isForbiddenError } from '~/utils/api/errors'
+  filterStudentDurationOptions,
+  findStudentDurationOption,
+  normalizeStudentDurationValue,
+} from '~/utils/constants/studentDurationOptions'
+import { resolveUploadUrl } from '~/utils/helpers/mediaUrl'
 
 function todayIsoDate() {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+/** Prefer an exact preset; otherwise the longest allowed option ≤ class length. */
+function resolveEnrollmentDurationDefault(classMonths: number | null | undefined): string {
+  if (classMonths == null || !Number.isFinite(classMonths) || classMonths <= 0) return ''
+  const exact = findStudentDurationOption(classMonths)
+  if (exact) return String(exact.months)
+  const allowed = filterStudentDurationOptions(classMonths)
+  if (!allowed.length) return ''
+  return String(allowed[allowed.length - 1]!.months)
+}
+
 export function useAllClassPage() {
-  const auth = useAuthStore()
   const { t, toast, isFormOpen, isConfirmOpen } = useBaseTable({})
+  const { can, PERMISSIONS } = useCan()
 
   /** Enrollment wizard: 0 select class → 1 student info → 2 invoice */
   const currentStep = ref(0)
@@ -73,7 +81,6 @@ export function useAllClassPage() {
   const deliveryDate = ref('')
   const paymentMethod = ref('cash')
   const deliveryStatus = ref('pending')
-  const source = ref('other')
   const sellerId = ref<number | undefined>(undefined)
 
   const paymentNote = ref('')
@@ -105,11 +112,9 @@ export function useAllClassPage() {
   )
 
   const enrollmentClassDurationMax = computed(() => {
-    const parsed = enrollmentCartLines.value
-      .map((line) => parseDurationMonthsDecimal(line.product.classDuration))
-      .filter((n): n is number => n != null && n > 0)
-    if (!parsed.length) return null
-    return Math.min(...parsed)
+    const line = enrollmentCartLines.value[0]
+    if (!line) return null
+    return parseDurationMonthsDecimal(line.product.classDuration)
   })
 
   const enrollmentStudentMonths = computed(() =>
@@ -190,7 +195,6 @@ export function useAllClassPage() {
     date: new Date().toISOString(),
     startDate: normalizeIsoDate(enrollmentStartDate.value) || todayIsoDate(),
     endDate: enrollmentEndDateIso.value || undefined,
-    durationMonths: enrollmentDurationMonths.value.trim() || undefined,
     registeredAt: todayIsoDate(),
     customer: customerName.value,
     nameKm: nameKm.value,
@@ -202,8 +206,11 @@ export function useAllClassPage() {
     timeSlot: enrollmentCartLines.value[0]?.product?.timeSlot,
     timeIn: enrollmentCartLines.value[0]?.product?.timeIn,
     timeOut: enrollmentCartLines.value[0]?.product?.timeOut,
+    durationMonths: enrollmentStudentMonths.value ?? undefined,
+    classDuration: enrollmentCartLines.value[0]?.product?.classDuration,
     seller: '',
     grandTotal: enrollmentTotal.value,
+    paymentNote: paymentNote.value,
   }))
 
   function clearEnrollmentCart() {
@@ -275,15 +282,8 @@ export function useAllClassPage() {
     }
   }
 
-  const canCreateClass = computed(() => auth.hasPermission(PERMISSIONS.allClassCreate))
-  const canUpdateClass = computed(() => auth.hasPermission(PERMISSIONS.allClassUpdate))
-  const canDeleteClass = computed(() => auth.hasPermission(PERMISSIONS.allClassDelete))
-  const canViewClassRoster = computed(() => auth.hasPermission(PERMISSIONS.allClassViewRoster))
-  const canRemoveClassStudent = computed(() => auth.hasPermission(PERMISSIONS.allClassRemoveStudent))
-  const canContinueClassPayment = computed(() => auth.hasPermission(PERMISSIONS.allClassContinuePayment))
-
   function openClassStudentsModal(product: Product) {
-    if (!canViewClassRoster.value) return
+    if (!can(PERMISSIONS.allClassViewRoster)) return
     classStudentsProduct.value = product
     classStudentsPagination.value = { ...classStudentsPagination.value, pageIndex: 0 }
     isClassStudentsModalOpen.value = true
@@ -379,7 +379,7 @@ export function useAllClassPage() {
   }
 
   function continueClassFromEnrollmentRow(row: Record<string, unknown>) {
-    if (!canContinueClassPayment.value) return
+    if (!can(PERMISSIONS.allClassContinuePayment)) return
     const cls = classStudentsProduct.value
     if (!cls) {
       toast.add({
@@ -415,11 +415,11 @@ export function useAllClassPage() {
 
     gender.value = normalizeEnrollmentGender(row.gender ?? row.studentGender)
     birthdate.value = pickEnrollmentRowStr(row, ['birthdate', 'birthDate', 'dateOfBirth'])
-    const rowEnd = resolveEnrollmentEndIso(row)
-    const rowStart = resolveEnrollmentStartIso(row)
+    const rowEnd = pickEnrollmentRowStr(row, ['endDate', 'enddate', 'end_date'])
+    const rowStart = pickEnrollmentRowStr(row, ['startDate', 'startdate', 'start_date'])
     enrollmentStartDate.value =
       (rowEnd ? dayAfterIsoDate(rowEnd) : '') ||
-      rowStart ||
+      normalizeIsoDate(rowStart) ||
       todayIsoDate()
     province.value = pickEnrollmentRowStr(row, ['province', 'studentProvince'])
     customerPhone.value = pickEnrollmentRowStr(row, [
@@ -444,7 +444,14 @@ export function useAllClassPage() {
       'duration_months',
       'studentDuration',
     ])
-    enrollmentDurationMonths.value = rowMonths
+    if (rowMonths) {
+      enrollmentDurationMonths.value = normalizeStudentDurationValue(rowMonths)
+    } else {
+      const classMonths = parseDurationMonthsDecimal(
+        classStudentsProduct.value?.classDuration,
+      )
+      enrollmentDurationMonths.value = resolveEnrollmentDurationDefault(classMonths)
+    }
     syncEnrollmentCartPrices()
 
     isClassStudentsModalOpen.value = false
@@ -457,7 +464,6 @@ export function useAllClassPage() {
   }
 
   function openCancelEnrollmentConfirm(row: Record<string, unknown>) {
-    if (!canRemoveClassStudent.value) return
     pendingCancelEnrollmentRow.value = row
     isCancelEnrollmentConfirmOpen.value = true
   }
@@ -491,7 +497,6 @@ export function useAllClassPage() {
       })
       await loadClassStudents()
     } catch (err: unknown) {
-      if (isForbiddenError(err)) return
       const e = err as { data?: { message?: string }; message?: string }
       toast.add({
         title: t('pages.allclass.studentListModal.toast.withdrawFailed'),
@@ -785,6 +790,7 @@ export function useAllClassPage() {
   }
 
   async function goNextStep() {
+    if (!can(PERMISSIONS.allClassContinuePayment)) return
     if (currentStep.value === 0) {
       if (enrollmentCartLines.value.length === 0) {
         toast.add({
@@ -827,11 +833,9 @@ export function useAllClassPage() {
         })
         return
       }
-      const durationStatus = validateEnrollmentDurationMonths(
-        enrollmentDurationMonths.value,
-        enrollmentClassDurationMax.value,
-      )
-      if (durationStatus === 'empty') {
+      const months = parseDurationMonthsDecimal(enrollmentDurationMonths.value)
+      const maxMonths = enrollmentClassDurationMax.value
+      if (!months) {
         toast.add({
           title: t('common.error'),
           description: t('pages.allclass.validation.durationRequired'),
@@ -839,20 +843,10 @@ export function useAllClassPage() {
         })
         return
       }
-      if (durationStatus === 'invalid') {
+      if (maxMonths && months > maxMonths) {
         toast.add({
           title: t('common.error'),
-          description: t('pages.allclass.validation.durationInvalid'),
-          color: 'warning'
-        })
-        return
-      }
-      if (durationStatus === 'too_large') {
-        toast.add({
-          title: t('common.error'),
-          description: t('pages.allclass.validation.durationExceedsClass', {
-            max: enrollmentClassDurationMax.value,
-          }),
+          description: t('pages.allclass.validation.durationExceedsClass', { max: maxMonths }),
           color: 'warning'
         })
         return
@@ -865,6 +859,7 @@ export function useAllClassPage() {
   }
 
   async function finishEnrollmentCheckout(): Promise<{ invoiceNo: string; jobId: string | null } | null> {
+    if (!can(PERMISSIONS.allClassContinuePayment)) return null
     if (enrollmentCartLines.value.length === 0) {
       toast.add({
         title: t('common.error'),
@@ -883,11 +878,9 @@ export function useAllClassPage() {
       })
       return null
     }
-    const durationStatus = validateEnrollmentDurationMonths(
-      enrollmentDurationMonths.value,
-      enrollmentClassDurationMax.value,
-    )
-    if (durationStatus === 'empty') {
+    const durationMonths = parseDurationMonthsDecimal(enrollmentDurationMonths.value)
+    const maxMonths = enrollmentClassDurationMax.value
+    if (!durationMonths) {
       toast.add({
         title: t('common.error'),
         description: t('pages.allclass.validation.durationRequired'),
@@ -895,25 +888,14 @@ export function useAllClassPage() {
       })
       return null
     }
-    if (durationStatus === 'invalid') {
+    if (maxMonths && durationMonths > maxMonths) {
       toast.add({
         title: t('common.error'),
-        description: t('pages.allclass.validation.durationInvalid'),
+        description: t('pages.allclass.validation.durationExceedsClass', { max: maxMonths }),
         color: 'warning'
       })
       return null
     }
-    if (durationStatus === 'too_large') {
-      toast.add({
-        title: t('common.error'),
-        description: t('pages.allclass.validation.durationExceedsClass', {
-          max: enrollmentClassDurationMax.value,
-        }),
-        color: 'warning'
-      })
-      return null
-    }
-    const durationMonths = parseDurationMonthsDecimal(enrollmentDurationMonths.value)
 
     try {
       const response = await checkoutState.checkout({
@@ -925,7 +907,6 @@ export function useAllClassPage() {
           customerName: customerName.value,
           customerPhone: customerPhone.value,
           customerAddress: customerAddress.value.trim() || province.value.trim(),
-          source: source.value,
           deliveryType: deliveryType.value,
           deliveryPrice: deliveryPrice.value,
           deliveryDate: deliveryDate.value,
@@ -939,6 +920,7 @@ export function useAllClassPage() {
           gender: gender.value,
           birthdate: birthdate.value,
           province: province.value,
+          paymentNote: paymentNote.value,
         },
       })
       const invoiceNo = String(response?.data?.invoiceNo || checkoutState.checkoutInvoiceNo.value || '').trim()
@@ -961,7 +943,6 @@ export function useAllClassPage() {
 
   /** Toggle one class row in/out of `enrollmentCartLines` (multi-class cart). */
   function toggleEnrollmentClassSelect(product: Product, selected: boolean) {
-    if (!canContinueClassPayment.value) return
     const id = product.id
     const lines = enrollmentCartLines.value
     if (!selected) {
@@ -972,6 +953,10 @@ export function useAllClassPage() {
     const synced =
       productsState.filteredProducts.value.find((p) => p.id === id) ?? product
     enrollmentCartLines.value = [...lines, { product: synced, qty: 1 }]
+    const classMonths = parseDurationMonthsDecimal(synced.classDuration)
+    if (classMonths && !enrollmentDurationMonths.value.trim()) {
+      enrollmentDurationMonths.value = resolveEnrollmentDurationDefault(classMonths)
+    }
     syncEnrollmentCartPrices()
   }
 
@@ -999,7 +984,6 @@ export function useAllClassPage() {
     deliveryDate.value = ''
     paymentMethod.value = 'cash'
     deliveryStatus.value = 'pending'
-    source.value = 'other'
     sellerId.value = undefined
     paymentNote.value = ''
     enrollmentInvoiceNo.value = ''
@@ -1014,19 +998,19 @@ export function useAllClassPage() {
   })
 
   function handleAddNew() {
-    if (!canCreateClass.value) return
+    if (!can(PERMISSIONS.allClassCreate)) return
     editingClass.value = null
     isFormOpen.value = true
   }
 
   function openEditClass(classItem: Product) {
-    if (!canUpdateClass.value) return
+    if (!can(PERMISSIONS.allClassUpdate)) return
     editingClass.value = classItem
     isFormOpen.value = true
   }
 
   function requestDeleteClass(classItem: Product) {
-    if (!canDeleteClass.value) return
+    if (!can(PERMISSIONS.allClassDelete)) return
     pendingDeleteClass.value = classItem
     isDeleteClassConfirmOpen.value = true
   }
@@ -1045,17 +1029,12 @@ export function useAllClassPage() {
     try {
       await mutation.run(() => productApi.remove(target.id), 'products-view')
       removeEnrollmentItem(target.id)
-      await productsState.refreshProducts()
+      void productsState.refreshProducts()
       toast.add({
         title: t('pages.allclass.deleted'),
         color: 'primary',
       })
     } catch (err: unknown) {
-      if (isForbiddenError(err)) {
-        isDeleteClassConfirmOpen.value = false
-        pendingDeleteClass.value = null
-        return
-      }
       const e = err as { data?: { message?: string }; message?: string }
       toast.add({
         title: t('common.error'),
@@ -1203,20 +1182,14 @@ export function useAllClassPage() {
             : productApi.create(body as Partial<Product>),
         'products-view'
       )
-      await productsState.refreshProducts()
       toast.add({
         title: target ? t('pages.allclass.updated') : t('pages.allclass.created'),
         color: 'primary'
       })
       isFormOpen.value = false
       editingClass.value = null
+      void productsState.refreshProducts()
     } catch (err: unknown) {
-      if (isForbiddenError(err)) {
-        isConfirmOpen.value = false
-        pendingPayload.value = null
-        pendingImageFile.value = null
-        return
-      }
       const e = err as { data?: { message?: string }; message?: string }
       toast.add({
         title: t('common.error'),
@@ -1261,7 +1234,6 @@ export function useAllClassPage() {
     deliveryDate,
     paymentMethod,
     deliveryStatus,
-    source,
     sellerId,
     paymentNote,
     paymentMethodItems,
@@ -1295,12 +1267,6 @@ export function useAllClassPage() {
     dismissDeleteClassConfirm,
     handleSaveRequest,
     finalizeAction,
-    canCreateClass,
-    canUpdateClass,
-    canDeleteClass,
-    canViewClassRoster,
-    canRemoveClassStudent,
-    canContinueClassPayment,
     reloadLookups: loadLookupData,
     isClassStudentsModalOpen,
     classStudentsProduct,

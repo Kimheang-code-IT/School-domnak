@@ -74,36 +74,6 @@ def full_catalog_permissions() -> PermissionsMap:
 
 ADMIN_PERMISSIONS: PermissionsMap = full_catalog_permissions()
 
-STAFF_PERMISSIONS: PermissionsMap = sanitize_role_permissions(
-    {
-        "dashboard": ["view"],
-        "classes": ["view", "create", "update", "view_roster", "continue_payment"],
-        "students": ["view", "create", "update", "view_enrollments", "preview_certificate"],
-        "reports": ["view", "preview_invoice"],
-        "finance": ["view", "export"],
-        "categories": ["view"],
-        "levels": ["view"],
-        "courses": ["view"],
-        "commissions": ["view", "export"],
-        "history": ["view"],
-    }
-)
-
-TEACHER_PERMISSIONS: PermissionsMap = sanitize_role_permissions(
-    {
-        "dashboard": ["view"],
-        "classes": ["view", "view_roster"],
-        "students": ["view", "view_enrollments"],
-        "commissions": ["view", "export"],
-    }
-)
-
-DEFAULT_ROLE_PERMISSIONS: dict[str, PermissionsMap] = {
-    "Admin": ADMIN_PERMISSIONS,
-    "Staff": STAFF_PERMISSIONS,
-    "Teacher": TEACHER_PERMISSIONS,
-}
-
 # Reserved role: hidden from Role Management; cannot be created, updated, or deleted there.
 ROLE_MANAGEMENT_RESERVED_NAMES: frozenset[str] = frozenset({"Admin"})
 

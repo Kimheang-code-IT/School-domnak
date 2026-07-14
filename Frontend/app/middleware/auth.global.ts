@@ -1,4 +1,5 @@
 import { isUiOnlyMode } from '~/composables/useBackendMode'
+import { authService } from '~/services/authService'
 import { resolveRoutePermission, routePermissionMap } from '~/utils/auth/routes'
 
 /** UI-only mode: ensure a fixed app session so menus and permissions resolve (admin:*). */
@@ -9,6 +10,8 @@ const DEFAULT_SESSION = {
   role: 'admin',
   pageAccess: ['admin:*']
 }
+
+const PUBLIC_AUTH_PATHS = new Set(['/login', '/setup'])
 
 export default defineNuxtRouteMiddleware(async (to) => {
   const config = useRuntimeConfig()
@@ -25,6 +28,27 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   auth.hydrateFromStorage()
 
+  const needsSetup = useState<boolean | null>('auth-needs-setup', () => null)
+  if (needsSetup.value === null) {
+    try {
+      const status = await authService.setupStatus()
+      needsSetup.value = Boolean(status.needsSetup)
+    } catch {
+      needsSetup.value = false
+    }
+  }
+
+  if (needsSetup.value) {
+    if (to.path !== '/setup') {
+      return navigateTo('/setup')
+    }
+    return
+  }
+
+  if (to.path === '/setup') {
+    return navigateTo('/login')
+  }
+
   const permissionsSynced = useState('auth-permissions-synced', () => false)
   if (auth.isLoggedIn && !permissionsSynced.value) {
     permissionsSynced.value = true
@@ -39,7 +63,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
     auth.clearAuth()
   }
 
-  if (!auth.isLoggedIn && to.path !== '/login') {
+  if (!auth.isLoggedIn && !PUBLIC_AUTH_PATHS.has(to.path)) {
     return navigateTo('/login')
   }
 

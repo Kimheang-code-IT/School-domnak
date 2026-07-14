@@ -17,7 +17,7 @@ class InvoiceCreate(CamelModel):
     student_phone: str | None = None
     address: str | None = None
     seller: str | None = None
-    source: str | None = None
+    payment_note: str | None = None
     discount_amount: Decimal = Decimal("0")
     lines: list[InvoiceLineCreate]
 
@@ -38,7 +38,6 @@ class InvoiceCheckoutCreate(CamelModel):
     customer_name: str | None = None
     customer_phone: str | None = None
     customer_address: str | None = None
-    source: str | None = None
     delivery_type: str | None = None
     delivery_price: Decimal = Decimal("0")
     delivery_date: str | None = None
@@ -48,6 +47,7 @@ class InvoiceCheckoutCreate(CamelModel):
     seller_id: int | None = None
     duration_months: float | None = None
     start_date: date | None = None
+    payment_note: str | None = None
     lines: list[InvoiceCheckoutLine]
 
 
@@ -73,7 +73,7 @@ class InvoiceRead(CamelModel):
     student_phone: str | None = None
     address: str | None = None
     seller: str | None = None
-    source: str | None = None
+    payment_note: str | None = None
     subtotal: Decimal
     discount_amount: Decimal
     total: Decimal
@@ -109,7 +109,6 @@ class InvoicePreviewInput(CamelModel):
     customer: str | None = None
     phone_customer: str | None = None
     seller: str | None = None
-    source: str | None = None
     address: str | None = None
     amount: Decimal | float | None = None
 

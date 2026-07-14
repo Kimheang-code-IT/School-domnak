@@ -39,8 +39,6 @@ const {
   handleSaveRequest,
   finalizeAction,
   handleAddNew,
-  canCreateStudent,
-  canViewEnrollments,
   isEnrollmentModalOpen,
   enrollmentStudentId,
   enrollmentStudentName,
@@ -94,6 +92,7 @@ const toolbarFilters = useTableToolbarFilters(
   ]),
 )
 
+const { can, PERMISSIONS } = useCan()
 const isExportOpen = ref(false)
 
 function onSubmitProduct(data: Record<string, any>) {
@@ -103,7 +102,7 @@ function onSubmitProduct(data: Record<string, any>) {
 function onProductImageError(event: Event) {
   const img = event.target as HTMLImageElement | null
   if (!img) return
-  img.src = '/logo.png'
+  img.src = '/logoapp.png'
 }
 
 function displayName(row: Product) {
@@ -116,6 +115,7 @@ function displayName(row: Product) {
     <LayoutAppHeader :title="$t('pages.dataEntry.title')" show-datepicker>
       <template #right>
         <UButton
+          v-if="can(PERMISSIONS.allStudentExport)"
           icon="i-lucide-download"
           color="neutral"
           variant="subtle"
@@ -125,7 +125,7 @@ function displayName(row: Product) {
           <span class="hidden sm:inline">{{ $t('common.export') }}</span>
         </UButton>
         <UButton
-          v-if="canCreateStudent"
+          v-if="can(PERMISSIONS.allStudentCreate)"
           icon="i-lucide-circle-plus"
           color="primary"
           variant="solid"
@@ -175,7 +175,7 @@ function displayName(row: Product) {
 
         <template #image-cell="{ row }">
           <img
-            :src="resolveUploadUrl(row.original.image) || '/logo.png'"
+            :src="resolveUploadUrl(row.original.image) || '/logoapp.png'"
             :alt="displayName(row.original)"
             loading="lazy"
             class="size-9 rounded-full object-cover border border-default bg-muted"
@@ -213,7 +213,7 @@ function displayName(row: Product) {
 
         <template #totalCourse-cell="{ row }">
           <UButton
-            v-if="canViewEnrollments"
+            v-if="can(PERMISSIONS.allStudentViewEnrollments)"
             color="primary"
             variant="soft"
             size="xs"

@@ -8,6 +8,7 @@ import { buildExportListQuery } from '~/composables/table/useExportListQuery'
 
 export function useFinance() {
   const { t } = useI18n()
+  const { can, PERMISSIONS } = useCan()
   const financeApi = useFinanceApi()
   const data = ref<FinanceEntry[]>([])
   const { sorting, columnFilters, pagination, searchQuery, mergedServerQuery, resource } =
@@ -85,11 +86,13 @@ export function useFinance() {
   ])
 
   function openEdit(row: FinanceEntry) {
+    if (!can(PERMISSIONS.financeUpdate)) return
     editingRow.value = { ...row }
     isSlideoverOpen.value = true
   }
 
   async function handleUpdate(updatedData: any) {
+    if (!can(PERMISSIONS.financeUpdate)) return
     if (!editingRow.value?.id) return
     try {
       await financeApi.update(Number(editingRow.value?.id || 0), {

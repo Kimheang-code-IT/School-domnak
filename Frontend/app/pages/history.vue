@@ -5,6 +5,7 @@ import { formatDate } from '~/utils/format/date'
 import { getActionColor } from '~/utils/helpers/common'
 
 const { t } = useI18n()
+const { can, PERMISSIONS } = useCan()
 
 const {
     rowSelection, sorting, searchQuery, columnVisibility, columnFilters,
@@ -31,8 +32,14 @@ const localColumns = computed(() => [
     <div class="flex flex-col h-full bg-background overflow-hidden text-foreground tracking-tight">
         <LayoutAppHeader :title="$t('pages.history.title')" show-datepicker>
             <template #right>
-                <UButton @click="isExportOpen = true" icon="i-lucide-download" color="neutral" variant="subtle"
-                    class="font-normal shadow-sm shrink-0">
+                <UButton
+                    v-if="can(PERMISSIONS.historyExport)"
+                    @click="isExportOpen = true"
+                    icon="i-lucide-download"
+                    color="neutral"
+                    variant="subtle"
+                    class="font-normal shadow-sm shrink-0"
+                >
                     <span class="hidden sm:inline">{{ $t('common.export') }}</span>
                 </UButton>
             </template>
@@ -42,7 +49,8 @@ const localColumns = computed(() => [
             <TableApptable :title="$t('pages.history.tableTitle')" v-model:row-selection="rowSelection"
                 v-model:sorting="sorting" v-model:column-visibility="columnVisibility" v-model:pagination="pagination"
                 v-model:column-filters="columnFilters" v-model:filter-value="selectedActions"
-                :filter-items="actionItems" :data="filteredLogs" :total-rows="totalRows" :columns="localColumns"
+                :filter-items="actionItems" :data="filteredLogs" :total-rows="totalRows" server-pagination
+                :columns="localColumns"
                 :selectable="true" :get-row-actions="getDropdownActions">
                 <template #header>
                     <div class="w-full max-w-[280px]">

@@ -4,10 +4,20 @@ import type {
   LoginPayload,
   LoginResponse,
   RefreshTokenPayload,
-  RefreshTokenResponse
+  RefreshTokenResponse,
+  SetupPayload,
+  SetupStatus
 } from '~/types/auth'
 
 export const authService = {
+  setupStatus() {
+    return apiGet<SetupStatus>('/auth/setup-status', undefined, false)
+  },
+
+  setup(payload: SetupPayload) {
+    return apiPost<LoginResponse, SetupPayload>('/auth/setup', payload, false)
+  },
+
   login(payload: LoginPayload) {
     return apiPost<LoginResponse, LoginPayload>('/auth/login', payload, false)
   },

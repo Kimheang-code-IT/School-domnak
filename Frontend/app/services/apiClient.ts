@@ -63,8 +63,8 @@ export async function apiClient<TResponse, TBody = unknown>(
   })
 }
 
-export const apiGet = <TResponse>(path: string, query?: TableQuery) =>
-  apiClient<TResponse>(path, { method: 'GET', query })
+export const apiGet = <TResponse>(path: string, query?: TableQuery, requireAuth = true) =>
+  apiClient<TResponse>(path, { method: 'GET', query, requireAuth })
 
 export const apiPost = <TResponse, TBody>(path: string, body: TBody, requireAuth = true) =>
   apiClient<TResponse, TBody>(path, { method: 'POST', body, requireAuth })

@@ -15,7 +15,10 @@ class Base(DeclarativeBase):
 def _engine_kwargs() -> dict:
     url = settings.database_url
     if url.startswith("sqlite"):
-        return {"connect_args": {"check_same_thread": False}}
+        raise RuntimeError(
+            "SQLite is not supported. Set DATABASE_URL to PostgreSQL "
+            "(e.g. postgresql+psycopg2://postgres:postgres@127.0.0.1:15432/school_db)."
+        )
     return {
         "pool_pre_ping": True,
         "pool_size": 10,

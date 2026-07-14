@@ -1,13 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import type { DropdownMenuItem } from '~/types/nuxt-ui'
-import { formatDateShort } from '~/utils/format/date'
-import { formatClassDuration } from '~/utils/format/duration'
-import {
-    pickEnrollmentDurationMonths,
-    resolveEnrollmentEndIso,
-    resolveEnrollmentStartIso,
-} from '~/utils/helpers/enrollmentDisplay'
+import { formatDate } from '~/utils/format/date'
 
 const open = defineModel<boolean>('open', { default: false })
 const range = defineModel<{ start?: unknown; end?: unknown }>('range', {
@@ -25,7 +19,8 @@ const props = defineProps<{
     total: number
 }>()
 
-const { t, te, locale } = useI18n()
+const { t } = useI18n()
+const { can, PERMISSIONS } = useCan()
 
 const emit = defineEmits<{
     continueClass: [row: Record<string, unknown>]
@@ -95,21 +90,23 @@ function confirmPendingAction() {
 
 /** Same pattern as `useAllStudent` → `allstudent.vue` (`:get-row-actions="getDropdownActions"`). */
 function getDropdownActions(entry: Record<string, unknown>): DropdownMenuItem[][] {
-    return [
-        [
-            {
-                label: t('pages.allclass.studentListModal.actions.continueClass'),
-                icon: 'i-lucide-square-play',
-                onSelect: () => openActionConfirm('continueClass', entry),
-            },
-            {
-                label: t('pages.allclass.studentListModal.actions.cancelClass'),
-                icon: 'i-lucide-square-scissors',
-                color: 'error' as const,
-                onSelect: () => openActionConfirm('cancelClass', entry),
-            },
-        ],
-    ]
+    const actions: DropdownMenuItem[] = []
+    if (can(PERMISSIONS.allClassContinuePayment)) {
+        actions.push({
+            label: t('pages.allclass.studentListModal.actions.continueClass'),
+            icon: 'i-lucide-square-play',
+            onSelect: () => openActionConfirm('continueClass', entry),
+        })
+    }
+    if (can(PERMISSIONS.allClassRemoveStudent)) {
+        actions.push({
+            label: t('pages.allclass.studentListModal.actions.cancelClass'),
+            icon: 'i-lucide-square-scissors',
+            color: 'error' as const,
+            onSelect: () => openActionConfirm('cancelClass', entry),
+        })
+    }
+    return actions.length ? [actions] : []
 }
 
 function pickStr(row: Record<string, unknown>, keys: string[]): string {
@@ -120,8 +117,9 @@ function pickStr(row: Record<string, unknown>, keys: string[]): string {
     return ''
 }
 
-function cellEnrollmentDate(iso: string) {
-    return iso ? formatDateShort(iso) : '—'
+function cellDate(row: Record<string, unknown>, keys: string[]) {
+    const raw = pickStr(row, keys)
+    return formatDate(raw || undefined)
 }
 
 function isExpiresSoon(row: Record<string, unknown>) {
@@ -149,7 +147,6 @@ const columns = computed(() => [
     },
     { accessorKey: 'gender', header: t('pages.allclass.studentListModal.columns.gender') },
     { accessorKey: 'startdate', header: t('pages.allclass.studentListModal.columns.startdate') },
-    { accessorKey: 'durationMonths', header: t('pages.allclass.studentListModal.columns.duration') },
     { accessorKey: 'enddate', header: t('pages.allclass.studentListModal.columns.enddate') },
     { accessorKey: 'status', header: t('pages.allclass.studentListModal.columns.status') },
     /** Match `useAllStudent` (`{ id: "action", header: t("common.actions") }`). */
@@ -204,7 +201,7 @@ watch(open, (isOpen) => {
                     :selectable="false"
                     :virtualize="false"
                     :get-row-actions="getDropdownActions"
-                    class="min-h-0 flex-1 min-w-[1040px]"
+                    class="min-h-0 flex-1 min-w-[940px]"
                     :ui="{ root: 'min-w-full', td: 'empty:p-2' }"
                 >
                     <template #id-cell="{ row }">
@@ -232,24 +229,12 @@ watch(open, (isOpen) => {
                     </template>
                     <template #startdate-cell="{ row }">
                         <span class="text-sm text-muted-foreground">
-                            {{ cellEnrollmentDate(resolveEnrollmentStartIso(row.original)) }}
-                        </span>
-                    </template>
-                    <template #durationMonths-cell="{ row }">
-                        <span class="text-sm text-muted-foreground">
-                            {{
-                                formatClassDuration(
-                                    pickEnrollmentDurationMonths(row.original),
-                                    t,
-                                    te,
-                                    { locale: locale.value },
-                                ) || '—'
-                            }}
+                            {{ cellDate(row.original, ['startdate', 'startDate', 'start_date']) }}
                         </span>
                     </template>
                     <template #enddate-cell="{ row }">
                         <span class="text-sm text-muted-foreground">
-                            {{ cellEnrollmentDate(resolveEnrollmentEndIso(row.original)) }}
+                            {{ cellDate(row.original, ['enddate', 'endDate', 'end_date']) }}
                         </span>
                     </template>
                     <template #status-cell="{ row }">

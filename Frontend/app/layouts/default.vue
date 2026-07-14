@@ -68,6 +68,7 @@ const searchGroups = computed(() => {
           aria-busy="true"
         >
           <CommonAppLoadingState
+            icon="i-lucide-send"
             :label="telegramLoadingLabel"
             class="!min-h-0 py-0"
           />

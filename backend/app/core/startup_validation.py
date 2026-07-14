@@ -21,6 +21,13 @@ _WEAK_SECRET_KEYS = frozenset(
 
 
 def validate_settings(settings: Settings) -> None:
+    if settings.database_url.startswith("sqlite"):
+        logger.critical(
+            "SQLite is not supported. Set DATABASE_URL to PostgreSQL "
+            "(Docker: host postgres:5432; DBeaver/local: 127.0.0.1:15432)."
+        )
+        sys.exit(1)
+
     if not settings.is_production:
         if settings.secret_key.strip().lower() in _WEAK_SECRET_KEYS:
             logger.warning(
@@ -31,10 +38,6 @@ def validate_settings(settings: Settings) -> None:
     key = settings.secret_key.strip()
     if len(key) < 32 or key.lower() in _WEAK_SECRET_KEYS:
         logger.critical("Production requires SECRET_KEY with at least 32 characters (not a default).")
-        sys.exit(1)
-
-    if settings.database_url.startswith("sqlite"):
-        logger.critical("Production must not use SQLite — set DATABASE_URL to PostgreSQL.")
         sys.exit(1)
 
     if settings.telegram_bot_token.strip() and not settings.telegram_webhook_secret.strip():

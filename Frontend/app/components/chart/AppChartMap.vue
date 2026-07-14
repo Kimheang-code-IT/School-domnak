@@ -427,6 +427,7 @@ const tooltipStyle = computed(() => {
             <CommonAppLoadingState
                 v-else-if="!mapLoadError"
                 compact
+                icon="i-lucide-map"
                 class="h-full min-h-[200px]"
                 :label="$t('components.loadingMap')"
             />

@@ -36,7 +36,7 @@ export function useServerListTable<T>(options: UseServerListTableOptions<T>) {
     serverQuery: mergedServerQuery,
     localData: fallbackData,
     listFn: options.listFn,
-    debounceMs: 220
+    debounceMs: 150
   })
 
   return {

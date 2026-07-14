@@ -54,7 +54,7 @@ def _to_read(invoice: Invoice) -> InvoiceRead:
         student_phone=invoice.student_phone,
         address=invoice.address,
         seller=invoice.seller,
-        source=invoice.source,
+        payment_note=invoice.payment_note,
         subtotal=invoice.subtotal,
         discount_amount=invoice.discount_amount,
         total=invoice.total,
@@ -232,7 +232,7 @@ def create_invoice(
         student_phone=payload.student_phone,
         address=payload.address,
         seller=payload.seller,
-        source=payload.source,
+        payment_note=(payload.payment_note or "").strip() or None,
         subtotal=subtotal,
         discount_amount=payload.discount_amount,
         total=total,
@@ -335,7 +335,7 @@ def checkout_invoice(db: Session, payload: InvoiceCheckoutCreate, *, username: s
                 student_phone=payload.customer_phone,
                 address=(payload.customer_address or "").strip() or (payload.province or "").strip() or None,
                 seller=username,
-                source=payload.source,
+                payment_note=payload.payment_note,
                 discount_amount=discount_amount,
                 lines=invoice_lines,
             ),
@@ -351,7 +351,6 @@ def checkout_invoice(db: Session, payload: InvoiceCheckoutCreate, *, username: s
             db,
             persisted,
             classes,
-            source=payload.source,
         )
         db.commit()
         invoice_read = _to_read(persisted)

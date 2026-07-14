@@ -1,49 +1,18 @@
-/** Extract month count from stored duration (e.g. `3`, `1.5`, `"3 months"`). */
-export function normalizeDurationMonthsInput(value: unknown): string {
-  const khmerDigits = '០១២៣៤៥៦៧៨៩'
-  let s = String(value ?? '').replace(',', '.').trim()
-  s = s.replace(/[០-៩]/g, (ch) => {
-    const i = khmerDigits.indexOf(ch)
-    return i >= 0 ? String(i) : ch
-  })
-  s = s.replace(/[^\d.]/g, '')
-  const dot = s.indexOf('.')
-  if (dot !== -1) {
-    s = `${s.slice(0, dot + 1)}${s.slice(dot + 1).replace(/\./g, '')}`
-  }
-  return s
-}
+import {
+  WEEK_DURATION_DAYS,
+  findStudentDurationOption,
+} from '~/utils/constants/studentDurationOptions'
 
+/** Extract month count from stored duration (e.g. `3`, `1.5`, `"3 months"`). */
 export function parseDurationMonthsDecimal(value: unknown): number | null {
-  const raw = normalizeDurationMonthsInput(value).trim()
+  const raw = String(value ?? '').trim().replace(',', '.')
   if (!raw) return null
-  const withoutTrailingDot = raw.endsWith('.') ? raw.slice(0, -1) : raw
-  if (!withoutTrailingDot) return null
-  const match = withoutTrailingDot.match(/^(\d+(?:\.\d+)?)/)
+  const match = raw.match(/^(\d+(?:\.\d+)?)/)
   if (!match) return null
   const n = Number.parseFloat(match[1]!)
   return Number.isFinite(n) && n > 0 ? n : null
 }
 
-/** Validate student study duration against optional class max (months). */
-export function validateEnrollmentDurationMonths(
-  value: unknown,
-  maxMonths?: number | null,
-): 'empty' | 'invalid' | 'too_large' | 'ok' {
-  const raw = normalizeDurationMonthsInput(value).trim()
-  if (!raw) return 'empty'
-  const months = parseDurationMonthsDecimal(raw)
-  if (months == null) return 'invalid'
-  if (maxMonths != null && maxMonths > 0 && months > maxMonths) return 'too_large'
-  return 'ok'
-}
-
-/** @deprecated Use {@link parseDurationMonthsDecimal} */
-export function parseDurationMonths(value: unknown): number | null {
-  return parseDurationMonthsDecimal(value)
-}
-
-/** Prorate class tuition by student months vs full class duration. */
 /** Normalize to `YYYY-MM-DD` or return empty string. */
 export function normalizeIsoDate(value: unknown): string {
   if (!value) return ''
@@ -73,6 +42,14 @@ export function computeEnrollmentEndDateIso(startIso: string, months: number): s
   if (!normalized || !months || months <= 0) return ''
   const [y, m, d] = normalized.split('-').map(Number)
   const start = new Date(y!, m! - 1, d!)
+
+  const weekKey = Math.round(months * 100) / 100
+  const weekDays = WEEK_DURATION_DAYS[weekKey]
+  if (weekDays) {
+    start.setDate(start.getDate() + weekDays)
+    return normalizeIsoDate(start)
+  }
+
   const whole = Math.floor(months)
   const fraction = months - whole
   start.setMonth(start.getMonth() + whole)
@@ -95,49 +72,35 @@ export function prorateByDuration(
   return Math.round(fullPrice * ratio * 100) / 100
 }
 
-const KHMER_DIGITS = '០១២៣៤៥៦៧៨៩'
-
-/** Convert Western digits in a string to Khmer numerals (e.g. `3` → `៣`, `1.5` → `១.៥`). */
-export function toKhmerDigits(value: string | number): string {
-  return String(value).replace(/\d/g, (digit) => KHMER_DIGITS[Number(digit)] ?? digit)
-}
-
 type DurationTranslate = (key: string, params?: Record<string, unknown>) => string
 
-type FormatClassDurationOptions = {
-  useKhmerDigits?: boolean
-  locale?: string
-}
-
-function shouldUseKhmerDigits(options?: FormatClassDurationOptions): boolean {
-  if (options?.useKhmerDigits != null) return options.useKhmerDigits
-  return options?.locale?.toLowerCase().startsWith('km') ?? false
-}
-
-/** Display label such as `2 months` / `២ ខែ` from a numeric or legacy string value. */
+/** Display label such as `2 months` / `1 week` from a numeric or legacy string value. */
 export function formatClassDuration(
   value: unknown,
   t: DurationTranslate,
-  te?: (key: string) => boolean,
-  options?: FormatClassDurationOptions,
+  te?: (key: string) => boolean
 ): string {
   const raw = String(value ?? '').trim()
   if (!raw) return ''
 
-  const useKhmer = shouldUseKhmerDigits(options)
   const months = parseDurationMonthsDecimal(raw)
   if (months != null) {
-    const count = useKhmer ? toKhmerDigits(months) : months
+    const preset = findStudentDurationOption(months)
+    if (preset?.weeks) {
+      const key =
+        preset.weeks === 1 ? 'pages.allclass.durationWeek' : 'pages.allclass.durationWeeks'
+      if (!te || te(key)) return t(key, { count: preset.weeks })
+      return preset.weeks === 1 ? '1 week' : `${preset.weeks} weeks`
+    }
     if (Number.isInteger(months)) {
       const key =
         months === 1 ? 'pages.allclass.durationMonth' : 'pages.allclass.durationMonths'
-      if (!te || te(key)) return t(key, { count })
+      if (!te || te(key)) return t(key, { count: months })
     }
-    if (useKhmer) {
-      return months === 1 ? `${count} ខែ` : `${count} ខែ`
-    }
+    const halfKey = 'pages.allclass.durationMonths'
+    if (!te || te(halfKey)) return t(halfKey, { count: months })
     return months === 1 ? `${months} month` : `${months} months`
   }
 
-  return useKhmer ? toKhmerDigits(raw) : raw
+  return raw
 }

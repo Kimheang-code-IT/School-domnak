@@ -23,7 +23,6 @@ export function buildCheckoutPayload(input: {
   customerName: string
   customerPhone: string
   customerAddress: string
-  source: string
   deliveryType: string
   deliveryPrice: number
   deliveryDate: string
@@ -33,6 +32,7 @@ export function buildCheckoutPayload(input: {
   sellerId?: number
   durationMonths?: number | null
   startDate?: string
+  paymentNote?: string
   lines: Array<{ productId: number; qty: number }>
 }) {
   return {
@@ -46,7 +46,6 @@ export function buildCheckoutPayload(input: {
     customerName: input.customerName,
     customerPhone: input.customerPhone,
     customerAddress: input.customerAddress,
-    source: input.source,
     deliveryType: input.deliveryType,
     deliveryPrice: Number(input.deliveryPrice || 0),
     deliveryDate: input.deliveryDate,
@@ -56,26 +55,11 @@ export function buildCheckoutPayload(input: {
     sellerId: input.sellerId,
     durationMonths: input.durationMonths,
     startDate: input.startDate || undefined,
+    paymentNote: input.paymentNote?.trim() || undefined,
     lines: input.lines
   }
 }
 
 export function handleApiError(error: any, fallback = 'Request failed') {
   return String(error?.data?.message || error?.message || fallback)
-}
-
-export function resetCustomerForm() {
-  return {
-    customerType: 'Customer',
-    customerName: '',
-    customerPhone: '',
-    customerAddress: '',
-    deliveryType: 'VET',
-    deliveryPrice: 2,
-    deliveryDate: new Date().toISOString(),
-    paymentMethod: 'cash',
-    deliveryStatus: 'pending',
-    source: 'other',
-    sellerId: undefined as number | undefined
-  }
 }

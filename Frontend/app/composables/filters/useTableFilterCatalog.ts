@@ -1,14 +1,12 @@
 import { computed, onMounted, ref } from 'vue'
 import type { Course, Product } from '~/types'
 import { useCoursesApi, useProductApi, useUserApi } from '~/utils/api'
-import { ENROLLMENT_SOURCE_OPTIONS } from '~/utils/constants/enrollmentSources'
 import { CAMBODIA_PROVINCE_NAMES } from '~/utils/constants/cambodiaProvinces'
-import { type FilterItem, toFilterItems } from '~/utils/filters/tableFilters'
+import { type FilterItem } from '~/utils/filters/tableFilters'
 
 type CatalogOptions = {
   provinces?: boolean
   genders?: boolean
-  sources?: boolean
   classes?: boolean
   courses?: boolean
   sellers?: boolean
@@ -22,7 +20,6 @@ export function useTableFilterCatalog(options: CatalogOptions = {}) {
   const {
     provinces = false,
     genders = false,
-    sources = false,
     classes = false,
     courses = false,
     sellers = false,
@@ -51,11 +48,6 @@ export function useTableFilterCatalog(options: CatalogOptions = {}) {
       { label: t('pages.allstudent.gender.male'), value: 'male' },
       { label: t('pages.allstudent.gender.female'), value: 'female' },
     ]
-  })
-
-  const sourceItems = computed<FilterItem[]>(() => {
-    if (!sources) return []
-    return toFilterItems(ENROLLMENT_SOURCE_OPTIONS)
   })
 
   async function loadClassItems() {
@@ -127,7 +119,6 @@ export function useTableFilterCatalog(options: CatalogOptions = {}) {
   return {
     provinceItems,
     genderItems,
-    sourceItems,
     classItems,
     courseItems,
     sellerItems,

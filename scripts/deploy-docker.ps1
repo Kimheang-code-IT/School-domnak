@@ -31,15 +31,9 @@ docker compose up -d --build --scale "backend=$backendReplicas" --scale "celery_
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host ""
-Write-Host "Ready (Nginx load-balances API across $backendReplicas backend container(s)):" -ForegroundColor Green
-Write-Host "  App:    http://localhost:18080"
-Write-Host "  API:    http://localhost:18080/docs"
-Write-Host "  Wi-Fi:  run .\scripts\open-wifi-access.ps1 for LAN URLs"
-Write-Host ""
-Write-Host "Tune in .env: BACKEND_REPLICAS, CELERY_WORKER_REPLICAS, UVICORN_WORKERS, CELERY_WORKER_CONCURRENCY"
-Write-Host "First login (after seed): admin@gmail.com / admin12!@$"
-Write-Host "Docker commands:  .\scripts\docker-commands.ps1  (or docs\DOCKER-COMMANDS.md)" -ForegroundColor DarkGray
-Write-Host "Seed DB:   docker compose exec backend python scripts/seed_data.py"
-Write-Host "Reset DB:  docker compose exec backend python scripts/reset_database.py"
+Write-Host "Ready (open in browser):" -ForegroundColor Green
+Write-Host "  App:    http://localhost"
+Write-Host "  Health: http://localhost/health"
+Write-Host "  First open (no users yet): http://localhost/setup"
 Write-Host "Stop:      docker compose down"
 Write-Host "Logs:      docker compose logs -f backend nginx"

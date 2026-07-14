@@ -4,8 +4,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.permissions import USER_MANAGEMENT_NON_DELETABLE_ROLE_NAMES
+from app.core.permissions import (
+    ROLE_MANAGEMENT_RESERVED_NAMES,
+    USER_MANAGEMENT_NON_DELETABLE_ROLE_NAMES,
+)
 from app.core.security import require_permission
+from app.models.role import Role
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
 from app.schemas.common import CommonResponse, TableQueryParams, TableResponse, table_query_params
@@ -34,6 +38,25 @@ def _assert_user_deletable(user: User) -> None:
         )
 
 
+def _is_admin_actor(user: User) -> bool:
+    role_name = (user.role.name if user.role else "") or ""
+    return role_name in ROLE_MANAGEMENT_RESERVED_NAMES
+
+
+def _assert_can_assign_role(db: Session, *, actor: User, role_id: int | None) -> None:
+    """Only Admin actors may assign the reserved Admin role."""
+    if role_id is None:
+        return
+    role = db.get(Role, role_id)
+    if role is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A valid role is required")
+    if role.name in ROLE_MANAGEMENT_RESERVED_NAMES and not _is_admin_actor(actor):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only Admin users can assign the Admin role",
+        )
+
+
 def _to_read(user) -> UserRead:
     return UserRead(
         id=user.id,
@@ -54,7 +77,9 @@ def list_users(db: DbSession, query: TableParams, current_user: UserViewUser, ro
 
 @router.post("", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 def create_user(payload: UserCreate, db: DbSession, current_user: UserCreateUser):
-    user = repo.create(db, user_create_data(db, payload))
+    create_data = user_create_data(db, payload)
+    _assert_can_assign_role(db, actor=current_user, role_id=create_data.get("role_id"))
+    user = repo.create(db, create_data)
     write_audit_log(db, action="Create", username=current_user.name, description=f"{current_user.name} created user {user.name}")
     db.commit()
     return _to_read(user)
@@ -65,7 +90,10 @@ def update_user(user_id: int, payload: UserUpdate, db: DbSession, current_user: 
     user = repo.get(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    user = repo.update(db, user, user_update_data(db, payload))
+    update_data = user_update_data(db, payload)
+    if "role_id" in update_data:
+        _assert_can_assign_role(db, actor=current_user, role_id=update_data.get("role_id"))
+    user = repo.update(db, user, update_data)
     write_audit_log(db, action="Update", username=current_user.name, description=f"{current_user.name} updated user {user.name}")
     db.commit()
     return _to_read(user)

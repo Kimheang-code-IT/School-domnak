@@ -144,7 +144,11 @@ const pagination = defineModel<any>('pagination', {
 })
 
 const mergedPaginationOptions = computed(() => {
-  if (props.serverPagination) {
+  // Server-backed tables pass `totalRows`; without manual pagination TanStack
+  // re-slices the already-paged API rows and later pages look empty.
+  const useServerPagination =
+    props.serverPagination || typeof props.totalRows === 'number'
+  if (useServerPagination) {
     const pageSize = Math.max(1, Number(pagination.value?.pageSize ?? 15))
     const total = Math.max(0, Number(props.totalRows ?? 0))
     const pageCount = Math.max(1, Math.ceil(total / pageSize))

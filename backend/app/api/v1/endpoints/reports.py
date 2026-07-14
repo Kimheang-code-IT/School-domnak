@@ -27,7 +27,6 @@ def _report_list_kwargs(
     product: str | None,
     address: str | None,
     seller: str | None,
-    source: str | None,
     class_id: str | None,
     course_id: str | None,
 ) -> dict:
@@ -35,7 +34,6 @@ def _report_list_kwargs(
         "product": product,
         "address": address,
         "seller": seller,
-        "source": source,
         "class_id": class_id,
         "course_id": course_id,
     }
@@ -49,7 +47,6 @@ def sales_lines(
     product: str | None = Query(None),
     address: str | None = Query(None),
     seller: str | None = Query(None),
-    source: str | None = Query(None),
     class_id: str | None = Query(None, alias="classId"),
     course_id: str | None = Query(None, alias="courseId"),
 ):
@@ -63,7 +60,6 @@ def sales_lines(
                 product=product,
                 address=address,
                 seller=seller,
-                source=source,
                 class_id=class_id,
                 course_id=course_id,
             ),
@@ -72,7 +68,6 @@ def sales_lines(
             product=product,
             address=address,
             seller=seller,
-            source=source,
             class_id=class_id,
             course_id=course_id,
         ),
@@ -87,7 +82,6 @@ def export_sales_lines(
     product: str | None = Query(None),
     address: str | None = Query(None),
     seller: str | None = Query(None),
-    source: str | None = Query(None),
     class_id: str | None = Query(None, alias="classId"),
     course_id: str | None = Query(None, alias="courseId"),
 ):
@@ -99,7 +93,6 @@ def export_sales_lines(
             product=product,
             address=address,
             seller=seller,
-            source=source,
             class_id=class_id,
             course_id=course_id,
         ),

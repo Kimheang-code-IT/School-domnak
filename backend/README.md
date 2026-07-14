@@ -19,17 +19,26 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-The default development database is SQLite:
+The database is **PostgreSQL only** (no SQLite). With Docker Compose running, connect to:
 
 ```env
-DATABASE_URL=sqlite:///./school.db
+DATABASE_URL=postgresql+psycopg2://postgres:postgres@127.0.0.1:15432/school_db
 ```
 
-To switch to PostgreSQL later, change only `DATABASE_URL`:
+Inside Docker containers, use host name `postgres` and port `5432` (see repo root `.env`).
 
-```env
-DATABASE_URL=postgresql+psycopg2://postgres:password@localhost:5432/school_db
-```
+### DBeaver (view data on your PC)
+
+| Field | Value |
+|-------|--------|
+| Host | `127.0.0.1` |
+| Port | `15432` |
+| Database | `school_db` |
+| Username | `postgres` |
+| Password | `postgres` (or your `POSTGRES_PASSWORD` in root `.env`) |
+| SSL | disable |
+
+Postgres must be running: `docker compose up -d postgres`
 
 ## Seed Data
 

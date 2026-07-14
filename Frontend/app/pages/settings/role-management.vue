@@ -27,7 +27,7 @@ function onSubmitRole(data: Record<string, any>) {
 
 <template>
     <div class="flex flex-col h-full bg-background overflow-hidden text-foreground tracking-tight">
-        <LayoutAppHeader :title="$t('pages.roleManagement.title')" show-datepicker>
+        <LayoutAppHeader :title="$t('pages.roleManagement.title')">
             <template #right>
                 <UButton
                     v-if="canCreateRole"
@@ -53,6 +53,7 @@ function onSubmitRole(data: Record<string, any>) {
                 :columns="columns"
                 :selectable="true"
                 :total-rows="totalRows"
+                server-pagination
                 :get-row-actions="getDropdownActions">
                 <template #header>
                     <div class="w-full max-w-[280px]">

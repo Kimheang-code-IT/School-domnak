@@ -57,7 +57,7 @@ useHead({
     { key: 'theme-color', name: 'theme-color', content: color }
   ],
   link: [
-    { rel: 'icon', type: 'image/png', href: '/logo.png' },
+    { rel: 'icon', type: 'image/png', href: '/logoapp.png' },
     { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
     { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
     { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Siemreap&family=Kantumruy+Pro:ital,wght@0,100..700;1,100..700&display=swap' }
@@ -68,16 +68,16 @@ useHead({
   }
 })
 
-const title = 'ដំណាក់សិក្សា-School'
-const description = 'ដំណាក់សិក្សា-School: School management and student registration system.'
+const title = 'Learn Computer'
+const description = 'Learn Computer: School management and student registration system.'
 
 useSeoMeta({
   title,
   description,
   ogTitle: title,
   ogDescription: description,
-  ogImage: '/assets/images/logo.png',
-  twitterImage: '/assets/images/logo.png',
+  ogImage: '/logoapp.png',
+  twitterImage: '/logoapp.png',
   twitterCard: 'summary_large_image'
 })
 </script>

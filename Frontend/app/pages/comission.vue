@@ -5,6 +5,7 @@ import { formatCurrency } from '~/utils/format/currency'
 import { formatDate } from '~/utils/format/date'
 
 const { t } = useI18n()
+const { can, PERMISSIONS } = useCan()
 const isExportOpen = ref(false)
 const {
   data,
@@ -26,13 +27,6 @@ const {
 const toolbarFilters = useTableToolbarFilters(
   computed(() => [
     {
-      key: 'source',
-      model: selections.source,
-      items: catalog.sourceItems,
-      placeholder: t('pages.comission.columns.source'),
-      class: 'w-24 sm:w-32',
-    },
-    {
       key: 'classId',
       model: selections.classId,
       items: catalog.classItems,
@@ -48,6 +42,7 @@ const toolbarFilters = useTableToolbarFilters(
     <LayoutAppHeader :title="t('pages.comission.title')" show-datepicker>
       <template #right>
         <UButton
+          v-if="can(PERMISSIONS.comissionExport)"
           icon="i-lucide-download"
           color="neutral"
           variant="subtle"
@@ -108,12 +103,6 @@ const toolbarFilters = useTableToolbarFilters(
               ({{ row.subRows?.length || 0 }} {{ t('common.items') }})
             </span>
           </div>
-        </template>
-
-        <template #source-cell="{ row }">
-          <UBadge v-if="!row.getIsGrouped()" color="primary" variant="soft" class="font-normal capitalize">
-            {{ row.getValue('source') }}
-          </UBadge>
         </template>
 
         <template #date-cell="{ row }">

@@ -13,7 +13,7 @@ Deployment is **Docker Compose only** (local build). There is no Kubernetes or G
 ### 1. Prerequisites
 
 - **Docker Desktop** (running)
-- Project folder, e.g. `D:\project\School Domnak`
+- Project folder, e.g. `D:\project\School Learn Computer`
 
 ### 2. Environment
 

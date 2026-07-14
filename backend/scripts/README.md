@@ -29,7 +29,6 @@ Edit constants at the top of `seed_data.py`, then run **seed** (or **reset** if 
 | Script | Purpose |
 |--------|---------|
 | `get_telegram_chat_id.py` | Help discover `TELEGRAM_CHAT_ID` using bot token from `backend/.env` |
-| `migrate_sqlite_to_postgres.py` | One-off migration from SQLite to PostgreSQL |
 | `run_telegram_polling.py` | Standalone Telegram long-polling (if API is not running) |
 | `run_google_sheets_backup.py` | Manual Google Sheets backup run |
 

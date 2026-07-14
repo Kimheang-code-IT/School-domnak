@@ -15,8 +15,8 @@ export function useComission() {
   const comissionApi = useComissionApi()
   const localRows = ref<ComissionEntry[]>([])
 
-  const catalog = useTableFilterCatalog({ sources: true, classes: true })
-  const { selections, queryParams } = useServerTableFilters(['source', 'classId'])
+  const catalog = useTableFilterCatalog({ classes: true })
+  const { selections, queryParams } = useServerTableFilters(['classId'])
 
   const { sorting, columnFilters, pagination, searchQuery, mergedServerQuery, resource } =
     useServerListTable<ComissionEntry>({
@@ -52,7 +52,6 @@ export function useComission() {
     },
     { accessorKey: 'className', header: t('pages.comission.columns.className') },
     { accessorKey: 'studentName', header: t('pages.comission.columns.studentName') },
-    { accessorKey: 'source', header: t('pages.comission.columns.source') },
     { accessorKey: 'date', header: t('pages.comission.columns.date') },
     { accessorKey: 'amount', header: t('pages.comission.columns.amount') },
     { accessorKey: 'commission', header: t('pages.comission.columns.commission') },
@@ -75,7 +74,6 @@ export function useComission() {
         teacherName: mapped.teacherName,
         className: mapped.className,
         studentName: mapped.studentName,
-        source: mapped.source,
         date: mapped.date,
         amount: mapped.amount,
         commission: mapped.commission,

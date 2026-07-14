@@ -14,6 +14,7 @@ import {
 const TOTAL_WIZARD_STEPS = 3
 
 const { t } = useI18n()
+const { can, PERMISSIONS } = useCan()
 const {
     previewBundles,
     selectedReportInvoice,
@@ -62,7 +63,6 @@ const {
     deliveryDate,
     paymentMethod,
     deliveryStatus,
-    source,
     sellerId,
     enrollmentCartLines,
     enrollmentDiscountMode,
@@ -99,8 +99,6 @@ const {
     dismissDeleteClassConfirm,
     handleSaveRequest,
     finalizeAction,
-    canCreateClass,
-    canContinueClassPayment,
     isClassStudentsModalOpen,
     classStudentsProduct,
     classStudentsRows,
@@ -141,7 +139,6 @@ type ReportInvoiceDisplay = {
     grandTotal?: number
     startDate?: string
     endDate?: string
-    durationMonths?: string | number
     registeredAt?: string
     product?: string
     courseName?: string
@@ -151,7 +148,7 @@ type ReportInvoiceDisplay = {
     studentName?: string
     nameKm?: string
     nameEn?: string
-    source?: string
+    paymentNote?: string
 }
 
 function buildReportInvoiceDisplay(row: InvoicePreviewRow | null | undefined): ReportInvoiceDisplay | null {
@@ -161,7 +158,6 @@ function buildReportInvoiceDisplay(row: InvoicePreviewRow | null | undefined): R
         date: String(row.date || ''),
         startDate: row.startDate,
         endDate: row.endDate,
-        durationMonths: row.durationMonths,
         registeredAt: row.registeredAt,
         product: row.product,
         courseName: row.courseName,
@@ -174,7 +170,7 @@ function buildReportInvoiceDisplay(row: InvoicePreviewRow | null | undefined): R
         customer: String(row.customer || row.studentName || ''),
         phoneCustomer: String(row.phoneCustomer || ''),
         seller: String(row.seller || ''),
-        source: row.source,
+        paymentNote: row.paymentNote,
         grandTotal: Number(row.grandTotal ?? row.amount ?? 0),
     }
 }
@@ -474,18 +470,15 @@ async function printAllPreviewInvoices() {
                         <UStepper v-model="currentStep" :items="enrollmentStepItems" size="xs" :linear="false"
                             class="hidden w-[280px] shrink-0 sm:flex" />
                         <UButton
-                            v-if="canContinueClassPayment && currentStep === 0 && enrollmentItemCount > 0"
+                            v-if="currentStep === 0 && enrollmentItemCount > 0 && can(PERMISSIONS.allClassContinuePayment)"
                             trailing-icon="i-lucide-arrow-right"
                             color="primary" variant="solid" class="font-normal shadow-sm shrink-0" @click="goNextStep">
                             <span class="hidden sm:inline">{{ t('pages.allclass.nav.next') }}</span>
                         </UButton>
                         <UButton
-                            v-if="canCreateClass"
-                            icon="i-lucide-circle-plus"
-                            color="primary"
-                            variant="solid"
-                            class="font-normal shadow-sm shrink-0"
-                            @click="handleAddNew">
+                            v-if="can(PERMISSIONS.allClassCreate)"
+                            icon="i-lucide-circle-plus" color="primary" variant="solid"
+                            class="font-normal shadow-sm shrink-0" @click="handleAddNew">
                             <span class="hidden sm:inline">{{ t('pages.allclass.addBtn') }}</span>
                         </UButton>
                     </template>
@@ -561,7 +554,8 @@ async function printAllPreviewInvoices() {
                             v-model:student-image="studentImage" v-model:selected-student-id="selectedStudentId" v-model:customer-phone="customerPhone"
                             v-model:customer-address="customerAddress" v-model:delivery-type="deliveryType"
                             v-model:delivery-price="deliveryPrice" v-model:delivery-date="deliveryDate"
-                            v-model:delivery-status="deliveryStatus" v-model:seller-id="sellerId" />
+                            v-model:delivery-status="deliveryStatus" v-model:seller-id="sellerId"
+                            v-model:payment-note="paymentNote" />
                     </div>
 
                     <!-- Step 2: invoice -->
@@ -611,11 +605,11 @@ async function printAllPreviewInvoices() {
                                             :delivery-type="deliveryType"
                                             :delivery-price="0"
                                             :selected-report-invoice="slide.display"
-                                            :enrollment-duration-months="String(slide.header?.durationMonths ?? '')"
                                             checkout-invoice-no=""
                                             :display-subtotal="slide.subtotal"
                                             :display-discount="0"
                                             :display-total="slide.subtotal"
+                                            :note="slide.header?.paymentNote || paymentNote"
                                             class="min-h-0 w-full"
                                         />
                                     </div>
@@ -632,11 +626,11 @@ async function printAllPreviewInvoices() {
                                 :delivery-type="deliveryType"
                                 :delivery-price="hasReportPreviewInvoices ? 0 : deliveryPrice"
                                 :selected-report-invoice="activeInvoiceForDisplay"
-                                :enrollment-duration-months="enrollmentDurationMonths"
                                 :checkout-invoice-no="enrollmentInvoiceNo"
                                 :display-subtotal="hasReportPreviewInvoices ? reportPreviewSubtotal : enrollmentSubtotal"
                                 :display-discount="hasReportPreviewInvoices ? 0 : enrollmentDiscountAmount"
                                 :display-total="hasReportPreviewInvoices ? reportPreviewSubtotal : enrollmentTotal"
+                                :note="(hasReportPreviewInvoices ? currentPreviewHeader?.paymentNote : paymentNote) || paymentNote"
                                 class="min-h-0 w-full"
                             />
                         </div>
@@ -651,7 +645,7 @@ async function printAllPreviewInvoices() {
                         v-model:discount-mode="enrollmentDiscountMode"
                         v-model:discount-percent="enrollmentDiscountPercent"
                         v-model:discount-fixed-amount="enrollmentDiscountFixed"
-                        v-model:payment-method="paymentMethod" v-model:source="source" :cart="enrollmentCartLines"
+                        v-model:payment-method="paymentMethod" :cart="enrollmentCartLines"
                         :item-count="enrollmentItemCount" :subtotal="enrollmentSubtotal"
                         :discount-amount="enrollmentDiscountAmount" :total="enrollmentTotal" :current-step="currentStep"
                         :total-steps="TOTAL_WIZARD_STEPS" :loading="isFinishing" class="h-full min-h-0" @clear-cart="clearEnrollmentCart"

@@ -19,7 +19,6 @@ class Commission(Base):
     class_name: Mapped[str | None] = mapped_column(String(180), nullable=True)
     student_name: Mapped[str | None] = mapped_column(String(180), nullable=True)
     teacher_name: Mapped[str] = mapped_column(String(150), index=True)
-    source: Mapped[str | None] = mapped_column(String(100), nullable=True)
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     commission: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)

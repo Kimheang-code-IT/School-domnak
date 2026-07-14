@@ -148,7 +148,6 @@ export interface ReportRow {
   phoneCustomer: string
   seller: string
   phoneSaler: string
-  source: string
   address: string
   amount: number
   /** Table column `studentName` — same person as `customer` when API uses either key */
@@ -162,7 +161,7 @@ export interface ReportRow {
 export interface DeliveryEntry {
   invoiceId: string
   address: string
-  deliveryType: 'VET' | 'Domnaksiiksa' | 'Grap' | 'J&T'
+  deliveryType: 'VET' | 'Learn Computer' | 'Grap' | 'J&T'
   deliveryPrice: number
   date: string
 }
@@ -204,7 +203,7 @@ export interface StudentEnrollmentRow {
   courseLevel?: string
   duration?: string
   classDuration?: string
-  durationMonths?: string
+  durationMonths?: string | number
   durationClass?: string
   courseDuration?: string
   startDate: string
@@ -228,7 +227,6 @@ export interface ComissionEntry {
   /** Class / section title (was product/course row label). */
   className: string
   studentName: string
-  source: string
   date: string
   amount: number
   commission: number

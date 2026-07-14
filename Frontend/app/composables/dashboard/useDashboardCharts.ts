@@ -1,24 +1,22 @@
 import { ref, computed, type Ref } from 'vue'
 import { watchDebounced } from '@vueuse/core'
-import type { ComissionEntry, Product, ReportRow } from '~/types'
+import type { Product, ReportRow } from '~/types'
 import {
-  useCommissionViewApi,
   useProductsViewApi,
   useReportApi,
   type ApiQueryParams,
 } from '~/utils/api'
 import { mapReportViewRow } from '~/utils/helpers/mapReportCommissionRows'
-import { mapCommissionViewRow } from '~/utils/helpers/mapReportCommissionRows'
 import {
   buildClassEnrollmentBar,
-  buildCommissionByTeacher,
+  buildClassEnrollmentNested,
   buildProvinceStudentCounts,
   type BarChartData,
   type ChartPoint,
+  type NestedPieGroup,
 } from '~/utils/analytics/buildDashboardCharts'
 import {
   classNamesSet,
-  filterCommissionRowsByClassNames,
   filterDashboardClasses,
   filterReportRowsByClassNames,
   dashboardScopedQueryParams,
@@ -68,12 +66,11 @@ async function fetchAllPages<T>(
 export function useDashboardCharts(filters: DashboardChartFilters) {
   const { formattedRange } = useGlobalFilter()
   const reportApi = useReportApi()
-  const commissionApi = useCommissionViewApi()
   const classesApi = useProductsViewApi('classes')
 
   const chartsLoading = ref(false)
   const provinceStudentData = ref<ChartPoint[]>([])
-  const commissionPieData = ref<ChartPoint[]>([])
+  const classEnrollmentNested = ref<NestedPieGroup[]>([])
   const classEnrollmentBar = ref<BarChartData>({ labels: [], values: [] })
 
   let abortController: AbortController | null = null
@@ -139,34 +136,19 @@ export function useDashboardCharts(filters: DashboardChartFilters) {
         ...scopedParams,
       }
 
-      const [commissionRowsAll, reportRowsAll] = await Promise.all([
-        fetchAllPages<ComissionEntry>(
-          async (q, sig) => {
-            const res = await commissionApi.list(q, sig)
-            return {
-              ...res,
-              data: (res.data || []).map((row) =>
-                mapCommissionViewRow(row as unknown as Record<string, unknown>),
-              ),
-            }
-          },
-          listQuery,
-          signal,
-        ),
-        fetchAllPages<ReportRow>(
-          async (q, sig) => {
-            const res = await reportApi.list(q, sig)
-            return {
-              ...res,
-              data: (res.data || []).map((row) =>
-                mapReportViewRow(row as unknown as Record<string, unknown>),
-              ),
-            }
-          },
-          listQuery,
-          signal,
-        ),
-      ])
+      const reportRowsAll = await fetchAllPages<ReportRow>(
+        async (q, sig) => {
+          const res = await reportApi.list(q, sig)
+          return {
+            ...res,
+            data: (res.data || []).map((row) =>
+              mapReportViewRow(row as unknown as Record<string, unknown>),
+            ),
+          }
+        },
+        listQuery,
+        signal,
+      )
 
       let classesForBar = classesForCharts
       if (!classesForBar.length && filters.allClasses?.value?.length) {
@@ -199,10 +181,9 @@ export function useDashboardCharts(filters: DashboardChartFilters) {
       const reportRows = scopedParams.product
         ? reportRowsAll
         : filterReportRowsByClassNames(reportRowsAll, names)
-      const commissionRows = filterCommissionRowsByClassNames(commissionRowsAll, names)
 
       provinceStudentData.value = buildProvinceStudentCounts(reportRows)
-      commissionPieData.value = buildCommissionByTeacher(commissionRows)
+      classEnrollmentNested.value = buildClassEnrollmentNested(classesForBar)
       classEnrollmentBar.value = buildClassEnrollmentBar(classesForBar)
     } catch (err) {
       const name = (err as { name?: string })?.name
@@ -228,7 +209,7 @@ export function useDashboardCharts(filters: DashboardChartFilters) {
   return {
     chartsLoading,
     provinceStudentData,
-    commissionPieData,
+    classEnrollmentNested,
     classEnrollmentBar,
     refresh,
   }

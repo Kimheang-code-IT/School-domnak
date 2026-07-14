@@ -122,7 +122,9 @@ export function useApi() {
             }
             throw err
         } finally {
-            if (dedupe) inFlight.value.delete(key)
+            if (dedupe && inFlight.value.get(key) === request) {
+                inFlight.value.delete(key)
+            }
         }
     }
 

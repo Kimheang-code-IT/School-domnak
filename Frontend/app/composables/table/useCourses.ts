@@ -7,13 +7,11 @@ import { useCoursesApi } from '~/utils/api'
 import type { ApiQueryParams } from '~/utils/api'
 import { useServerTableResource } from '~/composables/table/useServerTable'
 import { useMutation } from '~/composables/data/useMutation'
-import { PERMISSIONS } from '~/utils/auth/permissions'
-import { isForbiddenError } from '~/utils/api/errors'
 
 export function useCourses() {
-  const auth = useAuthStore()
   const useBackendApi = useBackendMode()
   const coursesApi = useCoursesApi()
+  const { can, PERMISSIONS } = useCan()
   const { t, toast, rowSelection, columnVisibility, isConfirmOpen } = useBaseTable({})
 
   const { sorting, columnFilters, pagination, serverQuery } = useTableQuery({
@@ -48,16 +46,15 @@ export function useCourses() {
     serverQuery: mergedServerQuery,
     localData: entries,
     listFn: (query, signal) => coursesApi.list(query, signal),
-    debounceMs: 220
+    debounceMs: 150
   })
 
   const filteredCourses = computed(() => resource.rows.value)
 
   const coursesSummary = computed(() => {
     const rows = filteredCourses.value
-    const count = rows.length
     const totalClassSum = rows.reduce((sum, row) => sum + Number(row.totalClass || 0), 0)
-    return { count, totalClassSum }
+    return { count: resource.totalRows.value, totalClassSum }
   })
 
   const columns = computed<TableColumn<Course>[]>(() => [
@@ -86,15 +83,12 @@ export function useCourses() {
     pendingPayload.value = null
   }
 
-  const canCreateCourse = computed(() => auth.hasPermission(PERMISSIONS.coursesCreate))
-  const canUpdateCourse = computed(() => auth.hasPermission(PERMISSIONS.coursesUpdate))
-  const canDeleteCourse = computed(() => auth.hasPermission(PERMISSIONS.coursesDelete))
-
   function handleAdd() {
-    if (editingId.value && !canUpdateCourse.value) return
-    if (!editingId.value && !canCreateCourse.value) return
     const name = newCourseName.value.trim()
     if (!name) return
+    const isEdit = Boolean(editingId.value)
+    if (isEdit && !can(PERMISSIONS.coursesUpdate)) return
+    if (!isEdit && !can(PERMISSIONS.coursesCreate)) return
 
     pendingPayload.value = {
       id: editingId.value ?? '',
@@ -104,7 +98,7 @@ export function useCourses() {
       totalClass: editingSnapshot.value?.totalClass ?? 0,
       createdAt: ''
     }
-    confirmMode.value = editingId.value ? 'edit' : 'add'
+    confirmMode.value = isEdit ? 'edit' : 'add'
     isConfirmOpen.value = true
   }
 
@@ -142,7 +136,7 @@ export function useCourses() {
 
   function getDropdownActions(entry: Course): DropdownMenuItem[][] {
     const actions: DropdownMenuItem[] = []
-    if (canUpdateCourse.value) {
+    if (can(PERMISSIONS.coursesUpdate)) {
       actions.push({
         label: t('actions.edit'),
         icon: 'i-lucide-edit',
@@ -157,7 +151,7 @@ export function useCourses() {
         }
       })
     }
-    if (canDeleteCourse.value) {
+    if (can(PERMISSIONS.coursesDelete)) {
       actions.push({
         label: t('actions.delete'),
         icon: 'i-lucide-trash',
@@ -176,7 +170,6 @@ export function useCourses() {
     try {
       if (confirmMode.value === 'delete' && pendingDeleteId.value !== null) {
         await mutation.run(() => coursesApi.remove(pendingDeleteId.value!), 'courses')
-        await resource.refresh()
         toast.add({ title: t('pages.courses.deleted'), color: 'error' })
         pendingDeleteId.value = null
       } else if (confirmMode.value === 'edit' && pendingPayload.value?.id) {
@@ -190,7 +183,6 @@ export function useCourses() {
             }),
           'courses'
         )
-        await resource.refresh()
         toast.add({ title: t('pages.courses.updated'), color: 'primary' })
         resetForm()
       } else if (confirmMode.value === 'add' && pendingPayload.value) {
@@ -204,15 +196,12 @@ export function useCourses() {
             }),
           'courses'
         )
-        await resource.refresh()
+        pagination.value.pageIndex = 0
         toast.add({ title: t('pages.courses.created'), color: 'primary' })
         resetForm()
       }
+      void resource.refresh()
     } catch (err: unknown) {
-      if (isForbiddenError(err)) {
-        isConfirmOpen.value = false
-        return
-      }
       const e = err as { data?: { message?: string }; message?: string }
       toast.add({
         title: t('common.error'),
@@ -239,8 +228,6 @@ export function useCourses() {
     newCourseNameKm,
     newCourseDescription,
     handleAdd,
-    canCreateCourse,
-    canUpdateCourse,
     isConfirmOpen,
     confirmConfig,
     finalizeAction,

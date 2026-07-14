@@ -16,8 +16,6 @@ import { mapProductViewStudentRow } from "~/utils/helpers/mapProductViewStudentR
 import { mapStudentEnrollmentRow } from "~/utils/helpers/mapStudentEnrollmentRow";
 import { normalizeCambodiaProvince } from "~/utils/constants/cambodiaProvinces";
 import { clampApiPageLimit } from "~/utils/constants/apiPagination";
-import { PERMISSIONS } from "~/utils/auth/permissions";
-import { isForbiddenError } from "~/utils/api/errors";
 
 type ProductFormPayload = Omit<Product, "image"> & {
   image?: unknown;
@@ -47,9 +45,9 @@ type ProductApiPayload = {
 };
 
 export function useProduct() {
-  const auth = useAuthStore();
   const { locale } = useI18n();
   const useBackendApi = useBackendMode();
+  const { can, PERMISSIONS } = useCan();
   const productApi = useProductApi('students');
   const productsViewApi = useProductsViewApi('students');
   const filterCatalog = useTableFilterCatalog({
@@ -135,7 +133,7 @@ export function useProduct() {
         : [];
       return { ...res, data };
     },
-    debounceMs: 220,
+    debounceMs: 150,
   });
   const effectiveEntries = computed(() => resource.rows.value);
 
@@ -273,16 +271,10 @@ export function useProduct() {
   ];
   });
 
-  const canCreateStudent = computed(() => auth.hasPermission(PERMISSIONS.allStudentCreate));
-  const canUpdateStudent = computed(() => auth.hasPermission(PERMISSIONS.allStudentUpdate));
-  const canDeleteStudent = computed(() => auth.hasPermission(PERMISSIONS.allStudentDelete));
-  const canViewEnrollments = computed(() => auth.hasPermission(PERMISSIONS.allStudentViewEnrollments));
-  const canDeleteEnrollment = computed(() => auth.hasPermission(PERMISSIONS.allStudentDeleteEnrollment));
-
   // --- Row Actions ---
   function getDropdownActions(entry: Product): DropdownMenuItem[][] {
     const actions: DropdownMenuItem[] = [];
-    if (canUpdateStudent.value) {
+    if (can(PERMISSIONS.allStudentUpdate)) {
       actions.push({
         label: t("actions.edit"),
         icon: "i-lucide-edit",
@@ -292,7 +284,7 @@ export function useProduct() {
         },
       });
     }
-    if (canDeleteStudent.value) {
+    if (can(PERMISSIONS.allStudentDelete)) {
       actions.push({
         label: t("actions.delete"),
         icon: "i-lucide-trash",
@@ -426,7 +418,6 @@ export function useProduct() {
         () => productApi.remove(selectedEntry.value!.id),
         "products-view",
       );
-      await resource.refresh();
       toast.add({
         title: t("pages.allstudent.toast.deleted"),
         description: t("pages.allstudent.toast.deletedDescription", {
@@ -442,7 +433,7 @@ export function useProduct() {
       pendingImageFile.value = null;
       if (!pendingEntry.value.id || pendingEntry.value.id === 0) {
         await mutation.run(() => productApi.create(payload), "products-view");
-        await resource.refresh();
+        pagination.value.pageIndex = 0;
         toast.add({
           title: t("pages.allstudent.toast.added"),
           description: t("pages.allstudent.toast.addedDescription"),
@@ -453,7 +444,6 @@ export function useProduct() {
           () => productApi.update(pendingEntry.value!.id, payload),
           "products-view",
         );
-        await resource.refresh();
         toast.add({
           title: t("pages.allstudent.toast.updated"),
           description: t("pages.allstudent.toast.updatedDescription", {
@@ -467,10 +457,11 @@ export function useProduct() {
     isFormOpen.value = false;
     selectedEntry.value = null;
     pendingEntry.value = null;
+    void resource.refresh();
   }
 
   function handleAddNew() {
-    if (!canCreateStudent.value) return;
+    if (!can(PERMISSIONS.allStudentCreate)) return;
     selectedEntry.value = null;
     pendingImageFile.value = null;
     isFormOpen.value = true;
@@ -506,7 +497,7 @@ export function useProduct() {
     });
 
     await productApi.update(target.id, payload);
-    await resource.refresh();
+    void resource.refresh();
 
     toast.add({
       title:
@@ -578,7 +569,7 @@ export function useProduct() {
   );
 
   function openEnrollmentModal(entry: Product) {
-    if (!canViewEnrollments.value) return;
+    if (!can(PERMISSIONS.allStudentViewEnrollments)) return;
     enrollmentStudentId.value = String(entry.id ?? "").trim();
     enrollmentStudentName.value = [entry.nameKm, entry.nameEn]
       .map((s) => String(s || "").trim())
@@ -662,7 +653,6 @@ export function useProduct() {
   }
 
   function requestDeleteEnrollment(row: StudentEnrollmentRow) {
-    if (!canDeleteEnrollment.value) return;
     pendingEnrollmentDeleteRow.value = row;
     isEnrollmentDeleteConfirmOpen.value = true;
   }
@@ -693,9 +683,8 @@ export function useProduct() {
         color: "primary",
       });
       await loadStudentEnrollments();
-      await resource.refresh();
+      void resource.refresh();
     } catch (err: unknown) {
-      if (isForbiddenError(err)) return;
       const e = err as { data?: { message?: string }; message?: string };
       toast.add({
         title: t("pages.allstudent.enrollmentModal.toast.enrollmentDeleteFailed"),
@@ -737,8 +726,6 @@ export function useProduct() {
     handleSaveRequest,
     finalizeAction,
     handleAddNew,
-    canCreateStudent,
-    canViewEnrollments,
     stockAdjustMode,
     stockAdjustQty,
     stockAdjustNote,

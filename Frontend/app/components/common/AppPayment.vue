@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { Product } from '~/types'
 import { formatCurrency } from '~/utils/format/currency'
-import { ENROLLMENT_SOURCE_OPTIONS } from '~/utils/constants/enrollmentSources'
 
 interface CartItem {
   product: Product
@@ -14,7 +13,6 @@ const discountMode = defineModel<'percent' | 'usd'>('discountMode', { default: '
 const discountPercent = defineModel<number>('discountPercent', { required: true })
 const discountFixedAmount = defineModel<number>('discountFixedAmount', { default: 0 })
 const paymentMethod = defineModel<string>('paymentMethod', { default: 'cash' })
-const source = defineModel<string>('source', { default: 'other' })
 
 const paymentMethodItems = computed(() => [
   { label: t('pages.allclass.payment.cash'), value: 'cash' },
@@ -22,8 +20,6 @@ const paymentMethodItems = computed(() => [
   { label: t('pages.allclass.payment.abaBank'), value: 'aba' },
   { label: t('pages.allclass.payment.other'), value: 'other' }
 ])
-
-const sourceItems = [...ENROLLMENT_SOURCE_OPTIONS]
 
 const props = withDefaults(defineProps<{
   cart: CartItem[]
@@ -219,18 +215,6 @@ watch(() => props.subtotal, () => {
             value-key="value"
             label-key="label"
             :placeholder="$t('pages.allclass.payment.method')"
-            size="sm"
-            class="max-w-44 w-full shrink-0"
-          />
-        </div>
-      </div>
-
-      <div class="flex items-center justify-between gap-2">
-        <span class="text-sm text-muted-foreground shrink-0">{{ $t('pages.comission.columns.source') }}</span>
-        <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
-          <USelect
-            v-model="source as any"
-            :items="sourceItems"
             size="sm"
             class="max-w-44 w-full shrink-0"
           />

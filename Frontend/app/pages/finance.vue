@@ -2,6 +2,7 @@
 import { useFinance } from '~/composables/table/useFinance'
 import { formatCurrency } from '~/utils/format/currency'
 const { t } = useI18n()
+const { can, PERMISSIONS } = useCan()
 const isExportOpen = ref(false)
 const {
   data,
@@ -26,6 +27,7 @@ const {
     <LayoutAppHeader :title="t('pages.finance.title')" show-datepicker>
       <template #right>
         <UButton
+          v-if="can(PERMISSIONS.financeExport)"
           icon="i-lucide-download"
           color="neutral"
           variant="subtle"
@@ -59,6 +61,7 @@ const {
         <template #actions-cell="{ row }">
           <div class="flex justify-center">
             <UButton
+              v-if="can(PERMISSIONS.financeUpdate)"
               icon="i-lucide-edit"
               variant="ghost"
               color="primary"

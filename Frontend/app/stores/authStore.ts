@@ -8,7 +8,7 @@ import {
   setStoredRefreshToken
 } from '~/services/apiClient'
 import { authService } from '~/services/authService'
-import type { AuthUser, LoginPayload, PermissionsMap } from '~/types/auth'
+import type { AuthUser, LoginPayload, PermissionsMap, SetupPayload } from '~/types/auth'
 import { hasPermission as hasPermissionByPolicy } from '~/utils/auth/policy'
 
 type StoreAuthUser = Partial<AuthUser> & {
@@ -116,6 +116,17 @@ export const useBackendAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function setup(payload: SetupPayload) {
+    loading.value = true
+    try {
+      const response = await authService.setup(payload)
+      setSession(response.accessToken, response.refreshToken, response.user)
+      return response.user
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function refreshAccessToken() {
     if (!refreshToken.value) return null
     const response = await authService.refresh(refreshToken.value)
@@ -151,6 +162,7 @@ export const useBackendAuthStore = defineStore('auth', () => {
     hydrateFromStorage,
     hasPermission,
     login,
+    setup,
     logout,
     clearAuth,
     setAccessToken,

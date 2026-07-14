@@ -47,10 +47,14 @@ export function useQueryClient() {
   function invalidate(prefix?: string) {
     if (!prefix) {
       queryCache.clear()
+      inFlight.clear()
       return
     }
-    for (const key of queryCache.keys()) {
+    for (const key of [...queryCache.keys()]) {
       if (key.startsWith(prefix)) queryCache.delete(key)
+    }
+    for (const key of [...inFlight.keys()]) {
+      if (key.startsWith(prefix)) inFlight.delete(key)
     }
   }
 

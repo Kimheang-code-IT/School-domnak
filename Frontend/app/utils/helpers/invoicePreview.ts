@@ -22,8 +22,8 @@ export type InvoicePreviewRow = {
   customer?: string
   phoneCustomer?: string
   seller?: string
-  source?: string
   address?: string
+  paymentNote?: string
   amount?: number
   grandTotal?: number
   qty?: number

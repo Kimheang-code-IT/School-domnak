@@ -13,7 +13,7 @@ from app.schemas.common import TableQueryParams, TableResponse, table_query_para
 from app.services.audit_service import write_audit_log
 from app.services.commission_service import sync_commissions_from_invoices
 from app.services.export_service import rows_for_export
-from app.utils.filters import apply_date_filter, apply_search, split_filter, split_int_filter
+from app.utils.filters import apply_date_filter, apply_search, split_int_filter
 from app.utils.pagination import apply_pagination
 from app.services.cache_invalidation import COMMISSIONS
 from app.services.table_list_cache import cached_table_list
@@ -30,7 +30,6 @@ SORT_MAP = {
     "teacherName": Commission.teacher_name,
     "className": Commission.class_name,
     "studentName": Commission.student_name,
-    "source": Commission.source,
     "amount": Commission.amount,
     "commission": Commission.commission,
     "date": Commission.created_at,
@@ -43,33 +42,23 @@ def _to_read(row: Commission) -> CommissionRead:
         class_name=row.class_name,
         student_name=row.student_name,
         teacher_name=row.teacher_name,
-        source=row.source,
         date=row.created_at,
         amount=row.amount,
         commission=row.commission,
     )
 
 
-def _commission_filter_kwargs(
-    *,
-    source: str | None,
-    class_id: str | None,
-) -> dict:
-    return {"source": source, "class_id": class_id}
+def _commission_filter_kwargs(*, class_id: str | None) -> dict:
+    return {"class_id": class_id}
 
 
 def _build_commission_query(
     db: Session,
     query: TableParams,
     *,
-    source: str | None = None,
     class_id: str | None = None,
 ):
     statement = select(Commission)
-
-    sources = split_filter(source)
-    if sources:
-        statement = statement.where(Commission.source.in_(sources))
 
     class_ids = split_int_filter(class_id)
     if class_ids:
@@ -78,7 +67,7 @@ def _build_commission_query(
     statement = apply_search(
         statement,
         query.search,
-        [Commission.teacher_name, Commission.class_name, Commission.student_name, Commission.source],
+        [Commission.teacher_name, Commission.class_name, Commission.student_name],
     )
     statement = apply_date_filter(statement, Commission.created_at, query.date_from, query.date_to)
     total = db.scalar(select(func.count()).select_from(statement.order_by(None).subquery())) or 0
@@ -103,7 +92,6 @@ def list_commissions(
     db: DbSession,
     query: TableParams,
     current_user: CommissionViewUser,
-    source: str | None = Query(None),
     class_id: str | None = Query(None, alias="classId"),
 ):
     def _load() -> tuple[list[CommissionRead], int]:
@@ -111,7 +99,7 @@ def list_commissions(
         statement, total = _build_commission_query(
             db,
             query,
-            **_commission_filter_kwargs(source=source, class_id=class_id),
+            **_commission_filter_kwargs(class_id=class_id),
         )
         rows = db.scalars(apply_pagination(statement, query.page, query.limit)).all()
         return [_to_read(row) for row in rows], total
@@ -120,7 +108,7 @@ def list_commissions(
         COMMISSIONS,
         query,
         _load,
-        extra=_commission_filter_kwargs(source=source, class_id=class_id),
+        extra=_commission_filter_kwargs(class_id=class_id),
     )
 
 
@@ -129,14 +117,13 @@ def export_commissions(
     db: DbSession,
     query: TableParams,
     current_user: CommissionExportUser,
-    source: str | None = Query(None),
     class_id: str | None = Query(None, alias="classId"),
 ):
     _maybe_sync_empty(db)
     statement, total = _build_commission_query(
         db,
         query,
-        **_commission_filter_kwargs(source=source, class_id=class_id),
+        **_commission_filter_kwargs(class_id=class_id),
     )
     rows = db.scalars(statement).all()
     data = [_to_read(row) for row in rows]

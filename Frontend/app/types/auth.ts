@@ -13,6 +13,16 @@ export type LoginPayload = {
   password: string
 }
 
+export type SetupPayload = {
+  name: string
+  email: string
+  password: string
+}
+
+export type SetupStatus = {
+  needsSetup: boolean
+}
+
 export type LoginResponse = {
   accessToken: string
   refreshToken: string

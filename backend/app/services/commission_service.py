@@ -5,7 +5,6 @@ from sqlalchemy.orm import Session
 
 from app.models.class_model import SchoolClass
 from app.models.commission import Commission
-from app.models.finance import Finance
 from app.models.invoice import Invoice, InvoiceLine
 from app.services.finance_service import ensure_finance_for_class, refresh_finance_total_commission
 
@@ -37,7 +36,6 @@ def record_commission_for_sale(
     *,
     school_class: SchoolClass,
     student_name: str,
-    source: str | None,
     amount: Decimal,
 ) -> Commission:
     sale_amount = Decimal(amount or 0)
@@ -48,7 +46,6 @@ def record_commission_for_sale(
         class_name=school_class.name,
         student_name=student_name or "—",
         teacher_name=teacher_name,
-        source=(source or "").strip() or None,
         amount=sale_amount,
         commission=commission_amount,
     )
@@ -64,8 +61,6 @@ def record_commissions_for_invoice(
     db: Session,
     invoice: Invoice,
     classes_by_id: dict[int, SchoolClass],
-    *,
-    source: str | None,
 ) -> None:
     student_name = _english_student_name(invoice)
     for line in invoice.lines:
@@ -83,7 +78,6 @@ def record_commissions_for_invoice(
             db,
             school_class=school_class,
             student_name=student_name,
-            source=source,
             amount=line_total,
         )
 
@@ -119,7 +113,6 @@ def sync_commissions_from_invoices(db: Session) -> int:
             db,
             school_class=school_class,
             student_name=student_name,
-            source=invoice.source,
             amount=amount,
         )
         created += 1

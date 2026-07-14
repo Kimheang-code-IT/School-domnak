@@ -4,6 +4,8 @@ withDefaults(
     /** Override label; defaults to common.loading. */
     label?: string
     showLabel?: boolean
+    /** Optional icon (passed to AppMatrixLoader). */
+    icon?: string
     /** Tighter padding for tables / dropdowns. */
     compact?: boolean
     /** Smaller dot grid (dropdowns). */
@@ -15,25 +17,29 @@ withDefaults(
   }>(),
   {
     showLabel: true,
+    icon: 'i-lucide-loader-circle',
     compact: false,
     small: false,
     inline: false,
   },
 )
+
+const { t } = useI18n()
 </script>
 
 <template>
-  <div
-    class="flex items-center justify-center gap-3 text-primary"
+  <CommonAppMatrixLoader
+    :layout="inline ? 'inline' : 'stack'"
+    :box-class="small ? 'size-4' : 'size-8'"
+    :gap="small ? 2 : 3"
+    :icon="icon"
+    :show-icon="Boolean(icon)"
+    :title="showLabel ? (label || t('common.loading')) : undefined"
+    :show-title="showLabel"
     :class="[
       inline ? 'flex-row py-0 min-h-0' : 'flex-col',
       inline ? (compact ? 'px-3 py-4' : '') : compact ? 'py-8' : 'py-14 min-h-[10rem]',
       $props.class,
     ]"
-  >
-    <CommonAppMatrixLoader :box-class="small ? 'size-4' : 'size-8'" :gap="small ? 2 : 3" />
-    <p v-if="showLabel" class="text-sm font-medium text-muted-foreground">
-      {{ label || $t('common.loading') }}
-    </p>
-  </div>
+  />
 </template>

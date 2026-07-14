@@ -18,7 +18,6 @@ export function useReport() {
 
   const catalog = useTableFilterCatalog({
     provinces: true,
-    sources: true,
     classes: true,
     courses: true,
     sellers: true,
@@ -26,7 +25,6 @@ export function useReport() {
   const { selections, queryParams } = useServerTableFilters([
     'address',
     'seller',
-    'source',
     'classId',
     'courseId',
   ])
@@ -101,7 +99,6 @@ export function useReport() {
     { accessorKey: 'className', header: t('pages.report.columns.className') },
     { accessorKey: 'address', header: t('pages.report.columns.address') },
     { accessorKey: 'seller', header: t('pages.report.columns.seller') },
-    { accessorKey: 'source', header: t('pages.report.columns.source') },
     {
       accessorKey: 'amount',
       header: t('pages.report.columns.studentPayment'),

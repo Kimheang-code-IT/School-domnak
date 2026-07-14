@@ -84,6 +84,11 @@ def _build_preview_from_invoice(db: Session, invoice: Invoice) -> dict:
                 "timeIn": school_class.time_in if school_class else None,
                 "timeOut": school_class.time_out if school_class else None,
                 "classDuration": school_class.class_duration if school_class else None,
+                "durationMonths": (
+                    float(enrollment.duration_months)
+                    if enrollment and enrollment.duration_months is not None
+                    else None
+                ),
                 "daysOfWeek": list(school_class.days_of_week or []) if school_class else [],
                 "classImage": school_class.image if school_class else None,
                 "studentName": customer,
@@ -92,8 +97,8 @@ def _build_preview_from_invoice(db: Session, invoice: Invoice) -> dict:
                 "customer": customer,
                 "phoneCustomer": invoice.student_phone or (student.phone if student else None),
                 "seller": invoice.seller,
-                "source": invoice.source,
                 "address": invoice.address,
+                "paymentNote": invoice.payment_note or "",
                 "amount": float(line.total or 0),
                 "grandTotal": float(invoice.total or 0),
                 "qty": int(line.qty or 1),
@@ -114,8 +119,8 @@ def _build_preview_from_invoice(db: Session, invoice: Invoice) -> dict:
                 "customer": customer,
                 "phoneCustomer": invoice.student_phone,
                 "seller": invoice.seller,
-                "source": invoice.source,
                 "address": invoice.address,
+                "paymentNote": invoice.payment_note or "",
                 "amount": float(invoice.total or 0),
                 "grandTotal": float(invoice.total or 0),
                 "qty": 1,
@@ -194,8 +199,8 @@ def enrich_preview_payloads(db: Session, payloads: list[dict]) -> list[dict]:
                 "customer": raw.get("customer") or raw.get("studentName"),
                 "phoneCustomer": raw.get("phoneCustomer"),
                 "seller": raw.get("seller"),
-                "source": raw.get("source"),
                 "address": raw.get("address"),
+                "paymentNote": raw.get("paymentNote") or raw.get("payment_note") or "",
                 "amount": float(amount or 0),
                 "grandTotal": float(raw.get("grandTotal") or amount or 0),
                 "qty": int(raw.get("qty") or 1),

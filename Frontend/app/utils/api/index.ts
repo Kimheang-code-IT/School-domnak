@@ -38,7 +38,14 @@ function makeCrudApi<T>(resource: string) {
   const api = useApi()
   return {
     list: (params?: ApiQueryParams, signal?: AbortSignal) =>
-      api.get<ApiList<T>>(resource, { query: params, signal, dedupe: true, silent: true }),
+      // Skip GET dedupe when an AbortSignal is used (table refresh / page change)
+      // so a create+refresh never reuses a pre-create in-flight response.
+      api.get<ApiList<T>>(resource, {
+        query: params,
+        signal,
+        dedupe: !signal,
+        silent: true,
+      }),
     create: (payload: Partial<T>) => api.post<T>(resource, payload),
     update: (id: string | number, payload: Partial<T>) => api.put<T>(`${resource}/${id}`, payload),
     remove: (id: string | number) => api.delete(`${resource}/${id}`)
@@ -49,7 +56,7 @@ function makeViewListApi<T>(resource: string) {
   const api = useApi()
   return {
     list: (params?: ApiQueryParams, signal?: AbortSignal) =>
-      api.get<ApiList<T>>(resource, { query: params, signal, dedupe: true, silent: true })
+      api.get<ApiList<T>>(resource, { query: params, signal, dedupe: !signal, silent: true })
   }
 }
 
@@ -188,7 +195,7 @@ export function useProductApi(resource?: 'students' | 'classes') {
 
   return {
     list: (params?: ApiQueryParams, signal?: AbortSignal) =>
-      api.get<ApiList<Product>>(baseResource.value, { query: params, signal, dedupe: true, silent: true }),
+      api.get<ApiList<Product>>(baseResource.value, { query: params, signal, dedupe: !signal, silent: true }),
     create: (payload: Partial<Product>) => api.post<Product>(baseResource.value, payloadForContext(payload)),
     update: (id: string | number, payload: Partial<Product>) =>
       api.put<Product>(`${baseResource.value}/${id}`, payloadForContext(payload)),
@@ -239,7 +246,7 @@ export function useHistoriesApi() {
   const api = useApi()
   return {
     list: (params?: ApiQueryParams, signal?: AbortSignal) =>
-      api.get<ApiList<AuditLog>>('/audit-logs', { query: params, signal, dedupe: true, silent: true })
+      api.get<ApiList<AuditLog>>('/audit-logs', { query: params, signal, dedupe: !signal, silent: true })
   }
 }
 
@@ -252,7 +259,7 @@ export function useProductsViewApi(resource?: 'students' | 'classes') {
   const { baseResource } = useSchoolResourcePath(resource)
   return {
     list: (params?: ApiQueryParams, signal?: AbortSignal) =>
-      api.get<ApiList<Product>>(baseResource.value, { query: params, signal, dedupe: true, silent: true }),
+      api.get<ApiList<Product>>(baseResource.value, { query: params, signal, dedupe: !signal, silent: true }),
   }
 }
 
@@ -260,7 +267,7 @@ export function useReportsViewApi() {
   const api = useApi()
   return {
     list: (params?: ApiQueryParams, signal?: AbortSignal) =>
-      api.get<ApiList<ReportRow>>('/reports/sales-lines', { query: params, signal, dedupe: true, silent: true }),
+      api.get<ApiList<ReportRow>>('/reports/sales-lines', { query: params, signal, dedupe: !signal, silent: true }),
     exportCsv: (params?: ApiQueryParams) =>
       api.get<{ url?: string; data?: ReportRow[] }>('/reports/sales-lines/export', { query: params }),
   }
@@ -365,7 +372,6 @@ export function usePosApi() {
       customerName: string
       customerPhone: string
       customerAddress: string
-      source: string
       deliveryType: string
       deliveryPrice: number
       deliveryDate: string
@@ -373,6 +379,9 @@ export function usePosApi() {
       paymentMethod?: string
       deliveryStatus?: string
       sellerId?: number
+      durationMonths?: number | null
+      startDate?: string
+      paymentNote?: string
       lines: Array<{ productId: number; qty: number }>
     }) =>
       withLegacyFallback(

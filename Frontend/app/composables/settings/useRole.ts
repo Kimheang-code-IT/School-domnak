@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import type { DropdownMenuItem, TableColumn } from '~/types/nuxt-ui'
 import { useBaseTable } from '~/composables/table/useBaseTable'
 import { useTableQuery } from '~/composables/table/useTableQuery'
@@ -12,7 +12,6 @@ import {
 import { useSystemRoleApi } from '~/utils/api'
 import type { ApiQueryParams } from '~/utils/api'
 import { useServerTableResource } from '~/composables/table/useServerTable'
-import { useTableSearchDateQuery } from '~/composables/table/useTableSearchDateQuery'
 import { useMutation } from '~/composables/data/useMutation'
 
 function flattenPermissions(permissions?: Record<string, string[]>): string[] {
@@ -36,10 +35,18 @@ function expandPermissions(tokens: string[]): Record<string, string[]> {
     }, {})
 }
 
+function filterItemLabel(entry: unknown): string {
+    if (typeof entry === 'string') return entry.trim()
+    if (entry !== null && typeof entry === 'object') {
+        const row = entry as { label?: string; value?: string; name?: string }
+        return String(row.label ?? row.value ?? row.name ?? '').trim()
+    }
+    return String(entry ?? '').trim()
+}
+
 export function useSystemRoleManagement() {
     const useBackendApi = useBackendMode()
     const systemRoleApi = useSystemRoleApi()
-    const { formattedRange } = useGlobalFilter()
     const {
         t, toast, rowSelection,
         columnVisibility,
@@ -52,7 +59,7 @@ export function useSystemRoleManagement() {
         columnFilters,
         pagination,
         serverQuery,
-    } = useTableQuery({ initialSorting: [{ id: 'id', desc: false }] });
+    } = useTableQuery({ initialSorting: [{ id: 'id', desc: true }] });
     const searchQuery = ref('')
 
     // --- Context States ---
@@ -60,24 +67,32 @@ export function useSystemRoleManagement() {
     const pendingRole = ref<SystemRole | null>(null)
     const confirmMode = ref<'save' | 'delete'>('save')
 
-
-    // --- Mock Data ---
+    // --- Data ---
     const roles = ref<SystemRole[]>([])
     const mutation = useMutation()
     const auth = useAuthStore()
-    const { mergedServerQuery } = useTableSearchDateQuery(
-        serverQuery,
-        searchQuery,
-        pagination,
-        formattedRange
+    const selectedRoles = ref<string[]>([])
+    const selectedRoleNames = computed(() =>
+        selectedRoles.value.map(filterItemLabel).filter(Boolean)
     )
+
+    // Settings lists are not date-scoped (unlike report/history).
+    const mergedServerQuery = computed((): ApiQueryParams => ({
+        ...serverQuery.value,
+        search: searchQuery.value.trim() || undefined,
+        role: selectedRoleNames.value.length ? selectedRoleNames.value.join(',') : undefined,
+    }))
+    watch([searchQuery, selectedRoleNames], () => {
+        pagination.value.pageIndex = 0
+    })
+
     const resource = useServerTableResource<SystemRole, ApiQueryParams>({
         resourceKey: 'roles',
         useBackendApi,
         serverQuery: mergedServerQuery,
         localData: roles,
         listFn: (query, signal) => systemRoleApi.list(query, signal),
-        debounceMs: 220
+        debounceMs: 150
     })
     const effectiveRoles = computed(() =>
         resource.rows.value
@@ -89,8 +104,6 @@ export function useSystemRoleManagement() {
             }))
     )
 
-    const selectedRoles = ref<string[]>([])
-
     /** Role names from the table (updates when roles are loaded or changed). */
     const roleFilterItems = computed(() => {
         const names = effectiveRoles.value
@@ -101,25 +114,10 @@ export function useSystemRoleManagement() {
 
     const permissionOptions = computed(() => rolePermissionOptions())
 
-    function selectedRoleFilterLabels(): string[] {
-        return selectedRoles.value
-            .map((item) => {
-                if (typeof item === 'string') return item.trim()
-                const row = item as { label?: string; value?: string; name?: string }
-                return String(row.label ?? row.value ?? row.name ?? '').trim()
-            })
-            .filter(Boolean)
-    }
-
-    const filteredRoles = computed(() => {
-        const picked = selectedRoleFilterLabels()
-        if (picked.length === 0) return effectiveRoles.value
-        const allowed = new Set(picked)
-        return effectiveRoles.value.filter((r) => allowed.has(String(r.name || '').trim()))
-    })
+    const filteredRoles = computed(() => effectiveRoles.value)
 
     const roleSummary = computed(() => ({
-        count: filteredRoles.value.length
+        count: resource.totalRows.value
     }))
 
     const confirmConfig = computed(() => {
@@ -238,16 +236,14 @@ export function useSystemRoleManagement() {
                 return
             }
             await mutation.run(() => systemRoleApi.remove(selectedRole.value!.id), 'roles')
-            await resource.refresh()
             toast.add({ title: 'Role Purged', description: 'Role removed successfully.', color: 'error' })
         } else if (confirmMode.value === 'save' && pendingRole.value) {
             if (!pendingRole.value.id || pendingRole.value.id === 0) {
                 await mutation.run(() => systemRoleApi.create(pendingRole.value!), 'roles')
-                await resource.refresh()
+                pagination.value.pageIndex = 0
                 toast.add({ title: 'Role Provisioned', description: 'New role policy is active.', color: 'primary' })
             } else {
                 await mutation.run(() => systemRoleApi.update(pendingRole.value!.id, pendingRole.value!), 'roles')
-                await resource.refresh()
                 toast.add({ title: 'Role Synchronized', description: 'Policy updates synchronized.', color: 'primary' })
             }
         }
@@ -255,6 +251,7 @@ export function useSystemRoleManagement() {
         isFormOpen.value = false
         selectedRole.value = null
         pendingRole.value = null
+        void resource.refresh()
     }
 
     function handleAddNew() {

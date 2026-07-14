@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import logo from '~/assets/images/logo.png'
+import logo from '~/assets/images/logoapp.png'
 import { useMenu } from '~/composables/layout/useMenu'
 const { open, links } = useMenu()
 </script>
@@ -22,7 +22,7 @@ const { open, links } = useMenu()
       >
         <img
           :src="logo"
-          alt="PDME-Revenue logo"
+          alt="Learn Computer logo"
           class="w-60 h-16 shrink-0 rounded-full object-contain"
         >
       </NuxtLink>

@@ -35,7 +35,6 @@ class ReportRepository:
         product: str | None = None,
         address: str | None = None,
         seller: str | None = None,
-        source: str | None = None,
         class_id: str | None = None,
         course_id: str | None = None,
         export: bool = False,
@@ -63,10 +62,6 @@ class ReportRepository:
         if sellers:
             statement = statement.where(Invoice.seller.in_(sellers))
 
-        sources = split_filter(source)
-        if sources:
-            statement = statement.where(Invoice.source.in_(sources))
-
         class_ids = split_int_filter(class_id)
         if class_ids:
             statement = statement.where(InvoiceLine.class_id.in_(class_ids))
@@ -86,7 +81,6 @@ class ReportRepository:
                 Student.phone,
                 Invoice.address,
                 Invoice.seller,
-                Invoice.source,
                 InvoiceLine.product_name,
                 Student.province,
                 cast(Student.id, String),
@@ -108,7 +102,6 @@ class ReportRepository:
                 "className": SchoolClass.name,
                 "address": Invoice.address,
                 "seller": Invoice.seller,
-                "source": Invoice.source,
                 "amount": InvoiceLine.total,
                 "date": Invoice.created_at,
             },
@@ -136,7 +129,6 @@ class ReportRepository:
                     phone_customer=invoice.student_phone,
                     address=resolved_address or None,
                     seller=invoice.seller,
-                    source=invoice.source,
                     amount=line.total,
                     date=invoice.created_at,
                     product=class_name,

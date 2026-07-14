@@ -7,13 +7,11 @@ import { useLevelsApi } from '~/utils/api'
 import type { ApiQueryParams } from '~/utils/api'
 import { useServerTableResource } from '~/composables/table/useServerTable'
 import { useMutation } from '~/composables/data/useMutation'
-import { PERMISSIONS } from '~/utils/auth/permissions'
-import { isForbiddenError } from '~/utils/api/errors'
 
 export function useLevels() {
-  const auth = useAuthStore()
   const useBackendApi = useBackendMode()
   const levelsApi = useLevelsApi()
+  const { can, PERMISSIONS } = useCan()
   const { t, toast, rowSelection, columnVisibility, isConfirmOpen } = useBaseTable({})
 
   const { sorting, columnFilters, pagination, serverQuery } = useTableQuery({
@@ -48,16 +46,15 @@ export function useLevels() {
     serverQuery: mergedServerQuery,
     localData: entries,
     listFn: (query, signal) => levelsApi.list(query, signal),
-    debounceMs: 220
+    debounceMs: 150
   })
 
   const filteredLevels = computed(() => resource.rows.value)
 
   const levelsSummary = computed(() => {
     const rows = filteredLevels.value
-    const count = rows.length
     const totalClassSum = rows.reduce((sum, row) => sum + Number(row.totalClass || 0), 0)
-    return { count, totalClassSum }
+    return { count: resource.totalRows.value, totalClassSum }
   })
 
   const columns = computed<TableColumn<Level>[]>(() => [
@@ -86,16 +83,13 @@ export function useLevels() {
     pendingPayload.value = null
   }
 
-  const canCreateLevel = computed(() => auth.hasPermission(PERMISSIONS.levelsCreate))
-  const canUpdateLevel = computed(() => auth.hasPermission(PERMISSIONS.levelsUpdate))
-  const canDeleteLevel = computed(() => auth.hasPermission(PERMISSIONS.levelsDelete))
-
   function handleAdd() {
-    if (editingId.value && !canUpdateLevel.value) return
-    if (!editingId.value && !canCreateLevel.value) return
     const nameEn = newLevelNameEn.value.trim()
     const nameKm = newLevelNameKm.value.trim()
     if (!nameEn || !nameKm) return
+    const isEdit = Boolean(editingId.value)
+    if (isEdit && !can(PERMISSIONS.levelsUpdate)) return
+    if (!isEdit && !can(PERMISSIONS.levelsCreate)) return
 
     pendingPayload.value = {
       id: editingId.value ?? '',
@@ -105,7 +99,7 @@ export function useLevels() {
       totalClass: editingSnapshot.value?.totalClass ?? 0,
       createdAt: ''
     }
-    confirmMode.value = editingId.value ? 'edit' : 'add'
+    confirmMode.value = isEdit ? 'edit' : 'add'
     isConfirmOpen.value = true
   }
 
@@ -143,7 +137,7 @@ export function useLevels() {
 
   function getDropdownActions(entry: Level): DropdownMenuItem[][] {
     const actions: DropdownMenuItem[] = []
-    if (canUpdateLevel.value) {
+    if (can(PERMISSIONS.levelsUpdate)) {
       actions.push({
         label: t('actions.edit'),
         icon: 'i-lucide-edit',
@@ -156,7 +150,7 @@ export function useLevels() {
         }
       })
     }
-    if (canDeleteLevel.value) {
+    if (can(PERMISSIONS.levelsDelete)) {
       actions.push({
         label: t('actions.delete'),
         icon: 'i-lucide-trash',
@@ -175,7 +169,6 @@ export function useLevels() {
     try {
       if (confirmMode.value === 'delete' && pendingDeleteId.value !== null) {
         await mutation.run(() => levelsApi.remove(pendingDeleteId.value!), 'levels')
-        await resource.refresh()
         toast.add({ title: t('pages.levels.deleted'), color: 'error' })
         pendingDeleteId.value = null
       } else if (confirmMode.value === 'edit' && pendingPayload.value?.id) {
@@ -189,7 +182,6 @@ export function useLevels() {
             }),
           'levels'
         )
-        await resource.refresh()
         toast.add({ title: t('pages.levels.updated'), color: 'primary' })
         resetForm()
       } else if (confirmMode.value === 'add' && pendingPayload.value) {
@@ -203,15 +195,12 @@ export function useLevels() {
             }),
           'levels'
         )
-        await resource.refresh()
+        pagination.value.pageIndex = 0
         toast.add({ title: t('pages.levels.created'), color: 'primary' })
         resetForm()
       }
+      void resource.refresh()
     } catch (err: unknown) {
-      if (isForbiddenError(err)) {
-        isConfirmOpen.value = false
-        return
-      }
       const e = err as { data?: { message?: string }; message?: string }
       toast.add({
         title: t('common.error'),
@@ -238,8 +227,6 @@ export function useLevels() {
     newLevelNameEn,
     newLevelDescription,
     handleAdd,
-    canCreateLevel,
-    canUpdateLevel,
     isConfirmOpen,
     confirmConfig,
     finalizeAction,

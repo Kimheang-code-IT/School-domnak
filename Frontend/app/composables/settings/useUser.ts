@@ -1,5 +1,4 @@
 import { ref, computed, watch, onMounted } from "vue";
-import { useTableSearchDateQuery } from "~/composables/table/useTableSearchDateQuery";
 import type { TableColumn, DropdownMenuItem } from "@nuxt/ui";
 import { useBaseTable } from "~/composables/table/useBaseTable";
 import { useTableQuery } from "~/composables/table/useTableQuery";
@@ -18,12 +17,20 @@ function isNonDeletableUserRole(role?: string): boolean {
   return USER_NON_DELETABLE_ROLE_NAMES.has(String(role ?? "").trim().toLowerCase());
 }
 
+function filterItemLabel(entry: unknown): string {
+  if (typeof entry === "string") return entry.trim()
+  if (entry !== null && typeof entry === "object") {
+    const row = entry as { label?: string; value?: string; name?: string }
+    return String(row.label ?? row.value ?? row.name ?? "").trim()
+  }
+  return String(entry ?? "").trim()
+}
+
 export function useSystemUserManagement() {
   const auth = useAuthStore()
   const useBackendApi = useBackendMode()
   const systemUserApi = useSystemUserApi()
   const systemRoleApi = useSystemRoleApi()
-  const { formattedRange } = useGlobalFilter()
   const {
     t, toast, rowSelection, columnVisibility,
     isFormOpen, isConfirmOpen
@@ -33,7 +40,7 @@ export function useSystemUserManagement() {
 
   const {
     sorting, columnFilters, pagination, serverQuery
-  } = useTableQuery({ initialSorting: [{ id: "id", desc: false }] });
+  } = useTableQuery({ initialSorting: [{ id: "id", desc: true }] });
   const searchQuery = ref("")
 
   // --- Context States ---
@@ -41,24 +48,9 @@ export function useSystemUserManagement() {
   const pendingUser = ref<SystemUser | null>(null);
   const confirmMode = ref<"save" | "delete">("save");
 
-  // --- Mock Data ---
+  // --- Data ---
   const users = ref<SystemUser[]>([]);
   const mutation = useMutation()
-  const { mergedServerQuery } = useTableSearchDateQuery(
-    serverQuery,
-    searchQuery,
-    pagination,
-    formattedRange
-  )
-  const resource = useServerTableResource<SystemUser, ApiQueryParams>({
-    resourceKey: 'users',
-    useBackendApi,
-    serverQuery: mergedServerQuery,
-    localData: users,
-    listFn: (query, signal) => systemUserApi.list(query, signal),
-    debounceMs: 220
-  })
-  const effectiveUsers = computed(() => resource.rows.value)
 
   // --- Filter States ---
   const roleRecords = ref<Array<{ id: number; name: string }>>([])
@@ -66,6 +58,29 @@ export function useSystemUserManagement() {
     roleRecords.value.map((r) => r.name).filter(Boolean)
   )
   const selectedRoles = ref<string[]>([]);
+  const selectedRoleNames = computed(() =>
+    selectedRoles.value.map(filterItemLabel).filter(Boolean)
+  )
+
+  // Settings lists are not date-scoped (unlike report/history).
+  const mergedServerQuery = computed((): ApiQueryParams => ({
+    ...serverQuery.value,
+    search: searchQuery.value.trim() || undefined,
+    role: selectedRoleNames.value.length ? selectedRoleNames.value.join(",") : undefined,
+  }))
+  watch([searchQuery, selectedRoleNames], () => {
+    pagination.value.pageIndex = 0
+  })
+
+  const resource = useServerTableResource<SystemUser, ApiQueryParams>({
+    resourceKey: 'users',
+    useBackendApi,
+    serverQuery: mergedServerQuery,
+    localData: users,
+    listFn: (query, signal) => systemUserApi.list(query, signal),
+    debounceMs: 150
+  })
+  const effectiveUsers = computed(() => resource.rows.value)
 
   function toApiUserPayload(user: SystemUser) {
     const roleId = roleRecords.value.find((r) => r.name === user.role)?.id
@@ -96,13 +111,10 @@ export function useSystemUserManagement() {
   onMounted(loadRoleItems)
 
   // --- Computed Logic ---
-  const filteredUsers = computed(() => {
-    if (selectedRoles.value.length === 0) return effectiveUsers.value;
-    return effectiveUsers.value.filter((u) => selectedRoles.value.includes(u.role));
-  });
+  const filteredUsers = computed(() => effectiveUsers.value)
 
   const userSummary = computed(() => ({
-    count: filteredUsers.value.length
+    count: resource.totalRows.value
   }));
 
   const confirmConfig = computed(() => {
@@ -225,7 +237,6 @@ export function useSystemUserManagement() {
         return;
       }
       await mutation.run(() => systemUserApi.remove(selectedUser.value!.id), 'users')
-      await resource.refresh()
       toast.add({
         title: "Account Revoked",
         description: `Access revoked for ${selectedUser.value.name}.`,
@@ -244,7 +255,7 @@ export function useSystemUserManagement() {
       }
       if (pendingUser.value.id === 0 || !pendingUser.value.id) {
         await mutation.run(() => systemUserApi.create(apiPayload as Partial<SystemUser>), 'users')
-        await resource.refresh()
+        pagination.value.pageIndex = 0
         toast.add({
           title: "Account Provisioned",
           description: "System credentials delivered.",
@@ -252,7 +263,6 @@ export function useSystemUserManagement() {
         });
       } else {
         await mutation.run(() => systemUserApi.update(pendingUser.value!.id, apiPayload as Partial<SystemUser>), 'users')
-        await resource.refresh()
         toast.add({
           title: "Account Synchronized",
           description: "Profile changes applied successfully.",
@@ -264,6 +274,7 @@ export function useSystemUserManagement() {
     isFormOpen.value = false;
     selectedUser.value = null;
     pendingUser.value = null;
+    void resource.refresh();
   }
 
   function handleAddNew() {

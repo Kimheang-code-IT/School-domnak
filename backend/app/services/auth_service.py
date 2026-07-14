@@ -126,6 +126,58 @@ def user_update_data(db: Session, payload: UserUpdate) -> dict:
     return data
 
 
+def needs_initial_setup(db: Session) -> bool:
+    return db.scalar(select(User.id).limit(1)) is None
+
+
+def create_initial_admin(db: Session, *, name: str, email: str, password: str) -> User:
+    """Create the first Admin user. Raises 409 if any user already exists."""
+    if not needs_initial_setup(db):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Setup already completed. Sign in instead.",
+        )
+
+    from app.core.permissions import ADMIN_PERMISSIONS, sanitize_role_permissions
+
+    clean_name = (name or "").strip()
+    clean_email = (email or "").strip().lower()
+    if not clean_name or not clean_email or not password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Name, email, and password are required.",
+        )
+
+    admin_role = db.scalar(select(Role).where(Role.name == "Admin"))
+    if admin_role is None:
+        admin_role = Role(name="Admin", permissions=ADMIN_PERMISSIONS)
+        db.add(admin_role)
+        db.flush()
+    else:
+        admin_role.permissions = sanitize_role_permissions(admin_role.permissions or ADMIN_PERMISSIONS)
+
+    user = User(
+        name=clean_name,
+        email=clean_email,
+        password_hash=get_password_hash(password),
+        role_id=admin_role.id,
+        last_login=_utcnow(),
+    )
+    db.add(user)
+    db.flush()
+    db.refresh(user)
+    # Ensure role relationship is loaded for token response
+    user = db.scalar(select(User).options(joinedload(User.role)).where(User.id == user.id))
+    assert user is not None
+    write_audit_log(
+        db,
+        action="Create",
+        username=user.name,
+        description=f"Initial admin setup for {user.email}",
+    )
+    return user
+
+
 def ensure_default_admin(db: Session, *, email: str = "admin@example.com", password: str = "password123") -> User:
     admin = db.scalar(select(User).where(User.email == email))
     if admin:

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { AuthFormField, FormSubmitEvent } from '~/types/nuxt-ui'
 import { z } from 'zod'
+import logo from '~/assets/images/logoapp.png'
 
 definePageMeta({
   layout: 'auth'
@@ -110,7 +111,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
     <UAuthForm :schema="schema" :description="t('pages.auth.loginDesc')" icon="i-lucide-lock" :fields="fields"
       :submit="{ label: t('pages.auth.loginBtn'), class: 'w-full h-10! text-xl font-normal' }" @submit="onSubmit">
       <template #leading>
-        <img src="/assets/images/logo.png" alt="Logo" class="h-20 w-auto mx-auto " />
+        <img :src="logo" alt="Learn Computer logo" class="h-20 w-auto mx-auto " />
       </template>
 
       <template #footer>

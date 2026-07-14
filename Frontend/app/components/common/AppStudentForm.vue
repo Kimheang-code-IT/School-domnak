@@ -6,7 +6,12 @@ import { CAMBODIA_PROVINCE_NAMES, normalizeCambodiaProvince } from '~/utils/cons
 import { normalizeKhmerText } from '~/utils/format/khmerText'
 import { formatStudentCode } from '~/utils/format/studentCode'
 import { normalizeCambodiaPhone } from '~/utils/format/phone'
-import { normalizeDurationMonthsInput, validateEnrollmentDurationMonths } from '~/utils/format/duration'
+import { formatClassDuration } from '~/utils/format/duration'
+import {
+  filterStudentDurationOptions,
+  normalizeStudentDurationValue,
+  type StudentDurationOption,
+} from '~/utils/constants/studentDurationOptions'
 import { mapProductViewStudentRow } from '~/utils/helpers/mapProductViewStudentRow'
 import { resolveUploadUrl } from '~/utils/helpers/mediaUrl'
 
@@ -28,6 +33,7 @@ const deliveryDate = defineModel<string>('deliveryDate', { required: true })
 const deliveryStatus = defineModel<string>('deliveryStatus', { required: true, default: 'pending' })
 const sellerId = defineModel<number | undefined>('sellerId')
 const selectedStudentId = defineModel<number | undefined>('selectedStudentId')
+const paymentNote = defineModel<string>('paymentNote', { default: '' })
 
 const props = withDefaults(
   defineProps<{
@@ -39,7 +45,7 @@ const props = withDefaults(
   }
 )
 
-const { t, locale } = useI18n()
+const { t, locale, te } = useI18n()
 const auth = useAuthStore()
 const config = useRuntimeConfig()
 
@@ -137,7 +143,7 @@ watch(
 const deliveryDatePart = ref('')
 const deliveryTimePart = ref('')
 
-const deliveryTypeItems = ['VET', 'Domnaksiiksa', 'Grap', 'J&T']
+const deliveryTypeItems = ['VET', 'Learn Computer', 'Grap', 'J&T']
 
 const genderItems = computed(() => [
   { label: t('product.genderMale'), value: 'male' },
@@ -183,34 +189,6 @@ function onPhoneInput(event: Event) {
   customerPhone.value = digits
   if (target && target.value !== digits) target.value = digits
 }
-
-const enrollmentDurationField = computed({
-  get: () => enrollmentDurationMonths.value,
-  set: (value: string | number | null | undefined) => {
-    enrollmentDurationMonths.value = normalizeDurationMonthsInput(value)
-  },
-})
-
-const durationFieldError = computed(() => {
-  const raw = enrollmentDurationMonths.value.trim()
-  if (!raw) return ''
-  const status = validateEnrollmentDurationMonths(raw, props.classDurationMaxMonths)
-  if (status === 'invalid') return t('pages.allclass.validation.durationInvalid')
-  if (status === 'too_large') {
-    return t('pages.allclass.validation.durationExceedsClass', {
-      max: props.classDurationMaxMonths,
-    })
-  }
-  return ''
-})
-
-const durationFieldHint = computed(() => {
-  const max = props.classDurationMaxMonths
-  if (max != null && max > 0) {
-    return t('pages.allclass.student.durationHintMax', { max })
-  }
-  return t('pages.allclass.student.durationHint')
-})
 
 function onSelectCustomerType(type: string) {
   customerType.value = type
@@ -292,7 +270,37 @@ const enrollmentStartCalendar = computed({
   },
 })
 
-const durationInputTrailing = computed(() => t('pages.allclass.fields.durationUnit'))
+function durationOptionLabel(opt: StudentDurationOption): string {
+  return formatClassDuration(opt.months, t, te)
+}
+
+const durationSelectItems = computed(() => {
+  const options = filterStudentDurationOptions(props.classDurationMaxMonths)
+  const items = options.map((opt) => ({
+    value: String(opt.months),
+    label: durationOptionLabel(opt),
+  }))
+  // Keep legacy custom values visible if already selected
+  const current = normalizeStudentDurationValue(enrollmentDurationMonths.value)
+  if (current && !items.some((item) => item.value === current)) {
+    items.unshift({
+      value: current,
+      label: formatClassDuration(current, t, te) || current,
+    })
+  }
+  return items
+})
+
+watch(
+  () => enrollmentDurationMonths.value,
+  (raw) => {
+    const normalized = normalizeStudentDurationValue(raw)
+    if (normalized && normalized !== String(raw ?? '').trim()) {
+      enrollmentDurationMonths.value = normalized
+    }
+  },
+  { immediate: true },
+)
 
 const birthdateCalendar = computed({
   get(): DateValue | undefined {
@@ -611,29 +619,36 @@ function clearStudentImage() {
                 {{ $t('pages.allclass.student.durationOnClass') }}
                 <span class="text-error">*</span>
               </label>
-              <UInput
-                v-model="enrollmentDurationField"
-                type="text"
-                inputmode="decimal"
-                autocomplete="off"
-                :color="durationFieldError ? 'error' : undefined"
-                :placeholder="
-                  classDurationMaxMonths
-                    ? $t('pages.allclass.student.durationPlaceholderMax', { max: classDurationMaxMonths })
-                    : $t('pages.allclass.placeholders.duration')
-                "
+              <USelectMenu
+                v-model="enrollmentDurationMonths"
+                :items="durationSelectItems"
+                value-key="value"
+                label-key="label"
+                :placeholder="$t('pages.allclass.student.durationPlaceholder')"
                 size="lg"
                 class="w-full mt-1"
-              >
-                <template #trailing>
-                  <span class="text-sm text-muted-foreground shrink-0 pe-0.5 tabular-nums">
-                    {{ durationInputTrailing }}
-                  </span>
-                </template>
-              </UInput>
-              <p v-if="durationFieldError" class="text-xs text-error">{{ durationFieldError }}</p>
-              <p v-else class="text-xs text-muted-foreground">{{ durationFieldHint }}</p>
+              />
+              <p v-if="classDurationMaxMonths" class="text-xs text-muted-foreground">
+                {{
+                  $t('pages.allclass.student.classDurationHint', {
+                    max: formatClassDuration(classDurationMaxMonths, t, te),
+                  })
+                }}
+              </p>
             </div>
+          </div>
+
+          <div class="w-full space-y-1.5">
+            <label class="text-sm text-muted-foreground">
+              {{ $t('pages.allclass.payment.note') }}
+            </label>
+            <UTextarea
+              v-model="paymentNote"
+              :placeholder="$t('pages.allclass.payment.notePlaceholder')"
+              :rows="3"
+              autoresize
+              class="w-full mt-1"
+            />
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 # Docker commands
 
-Quick reference for **School Domnak** (Docker Compose + Nginx).
+Quick reference for **School Learn Computer** (Docker Compose + Nginx).
 
 ## Start / stop
 

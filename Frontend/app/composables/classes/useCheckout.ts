@@ -13,13 +13,13 @@ type PosCustomerInput = {
   customerName: string
   customerPhone: string
   customerAddress: string
-  source: string
   deliveryType: string
   deliveryPrice: number
   deliveryDate: string
   paymentMethod: string
   deliveryStatus: string
   sellerId?: number
+  paymentNote?: string
 }
 
 export function usePosCheckout() {

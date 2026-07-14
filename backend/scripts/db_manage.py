@@ -26,14 +26,14 @@ sys.path.insert(0, str(_scripts))
 
 
 def cmd_seed() -> None:
-    """Insert or update admin user + Admin role (no other business rows)."""
+    """Ensure Admin role exists (does not create a user)."""
     from seed_data import seed
 
     seed()
 
 
 def cmd_reset() -> None:
-    """Delete all rows in app tables (FK order), then run seed."""
+    """Delete all rows in app tables (FK order). No auto user — use /setup."""
     from reset_database import reset_database
 
     reset_database()
@@ -57,10 +57,10 @@ def main() -> None:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("seed", help="Create/update Admin role and admin user (idempotent)")
+    sub.add_parser("seed", help="Ensure Admin role exists (no default user)")
     sub.add_parser(
         "reset",
-        help="TRUNCATE/delete all app tables then seed admin (DESTRUCTIVE)",
+        help="TRUNCATE/delete all app tables (DESTRUCTIVE). Create admin via /setup",
     )
     sub.add_parser(
         "migrate",

@@ -6,18 +6,16 @@ import type { Category } from "~/types";
 import { useCategoryApi } from '~/utils/api'
 import type { ApiQueryParams } from '~/utils/api'
 import { useServerTableResource } from "~/composables/table/useServerTable";
-import { PERMISSIONS } from "~/utils/auth/permissions";
-import { isForbiddenError } from "~/utils/api/errors";
 
 export function useTotalRevenue() {
-  const auth = useAuthStore();
   const useBackendApi = useBackendMode();
   const categoryApi = useCategoryApi();
+  const { can, PERMISSIONS } = useCan();
   const { t, toast, rowSelection, columnVisibility, isConfirmOpen } =
     useBaseTable({});
 
   const { sorting, columnFilters, pagination, serverQuery } = useTableQuery({
-    initialSorting: [{ id: "id", desc: false }],
+    initialSorting: [{ id: "id", desc: true }],
   });
   const searchQuery = ref("");
 
@@ -50,7 +48,7 @@ export function useTotalRevenue() {
     serverQuery: mergedServerQuery,
     localData: entries,
     listFn: (query, signal) => categoryApi.list(query, signal),
-    debounceMs: 250
+    debounceMs: 150
   })
 
   /** Sum of linked-item counts (`Category.total`) for rows on the current table page only. */
@@ -80,14 +78,10 @@ export function useTotalRevenue() {
     { id: "action", header: t("common.actions") },
   ]);
 
-  const canCreateCategory = computed(() => auth.hasPermission(PERMISSIONS.categoryCreate));
-  const canUpdateCategory = computed(() => auth.hasPermission(PERMISSIONS.categoryUpdate));
-  const canDeleteCategory = computed(() => auth.hasPermission(PERMISSIONS.categoryDelete));
-
   // --- Row Actions ---
   function getDropdownActions(entry: Category): DropdownMenuItem[][] {
     const actions: DropdownMenuItem[] = [];
-    if (canUpdateCategory.value) {
+    if (can(PERMISSIONS.categoryUpdate)) {
       actions.push({
         label: t("actions.edit"),
         icon: "i-lucide-edit",
@@ -98,7 +92,7 @@ export function useTotalRevenue() {
         },
       });
     }
-    if (canDeleteCategory.value) {
+    if (can(PERMISSIONS.categoryDelete)) {
       actions.push({
         label: t("actions.delete"),
         icon: "i-lucide-trash",
@@ -115,17 +109,18 @@ export function useTotalRevenue() {
 
   // --- Request Intent (open confirm first) ---
   async function handleAdd() {
-    if (editingId.value !== null && !canUpdateCategory.value) return;
-    if (editingId.value === null && !canCreateCategory.value) return;
     const name = newName.value.trim();
     if (!name) return;
+    const isEdit = editingId.value !== null;
+    if (isEdit && !can(PERMISSIONS.categoryUpdate)) return;
+    if (!isEdit && !can(PERMISSIONS.categoryCreate)) return;
 
     pendingPayload.value = {
       id: editingId.value ?? undefined,
       name,
       description: newDescription.value.trim(),
     };
-    confirmMode.value = editingId.value !== null ? "edit" : "add";
+    confirmMode.value = isEdit ? "edit" : "add";
     isConfirmOpen.value = true;
   }
 
@@ -169,14 +164,13 @@ export function useTotalRevenue() {
           description: pendingPayload.value.description,
         });
         resetForm();
+        pagination.value.pageIndex = 0;
       }
 
-      await resource.refresh();
+      // Close confirm immediately; refresh list in background (no loading flash).
+      isConfirmOpen.value = false;
+      void resource.refresh();
     } catch (err: any) {
-      if (isForbiddenError(err)) {
-        isConfirmOpen.value = false;
-        return;
-      }
       console.error('Action failed:', err)
       const msg = err.data?.message || err.message || t("pages.category.error.tryAgain");
       toast.add({
@@ -184,9 +178,8 @@ export function useTotalRevenue() {
         description: msg,
         color: "error",
       });
+      isConfirmOpen.value = false;
     }
-
-    isConfirmOpen.value = false;
   }
 
   const confirmConfig = computed(() => {
@@ -237,8 +230,6 @@ export function useTotalRevenue() {
     newName,
     newDescription,
     handleAdd,
-    canCreateCategory,
-    canUpdateCategory,
     // Delete
     isConfirmOpen,
     confirmConfig,

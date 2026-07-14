@@ -29,7 +29,19 @@ def add_months(start: date, months: int) -> date:
     return date(year, month, min(start.day, last_day))
 
 
+# Week presets stored as fractional months (≈ days/30). Keys match frontend options.
+_WEEK_DURATION_DAYS: dict[float, int] = {
+    0.23: 7,
+    0.47: 14,
+    0.7: 21,
+}
+
+
 def compute_end_date(start: date, duration_months: float) -> date:
+    week_days = _WEEK_DURATION_DAYS.get(round(float(duration_months), 2))
+    if week_days:
+        return start + timedelta(days=week_days)
+
     whole = int(duration_months)
     fraction = duration_months - whole
     end = add_months(start, whole) if whole > 0 else start

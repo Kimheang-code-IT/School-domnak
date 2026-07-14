@@ -12,6 +12,8 @@ from app.schemas.auth import (
     LoginRequest,
     LogoutRequest,
     RefreshTokenRequest,
+    SetupRequest,
+    SetupStatusRead,
     TokenResponse,
 )
 from app.schemas.common import CommonResponse
@@ -21,7 +23,9 @@ from app.services.auth_service import (
     authenticate_user,
     build_auth_user,
     build_login_token,
+    create_initial_admin,
     create_refresh_token,
+    needs_initial_setup,
     refresh_access_token,
     revoke_refresh_token,
 )
@@ -31,6 +35,31 @@ from app.services.table_list_cache import cached_value
 router = APIRouter()
 DbSession = Annotated[Session, Depends(get_db)]
 CurrentUser = Annotated[User, Depends(get_current_active_user)]
+
+
+@router.get("/setup-status", response_model=SetupStatusRead)
+def setup_status(db: DbSession):
+    return SetupStatusRead(needs_setup=needs_initial_setup(db))
+
+
+@router.post("/setup", response_model=TokenResponse)
+def setup(payload: SetupRequest, request: Request, db: DbSession):
+    client_ip = request.client.host if request.client else "unknown"
+    enforce_login_rate_limit(f"setup:{client_ip}")
+    user = create_initial_admin(
+        db,
+        name=payload.name,
+        email=str(payload.email),
+        password=payload.password,
+    )
+    refresh_token = create_refresh_token(db, user)
+    access_token = build_login_token(user)
+    db.commit()
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        user=build_auth_user(user),
+    )
 
 
 @router.post("/login", response_model=TokenResponse)
