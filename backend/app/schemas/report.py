@@ -6,6 +6,7 @@ from app.schemas.common import CamelModel
 
 class ReportSalesLineRead(CamelModel):
     no: int
+    invoice_id: int | None = None
     invoice_no: str
     student_id: int | None = None
     student_name: str | None = None
@@ -14,6 +15,11 @@ class ReportSalesLineRead(CamelModel):
     address: str | None = None
     seller: str | None = None
     amount: Decimal
+    amount_paid: Decimal | None = None
+    amount_own: Decimal | None = None
+    exchange_rate: Decimal | None = None
+    payment_method: str | None = None
+    payment_status: str | None = None
     date: datetime
     product: str | None = None
     class_name: str | None = None

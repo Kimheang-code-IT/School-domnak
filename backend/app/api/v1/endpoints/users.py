@@ -64,6 +64,8 @@ def _to_read(user) -> UserRead:
         role=user.role.name if user.role else None,
         role_id=user.role_id,
         email=user.email,
+        telegram_key=user.telegram_key,
+        telegram_chat_id=user.telegram_chat_id,
         permissions=user.role.permissions if user.role and user.role.permissions else {},
         last_login=user.last_login,
         created_at=user.created_at,
@@ -90,7 +92,7 @@ def update_user(user_id: int, payload: UserUpdate, db: DbSession, current_user: 
     user = repo.get(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    update_data = user_update_data(db, payload)
+    update_data = user_update_data(db, payload, user_id=user_id)
     if "role_id" in update_data:
         _assert_can_assign_role(db, actor=current_user, role_id=update_data.get("role_id"))
     user = repo.update(db, user, update_data)

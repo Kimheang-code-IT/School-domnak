@@ -104,6 +104,18 @@ export function useReport() {
       header: t('pages.report.columns.studentPayment'),
       footer: formatCurrency(reportSummary.value.amountSum, 'USD'),
     },
+    {
+      accessorKey: 'amountPaid',
+      header: t('pages.report.columns.payAmount'),
+    },
+    {
+      accessorKey: 'amountOwn',
+      header: t('pages.report.columns.ownAmount'),
+    },
+    {
+      accessorKey: 'paymentStatus',
+      header: t('pages.report.columns.status'),
+    },
   ])
 
   function toggleSelectAllFiltered(checked: boolean) {
@@ -161,5 +173,6 @@ export function useReport() {
     columns,
     totalRows: resource.totalRows,
     fetchExportData,
+    refresh: resource.refresh,
   }
 }

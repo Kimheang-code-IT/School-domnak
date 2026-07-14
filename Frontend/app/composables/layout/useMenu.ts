@@ -10,6 +10,11 @@ export const useMenu = () => {
   const open = ref(false)
   const { t } = useI18n()
   const auth = useAuthStore()
+  // Auth lives in localStorage; keep menu empty until after mount so SSR HTML matches hydration.
+  const menuReady = ref(false)
+  onMounted(() => {
+    menuReady.value = true
+  })
 
   const rawLinks = computed(() => [[
     {
@@ -136,13 +141,14 @@ export const useMenu = () => {
     return { ...item }
   }
 
-  const links = computed(() =>
-    rawLinks.value.map((group) =>
+  const links = computed(() => {
+    if (!menuReady.value) return [[], []] as MenuLink[][]
+    return rawLinks.value.map((group) =>
       group
         .map((item) => filterMenuItem(item))
         .filter((item): item is MenuLink => item != null),
-    ),
-  )
+    )
+  })
 
   return {
     open,

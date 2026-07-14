@@ -27,7 +27,6 @@ export function mapProductViewStudentRow(row: Product): Product {
   const nameEn =
     nonEmptyString(row.nameEn) ??
     nonEmptyString(raw.name_en)
-  const legacyName = nonEmptyString(row.name)
 
   const image = nonEmptyString(row.image) ?? nonEmptyString(raw.image)
 
@@ -51,8 +50,9 @@ export function mapProductViewStudentRow(row: Product): Product {
       nonEmptyString(raw.display_id) ??
       nonEmptyString(raw.studentCode) ??
       nonEmptyString(raw.student_code),
-    nameKm: nameKm ?? legacyName,
-    nameEn: nameEn ?? legacyName,
+    nameKm: nameKm ?? '',
+    nameEn: nameEn ?? '',
+    name: nameEn || nameKm || nonEmptyString(row.name) || '',
     gender: nonEmptyString(row.gender) ?? nonEmptyString(raw.gender),
     birthdate:
       nonEmptyString(row.birthdate) ??

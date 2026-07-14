@@ -134,15 +134,15 @@ def to_class_enrollment_read(
 
 
 def class_level_labels(school_class: SchoolClass | None) -> tuple[str | None, str | None, str | None]:
-    """English level, Khmer level, and level_name_km from class denorm + levels table."""
+    """English level, Khmer level, and level_name_km from levels table via FK."""
     if not school_class:
         return None, None, None
     ref = school_class.level_ref
-    level_en = (school_class.level or (ref.level_name_en if ref else None) or "").strip() or None
-    level_km = (school_class.level_km or (ref.level_name_km if ref else None) or "").strip() or None
-    level_name_km = (ref.level_name_km if ref else None) or school_class.level_km
-    level_name_km = (level_name_km or "").strip() or None
-    return level_en, level_km, level_name_km
+    if not ref:
+        return None, None, None
+    level_en = (ref.level_name_en or "").strip() or None
+    level_km = (ref.level_name_km or "").strip() or None
+    return level_en, level_km, level_km
 
 
 def class_course_labels(school_class: SchoolClass | None) -> tuple[str | None, str | None]:

@@ -84,8 +84,37 @@ def build_auth_user(user: User) -> AuthUserRead:
         name=user.name,
         email=user.email,
         role=user.role.name if user.role else None,
+        telegram_key=user.telegram_key,
+        last_login=user.last_login,
         permissions=user.role.permissions if user.role and user.role.permissions else {},
     )
+
+
+def change_user_password(db: Session, user: User, *, current_password: str, new_password: str) -> None:
+    if not verify_password(current_password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect",
+        )
+    cleaned = (new_password or "").strip()
+    if len(cleaned) < 6:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be at least 6 characters",
+        )
+    if verify_password(cleaned, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be different from the current password",
+        )
+    user.password_hash = get_password_hash(cleaned)
+    write_audit_log(
+        db,
+        action="Update",
+        username=user.name,
+        description=f"{user.name} changed their password",
+    )
+    db.flush()
 
 
 def resolve_role_id(db: Session, *, role_id: int | None = None, role_name: str | None = None) -> int | None:
@@ -99,6 +128,8 @@ def resolve_role_id(db: Session, *, role_id: int | None = None, role_name: str |
 
 
 def user_create_data(db: Session, payload: UserCreate) -> dict:
+    from app.services.telegram_auth_service import generate_telegram_key, normalize_telegram_key
+
     data = payload.model_dump(exclude={"password", "role"})
     data["password_hash"] = get_password_hash(payload.password)
     resolved_role_id = resolve_role_id(db, role_id=payload.role_id, role_name=payload.role)
@@ -108,10 +139,20 @@ def user_create_data(db: Session, payload: UserCreate) -> dict:
             detail="A valid role is required",
         )
     data["role_id"] = resolved_role_id
+    key = normalize_telegram_key(payload.telegram_key) or generate_telegram_key()
+    existing = db.scalar(select(User).where(User.telegram_key == key))
+    if existing is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Telegram key is already used by another user",
+        )
+    data["telegram_key"] = key
     return data
 
 
-def user_update_data(db: Session, payload: UserUpdate) -> dict:
+def user_update_data(db: Session, payload: UserUpdate, *, user_id: int | None = None) -> dict:
+    from app.services.telegram_auth_service import normalize_telegram_key
+
     data = payload.model_dump(exclude_unset=True, exclude={"password", "role"})
     if payload.password:
         data["password_hash"] = get_password_hash(payload.password)
@@ -123,6 +164,20 @@ def user_update_data(db: Session, payload: UserUpdate) -> dict:
                 detail="A valid role is required",
             )
         data["role_id"] = resolved_role_id
+    if "telegram_key" in data:
+        key = normalize_telegram_key(data.get("telegram_key"))
+        if not key:
+            data.pop("telegram_key", None)
+        else:
+            existing = db.scalar(select(User).where(User.telegram_key == key))
+            if existing is not None and (user_id is None or existing.id != user_id):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Telegram key is already used by another user",
+                )
+            data["telegram_key"] = key
+            # Changing the key requires re-registration in Telegram.
+            data["telegram_chat_id"] = None
     return data
 
 
@@ -139,6 +194,7 @@ def create_initial_admin(db: Session, *, name: str, email: str, password: str) -
         )
 
     from app.core.permissions import ADMIN_PERMISSIONS, sanitize_role_permissions
+    from app.services.telegram_auth_service import generate_telegram_key
 
     clean_name = (name or "").strip()
     clean_email = (email or "").strip().lower()
@@ -161,6 +217,7 @@ def create_initial_admin(db: Session, *, name: str, email: str, password: str) -
         email=clean_email,
         password_hash=get_password_hash(password),
         role_id=admin_role.id,
+        telegram_key=generate_telegram_key(),
         last_login=_utcnow(),
     )
     db.add(user)

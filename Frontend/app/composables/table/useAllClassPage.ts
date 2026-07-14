@@ -9,6 +9,7 @@ import {
   useCoursesApi,
   useLevelsApi,
   useProductApi,
+  useProductsViewApi,
   usePosApi,
   useSystemUserApi
 } from '~/utils/api'
@@ -48,11 +49,18 @@ function resolveEnrollmentDurationDefault(classMonths: number | null | undefined
 export function useAllClassPage() {
   const { t, toast, isFormOpen, isConfirmOpen } = useBaseTable({})
   const { can, PERMISSIONS } = useCan()
+  const route = useRoute()
+  const router = useRouter()
 
   /** Enrollment wizard: 0 select class → 1 student info → 2 invoice */
   const currentStep = ref(0)
 
   const enrollmentInvoiceNo = ref('')
+  /** When set, finish saves via PUT /invoices/:id instead of checkout. */
+  const editingInvoiceId = ref<number | null>(null)
+  const isLoadingEditInvoice = ref(false)
+  const isUpdatingInvoice = ref(false)
+  let editInvoiceLoadKey = ''
 
   const enrollmentStepItems = computed<StepperItem[]>(() => [
     { title: t('pages.allclass.steps.selectClass'), icon: 'i-lucide-layout-grid' },
@@ -80,6 +88,10 @@ export function useAllClassPage() {
   const deliveryPrice = ref(2)
   const deliveryDate = ref('')
   const paymentMethod = ref('cash')
+  const amountPaid = ref(0)
+  const amountOwn = ref(0)
+  const { exchangeRate: sharedFxRate } = useExchangeRate()
+  const exchangeRate = ref(sharedFxRate.value || 4100)
   const deliveryStatus = ref('pending')
   const sellerId = ref<number | undefined>(undefined)
 
@@ -211,6 +223,10 @@ export function useAllClassPage() {
     seller: '',
     grandTotal: enrollmentTotal.value,
     paymentNote: paymentNote.value,
+    paymentMethod: paymentMethod.value,
+    amountPaid: amountPaid.value,
+    amountOwn: amountOwn.value,
+    exchangeRate: exchangeRate.value,
   }))
 
   function clearEnrollmentCart() {
@@ -232,8 +248,210 @@ export function useAllClassPage() {
   const coursesApi = useCoursesApi()
   const userApi = useSystemUserApi()
   const productApi = useProductApi('classes')
+  const classesCatalogApi = useProductsViewApi('classes')
   const posApi = usePosApi()
   const checkoutState = usePosCheckout()
+
+  const isEditingInvoice = computed(() => editingInvoiceId.value != null && editingInvoiceId.value > 0)
+
+  const canUseEnrollmentWizard = computed(
+    () =>
+      can(PERMISSIONS.allClassContinuePayment) ||
+      (isEditingInvoice.value && can(PERMISSIONS.reportEditInvoice)),
+  )
+
+  const isFinishing = computed(
+    () => checkoutState.isFinishing.value || isUpdatingInvoice.value,
+  )
+
+  function stubProductFromInvoiceLine(line: {
+    classId?: number | null
+    productName?: string
+    price?: number
+    qty?: number
+  }): Product {
+    const classId = Number(line.classId)
+    const price = Math.max(0, Number(line.price || 0))
+    return {
+      id: classId,
+      image: '',
+      name: String(line.productName || '').trim() || `Class #${classId}`,
+      category: '',
+      categoryId: '',
+      inPrice: price,
+      outPrice: price,
+      commission: 0,
+      totalStock: 0,
+      inStock: 0,
+      sold: 0,
+      added: 0,
+      damaged: 0,
+      status: 'active',
+      createdAt: '',
+    }
+  }
+
+  async function loadClassesCatalog(): Promise<Product[]> {
+    try {
+      const res = await classesCatalogApi.list({
+        page: 1,
+        limit: clampApiPageLimit(500),
+        sortBy: 'name',
+        sortOrder: 'asc',
+      })
+      const rows = extractApiArray<Product>(res)
+      return rows.length ? rows : productsState.filteredProducts.value.slice()
+    } catch {
+      return productsState.filteredProducts.value.slice()
+    }
+  }
+
+  async function applyInvoiceForEdit(invoice: {
+    id: number
+    invoiceNo: string
+    studentId?: number | null
+    studentName?: string | null
+    nameKm?: string | null
+    nameEn?: string | null
+    studentPhone?: string | null
+    gender?: string | null
+    birthdate?: string | null
+    address?: string | null
+    paymentNote?: string | null
+    paymentMethod?: string | null
+    amountPaid?: number | null
+    amountOwn?: number | null
+    exchangeRate?: number | null
+    discountAmount: number
+    lines: Array<{
+      id: number
+      classId?: number | null
+      productName: string
+      qty: number
+      price: number
+      total: number
+    }>
+  }) {
+    resetEnrollmentWizardFields()
+    editingInvoiceId.value = Number(invoice.id)
+    enrollmentInvoiceNo.value = String(invoice.invoiceNo || '').trim()
+
+    const catalog = await loadClassesCatalog()
+    const byId = new Map(catalog.map((row) => [Number(row.id), row]))
+
+    const lines = (invoice.lines || []).filter((line) => line.classId != null)
+    enrollmentCartLines.value = lines.map((line) => {
+      const classId = Number(line.classId)
+      const fromCatalog = byId.get(classId)
+      const product = fromCatalog
+        ? resolveProductForEnrollmentCart(fromCatalog)
+        : stubProductFromInvoiceLine(line)
+      return {
+        product,
+        qty: Math.max(1, Number(line.qty) || 1),
+      }
+    })
+
+    const first = enrollmentCartLines.value[0]?.product
+    const classMonths = parseDurationMonthsDecimal(first?.classDuration)
+    enrollmentDurationMonths.value = resolveEnrollmentDurationDefault(classMonths)
+    enrollmentStartDate.value = todayIsoDate()
+    syncEnrollmentCartPrices()
+
+    enrollmentDiscountMode.value = 'usd'
+    enrollmentDiscountPercent.value = 0
+    enrollmentDiscountFixed.value = Math.max(0, Number(invoice.discountAmount || 0))
+
+    customerType.value = 'Customer'
+    nameKm.value = String(invoice.nameKm || '').trim()
+    nameEn.value = String(invoice.nameEn || '').trim()
+    const combined =
+      [nameKm.value, nameEn.value].filter(Boolean).join(' · ') ||
+      String(invoice.studentName || '').trim()
+    customerName.value = combined
+    customerPhone.value = String(invoice.studentPhone || '').trim()
+    customerAddress.value = String(invoice.address || '').trim()
+    province.value = String(invoice.address || '').trim()
+    paymentNote.value = String(invoice.paymentNote || '').trim()
+    const sid = Number(invoice.studentId)
+    selectedStudentId.value = Number.isFinite(sid) && sid > 0 ? sid : undefined
+    gender.value = normalizeEnrollmentGender(invoice.gender)
+    birthdate.value = String(invoice.birthdate || '').trim().slice(0, 10)
+    const method = String(invoice.paymentMethod || 'cash').toLowerCase()
+    paymentMethod.value =
+      method === 'bank_transfer' || method === 'aba' ? 'bank' : method || 'cash'
+    const invPaid = Math.max(0, Number(invoice.amountPaid ?? 0))
+    const invOwn = Math.max(0, Number(invoice.amountOwn ?? 0))
+    if (paymentMethod.value === 'own') {
+      amountPaid.value = invPaid
+      amountOwn.value = invOwn
+    } else {
+      amountPaid.value = Math.max(0, Number(enrollmentTotal.value || 0))
+      amountOwn.value = 0
+    }
+    exchangeRate.value = Math.max(1, Number(invoice.exchangeRate ?? 4100) || 4100)
+
+    currentStep.value = 0
+  }
+
+  async function loadEditInvoiceFromRoute() {
+    const editNo = String(route.query.editInvoice || '').trim()
+    const editIdRaw = Number(route.query.editInvoiceId)
+    const editId = Number.isFinite(editIdRaw) && editIdRaw > 0 ? editIdRaw : null
+
+    if (!editNo && !editId) {
+      if (editingInvoiceId.value != null) {
+        editingInvoiceId.value = null
+        editInvoiceLoadKey = ''
+      }
+      return
+    }
+
+    if (!can(PERMISSIONS.reportEditInvoice) && !can(PERMISSIONS.allClassContinuePayment)) {
+      toast.add({
+        title: t('common.error'),
+        description: t('pages.report.editInvoice'),
+        color: 'error',
+      })
+      await router.replace({ path: '/allclass', query: {} })
+      return
+    }
+
+    const loadKey = editId ? `id:${editId}` : `no:${editNo}`
+    if (editInvoiceLoadKey === loadKey && editingInvoiceId.value) return
+    if (isLoadingEditInvoice.value) return
+
+    isLoadingEditInvoice.value = true
+    try {
+      const invoice = editId
+        ? await posApi.getInvoice(editId)
+        : await posApi.getInvoiceByNo(editNo)
+      await applyInvoiceForEdit(invoice)
+      editInvoiceLoadKey = loadKey
+      toast.add({
+        title: t('pages.report.editInvoice'),
+        description: t('pages.allclass.editInvoiceLoaded', { invoiceNo: invoice.invoiceNo }),
+        color: 'primary',
+      })
+    } catch (err: unknown) {
+      const e = err as { data?: { detail?: string; message?: string }; message?: string }
+      editingInvoiceId.value = null
+      editInvoiceLoadKey = ''
+      toast.add({
+        title: t('pages.report.editInvoice'),
+        description: String(e?.data?.detail || e?.data?.message || e?.message || t('common.error')),
+        color: 'error',
+      })
+      await router.replace({ path: '/allclass', query: {} })
+    } finally {
+      isLoadingEditInvoice.value = false
+    }
+  }
+
+  function exitEditInvoiceMode() {
+    resetEnrollmentWizard()
+    void router.replace({ path: '/allclass', query: {} })
+  }
   const mutation = useMutation()
 
   const isClassStudentsModalOpen = ref(false)
@@ -768,8 +986,10 @@ export function useAllClassPage() {
 
   const paymentMethodItems = computed(() => [
     { label: t('pages.allclass.payment.cash'), value: 'cash' },
-    { label: t('pages.allclass.payment.bankTransfer'), value: 'bank_transfer' },
-    { label: t('pages.allclass.payment.other'), value: 'other' }
+    { label: t('pages.allclass.payment.bank'), value: 'bank' },
+    { label: t('pages.allclass.payment.wing'), value: 'wing' },
+    { label: t('pages.allclass.payment.own'), value: 'own' },
+    { label: t('pages.allclass.payment.other'), value: 'other' },
   ])
 
   async function loadNextEnrollmentInvoiceNo() {
@@ -790,7 +1010,7 @@ export function useAllClassPage() {
   }
 
   async function goNextStep() {
-    if (!can(PERMISSIONS.allClassContinuePayment)) return
+    if (!canUseEnrollmentWizard.value) return
     if (currentStep.value === 0) {
       if (enrollmentCartLines.value.length === 0) {
         toast.add({
@@ -859,7 +1079,7 @@ export function useAllClassPage() {
   }
 
   async function finishEnrollmentCheckout(): Promise<{ invoiceNo: string; jobId: string | null } | null> {
-    if (!can(PERMISSIONS.allClassContinuePayment)) return null
+    if (!canUseEnrollmentWizard.value) return null
     if (enrollmentCartLines.value.length === 0) {
       toast.add({
         title: t('common.error'),
@@ -867,6 +1087,44 @@ export function useAllClassPage() {
         color: 'warning'
       })
       return null
+    }
+
+    if (isEditingInvoice.value && editingInvoiceId.value) {
+      isUpdatingInvoice.value = true
+      try {
+        syncEnrollmentCartPrices()
+        await posApi.updateInvoice(editingInvoiceId.value, {
+          discountAmount: Math.max(0, Number(enrollmentDiscountAmount.value) || 0),
+          paymentNote: paymentNote.value.trim() || null,
+          paymentMethod: paymentMethod.value,
+          amountPaid: Math.max(0, Number(amountPaid.value) || 0),
+          amountOwn: Math.max(0, Number(amountOwn.value) || 0),
+          exchangeRate: Math.max(1, Number(exchangeRate.value) || 4100),
+          lines: enrollmentCartLines.value.map((line) => ({
+            classId: Number(line.product.id),
+            qty: Math.max(1, Number(line.qty) || 1),
+            price: Math.max(0, Number(line.product.outPrice) || 0),
+          })),
+        })
+        const invoiceNo = enrollmentInvoiceNo.value
+        toast.add({
+          title: t('pages.report.editInvoice'),
+          description: t('pages.report.invoiceUpdated'),
+          color: 'success',
+        })
+        void productsState.refreshProducts()
+        return { invoiceNo, jobId: null }
+      } catch (err: unknown) {
+        const e = err as { message?: string; data?: { detail?: string; message?: string } }
+        toast.add({
+          title: t('common.error'),
+          description: String(e?.data?.detail || e?.data?.message || e?.message || 'Update failed'),
+          color: 'error',
+        })
+        return null
+      } finally {
+        isUpdatingInvoice.value = false
+      }
     }
 
     const startIso = normalizeIsoDate(enrollmentStartDate.value)
@@ -911,6 +1169,9 @@ export function useAllClassPage() {
           deliveryPrice: deliveryPrice.value,
           deliveryDate: deliveryDate.value,
           paymentMethod: paymentMethod.value,
+          amountPaid: Math.max(0, Number(amountPaid.value) || 0),
+          amountOwn: Math.max(0, Number(amountOwn.value) || 0),
+          exchangeRate: Math.max(1, Number(exchangeRate.value) || 4100),
           deliveryStatus: deliveryStatus.value,
           sellerId: sellerId.value,
           studentId: selectedStudentId.value,
@@ -964,7 +1225,7 @@ export function useAllClassPage() {
     if (currentStep.value > 0) currentStep.value -= 1
   }
 
-  function resetEnrollmentWizard() {
+  function resetEnrollmentWizardFields() {
     currentStep.value = 0
     customerType.value = 'Customer'
     customerName.value = ''
@@ -983,6 +1244,9 @@ export function useAllClassPage() {
     deliveryPrice.value = 2
     deliveryDate.value = ''
     paymentMethod.value = 'cash'
+    amountPaid.value = 0
+    amountOwn.value = 0
+    exchangeRate.value = 4100
     deliveryStatus.value = 'pending'
     sellerId.value = undefined
     paymentNote.value = ''
@@ -992,6 +1256,20 @@ export function useAllClassPage() {
     enrollmentDiscountPercent.value = 0
     enrollmentDiscountFixed.value = 0
   }
+
+  function resetEnrollmentWizard() {
+    resetEnrollmentWizardFields()
+    editingInvoiceId.value = null
+    editInvoiceLoadKey = ''
+  }
+
+  watch(
+    () => [String(route.query.editInvoice || ''), String(route.query.editInvoiceId || '')] as const,
+    () => {
+      void loadEditInvoiceFromRoute()
+    },
+    { immediate: true },
+  )
 
   onMounted(() => {
     loadLookupData()
@@ -1233,6 +1511,9 @@ export function useAllClassPage() {
     deliveryPrice,
     deliveryDate,
     paymentMethod,
+    amountPaid,
+    amountOwn,
+    exchangeRate,
     deliveryStatus,
     sellerId,
     paymentNote,
@@ -1245,13 +1526,16 @@ export function useAllClassPage() {
     enrollmentSubtotal,
     enrollmentDiscountAmount,
     enrollmentTotal,
-    isFinishing: checkoutState.isFinishing,
+    isFinishing,
+    isEditingInvoice,
+    isLoadingEditInvoice,
     clearEnrollmentCart,
     removeEnrollmentItem,
     goNextStep,
     goPrevStep,
     finishEnrollmentCheckout,
     resetEnrollmentWizard,
+    exitEditInvoiceMode,
     isFormOpen,
     isConfirmOpen,
     classFormFields,

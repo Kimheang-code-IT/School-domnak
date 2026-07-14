@@ -28,16 +28,17 @@ class UserRepository(BaseRepository[User]):
             db,
             query,
             base_statement=statement,
+            search_columns=[User.name, User.email, Role.name, User.telegram_key],
+            date_column=User.created_at,
             sort_map={
                 "id": User.id,
                 "name": User.name,
                 "email": User.email,
                 "role": Role.name,
+                "telegramKey": User.telegram_key,
                 "lastLogin": User.last_login,
                 "createdAt": User.created_at,
             },
-            search_columns=[User.name, User.email, Role.name],
-            date_column=User.created_at,
         )
         data = [
             UserRead(
@@ -46,6 +47,8 @@ class UserRepository(BaseRepository[User]):
                 role=role_name,
                 role_id=user.role_id,
                 email=user.email,
+                telegram_key=user.telegram_key,
+                telegram_chat_id=user.telegram_chat_id,
                 permissions=permissions or {},
                 last_login=user.last_login,
                 created_at=user.created_at,

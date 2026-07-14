@@ -17,6 +17,9 @@ type PosCustomerInput = {
   deliveryPrice: number
   deliveryDate: string
   paymentMethod: string
+  amountPaid?: number
+  amountOwn?: number
+  exchangeRate?: number
   deliveryStatus: string
   sellerId?: number
   paymentNote?: string
@@ -45,6 +48,10 @@ export function usePosCheckout() {
         discountPercent: args.discountPercent,
         durationMonths: args.durationMonths,
         startDate: args.startDate,
+        paymentMethod: args.customer.paymentMethod,
+        amountPaid: args.customer.amountPaid,
+        amountOwn: args.customer.amountOwn,
+        exchangeRate: args.customer.exchangeRate,
         lines: mapCartToApiLines(args.cart)
       })
       const response = await posApi.checkout(payload)

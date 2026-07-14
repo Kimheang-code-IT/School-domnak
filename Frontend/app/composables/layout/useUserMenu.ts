@@ -73,13 +73,30 @@ export function useUserMenu() {
 
   applyThemeColors(currentPrimary.value, currentNeutral.value)
 
+  // Match SSR “User” until mount — auth is restored from localStorage on the client only.
+  const menuReady = ref(false)
+  onMounted(() => {
+    menuReady.value = true
+  })
+
+  function avatarBackground(seed: string) {
+    let hash = 0
+    for (let i = 0; i < seed.length; i += 1) {
+      hash = seed.charCodeAt(i) + ((hash << 5) - hash)
+    }
+    const palette = ['0ea5e9', '6366f1', '10b981', 'f59e0b', 'ec4899', '8b5cf6']
+    return palette[Math.abs(hash) % palette.length]
+  }
+
   const user = computed(() => {
-    const name = auth.user?.name || auth.user?.email || 'User'
+    const name = menuReady.value
+      ? (auth.user?.name || auth.user?.email || 'User')
+      : 'User'
 
     return {
       name,
       avatar: {
-        src: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`,
+        src: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=${avatarBackground(name)}&color=fff`,
         alt: name,
       },
     }
@@ -87,6 +104,12 @@ export function useUserMenu() {
 
   const router = useRouter()
   const session = useAuthSessionManager()
+  const isProfileOpen = ref(false)
+
+  function openProfile(e?: Event) {
+    e?.preventDefault()
+    isProfileOpen.value = true
+  }
 
   async function handleLogout(e?: Event) {
     e?.preventDefault()
@@ -105,9 +128,9 @@ export function useUserMenu() {
     const groups: DropdownMenuItem[][] = [
       [
         {
-          type: 'label',
           label: user.value.name,
           avatar: user.value.avatar,
+          onSelect: openProfile,
         },
       ],
     ]
@@ -137,6 +160,8 @@ export function useUserMenu() {
             checked: i18n.locale.value === loc.code,
             onSelect: (e: Event) => {
               e.preventDefault()
+              const cookie = useCookie<string>('i18n_redirected', { sameSite: 'lax' })
+              cookie.value = loc.code
               i18n.setLocale(loc.code)
             }
           }))
@@ -239,6 +264,8 @@ export function useUserMenu() {
   return {
     user,
     items,
+    isProfileOpen,
+    openProfile,
     handleLogout,
   }
 }

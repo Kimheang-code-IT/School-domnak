@@ -13,7 +13,7 @@ export type TelegramQueueStatus = {
 
 /**
  * Polls backend while Telegram bot is processing queued getUpdates.
- * Drives full-screen AppMatrixLoader overlay in default layout when busy.
+ * Drives full-screen loading overlay in default layout when busy.
  */
 export function useTelegramBotStatus(pollMs = 2000) {
   const api = useApi()

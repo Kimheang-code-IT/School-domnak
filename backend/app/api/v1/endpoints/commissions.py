@@ -2,11 +2,13 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.core.database import get_db
 from app.core.security import require_permission
+from app.models.class_model import SchoolClass
 from app.models.commission import Commission
+from app.models.student import Student
 from app.models.user import User
 from app.schemas.commission import CommissionRead
 from app.schemas.common import TableQueryParams, TableResponse, table_query_params
@@ -27,21 +29,50 @@ CommissionExportUser = Annotated[User, Depends(require_permission("commissions",
 
 SORT_MAP = {
     "id": Commission.id,
-    "teacherName": Commission.teacher_name,
-    "className": Commission.class_name,
-    "studentName": Commission.student_name,
+    "teacherName": User.name,
+    "className": SchoolClass.name,
+    "studentName": Student.name_en,
     "amount": Commission.amount,
     "commission": Commission.commission,
     "date": Commission.created_at,
 }
 
 
+def _teacher_label(row: Commission) -> str:
+    if row.teacher is not None and (row.teacher.name or "").strip():
+        return row.teacher.name.strip()
+    if row.school_class is not None and row.school_class.teacher is not None:
+        name = (row.school_class.teacher.name or "").strip()
+        if name:
+            return name
+    return "Unknown"
+
+
+def _student_label(row: Commission) -> str | None:
+    if row.student is None:
+        return None
+    en = (row.student.name_en or "").strip()
+    if en:
+        return en
+    return (row.student.name_km or "").strip() or None
+
+
+def _class_label(row: Commission) -> str | None:
+    if row.school_class is not None:
+        return row.school_class.name
+    return None
+
+
 def _to_read(row: Commission) -> CommissionRead:
     return CommissionRead(
         id=row.id,
-        class_name=row.class_name,
-        student_name=row.student_name,
-        teacher_name=row.teacher_name,
+        class_id=row.class_id,
+        student_id=row.student_id,
+        invoice_id=row.invoice_id,
+        teacher_id=row.teacher_id,
+        class_name=_class_label(row),
+        student_name=_student_label(row),
+        teacher_name=_teacher_label(row),
         date=row.created_at,
         amount=row.amount,
         commission=row.commission,
@@ -58,7 +89,17 @@ def _build_commission_query(
     *,
     class_id: str | None = None,
 ):
-    statement = select(Commission)
+    statement = (
+        select(Commission)
+        .outerjoin(SchoolClass, SchoolClass.id == Commission.class_id)
+        .outerjoin(Student, Student.id == Commission.student_id)
+        .outerjoin(User, User.id == Commission.teacher_id)
+        .options(
+            selectinload(Commission.school_class).selectinload(SchoolClass.teacher),
+            selectinload(Commission.student),
+            selectinload(Commission.teacher),
+        )
+    )
 
     class_ids = split_int_filter(class_id)
     if class_ids:
@@ -67,7 +108,7 @@ def _build_commission_query(
     statement = apply_search(
         statement,
         query.search,
-        [Commission.teacher_name, Commission.class_name, Commission.student_name],
+        [User.name, SchoolClass.name, Student.name_en, Student.name_km],
     )
     statement = apply_date_filter(statement, Commission.created_at, query.date_from, query.date_to)
     total = db.scalar(select(func.count()).select_from(statement.order_by(None).subquery())) or 0
@@ -101,7 +142,7 @@ def list_commissions(
             query,
             **_commission_filter_kwargs(class_id=class_id),
         )
-        rows = db.scalars(apply_pagination(statement, query.page, query.limit)).all()
+        rows = db.scalars(apply_pagination(statement, query.page, query.limit)).unique().all()
         return [_to_read(row) for row in rows], total
 
     return cached_table_list(
@@ -125,7 +166,7 @@ def export_commissions(
         query,
         **_commission_filter_kwargs(class_id=class_id),
     )
-    rows = db.scalars(statement).all()
+    rows = db.scalars(statement).unique().all()
     data = [_to_read(row) for row in rows]
     write_audit_log(
         db,

@@ -54,6 +54,7 @@ type StudentLookupItem = {
   studentId: string
   nameKm: string
   nameEn: string
+  displayName: string
   phone: string
   avatar: { src: string; alt?: string; loading?: 'lazy' } | { icon: string }
   product: Product
@@ -72,14 +73,19 @@ function mapStudentLookupItem(p: Product): StudentLookupItem {
   const nameKm = String(p.nameKm ?? '').trim() || '—'
   const nameEn = String(p.nameEn ?? '').trim() || '—'
   const phone = String(p.phone ?? '').trim() || '—'
+  const displayName =
+    [nameEn !== '—' ? nameEn : '', nameKm !== '—' ? nameKm : '']
+      .filter(Boolean)
+      .join(' · ') || '—'
   return {
     value: String(p.id),
     studentId,
     nameKm,
     nameEn,
+    displayName,
     phone,
     avatar: p.image
-      ? { src: p.image, alt: nameEn !== '—' ? nameEn : nameKm, loading: 'lazy' as const }
+      ? { src: p.image, alt: displayName, loading: 'lazy' as const }
       : { icon: 'i-lucide-user' },
     product: p
   }
@@ -477,11 +483,11 @@ function clearStudentImage() {
 <template>
   <div class="w-full flex min-h-0 flex-1 flex-col bg-card overflow-hidden lg:border-r border-default">
     <div class="shrink-0 border-b border-default bg-background px-4 py-2.5 sm:px-6 lg:px-8">
-      <div class="flex w-full flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div class="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 class="text-base font-semibold tracking-tight text-foreground sm:shrink-0">
           {{ $t('pages.allclass.student.studentInTitle') }}
         </h2>
-        <div ref="searchAreaRef" class="relative min-w-0 w-full sm:max-w-xl">
+        <div ref="searchAreaRef" class="relative ml-auto min-w-0 w-full sm:w-72 md:w-80">
           <CommonAppSearch v-model="studentSearchQuery" :placeholder="$t('pages.allclass.student.searchExisting')"
             class="w-full max-w-none" @focus="onSearchFocus" />
           <div v-if="suggestionsOpen && studentSearchQuery.trim()"
@@ -494,17 +500,17 @@ function clearStudentImage() {
               class="w-full text-muted-foreground"
             />
             <div v-else-if="filteredStudents.length" class="max-h-52 overflow-auto">
-              <button v-for="item in filteredStudents" :key="item.value" type="button"
-                class="flex w-full items-center gap-2 border-b border-default/80 px-3 py-2.5 text-left transition-colors last:border-b-0 hover:bg-muted/60"
-                @click="selectStudentLookupItem(item)">
-                <UAvatar v-bind="item.avatar" size="sm" class="shrink-0 mr-10" />
-                <div
-                  class="grid min-w-0 flex-1 grid-cols-[4.5rem_minmax(0,1fr)_minmax(0,1fr)_5.5rem] gap-15 items-center text-sm">
-                  <span class="truncate font-medium text-foreground">{{ item.studentId }}</span>
-                  <span class="truncate text-foreground">{{ item.nameKm }}</span>
-                  <span class="truncate text-foreground">{{ item.nameEn }}</span>
-                  <span class="truncate text-muted-foreground tabular-nums">{{ item.phone }}</span>
-                </div>
+              <button
+                v-for="item in filteredStudents"
+                :key="item.value"
+                type="button"
+                class="flex w-full items-center gap-3 border-b border-default/80 px-3 py-2.5 text-left transition-colors last:border-b-0 hover:bg-muted/60"
+                @click="selectStudentLookupItem(item)"
+              >
+                <UAvatar v-bind="item.avatar" size="sm" class="shrink-0" />
+                <span class="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                  {{ item.displayName }}
+                </span>
               </button>
             </div>
             <div v-else class="px-3 py-3 text-sm text-muted-foreground">

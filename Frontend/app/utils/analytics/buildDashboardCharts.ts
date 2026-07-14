@@ -64,8 +64,8 @@ export function buildCommissionByTeacher(rows: ComissionEntry[]): ChartPoint[] {
     .sort((a, b) => b.value - a.value)
 }
 
-/** Active enrollments + available seats per class (bar + line mix chart). */
-export function buildClassEnrollmentBar(classes: Product[], limit = 14): BarChartData {
+/** Active enrollments per class (bars only for classes that have students). */
+export function buildClassEnrollmentBar(classes: Product[], limit = 24): BarChartData {
   const items = classes
     .map((row) => {
       const students = classStudentCount(row)
@@ -76,7 +76,7 @@ export function buildClassEnrollmentBar(classes: Product[], limit = 14): BarChar
         seats: Number.isFinite(seats) ? Math.max(0, seats) : 0,
       }
     })
-    .filter((item) => item.students > 0 || item.seats > 0)
+    .filter((item) => item.students > 0)
     .sort((a, b) => b.students - a.students || b.seats - a.seats)
     .slice(0, limit)
 

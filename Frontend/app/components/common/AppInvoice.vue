@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Product } from '~/types'
 import { formatCurrency } from '~/utils/format/currency'
+import { clampExchangeRate, formatKhr } from '~/utils/format/paymentCurrency'
 import { formatDateShort } from '~/utils/format/date'
 import { formatClassDuration, normalizeIsoDate } from '~/utils/format/duration'
 import logo from '~/assets/images/logoapp.png'
@@ -28,7 +29,13 @@ interface ReportInvoice {
   phoneCustomer: string
   seller: string
   grandTotal?: number
+  subtotal?: number
+  discountAmount?: number
   paymentNote?: string
+  paymentMethod?: string
+  amountPaid?: number
+  amountOwn?: number
+  exchangeRate?: number
 }
 
 interface CartItem {
@@ -60,16 +67,15 @@ const props = withDefaults(
 
 /** Study start/end from student form (checkout) or saved invoice preview. */
 const displayStartDate = computed(() => {
-  const iso =
+  return (
     normalizeIsoDate(props.selectedReportInvoice?.startDate) ||
-    props.selectedReportInvoice?.date
-  return iso || new Date().toISOString()
+    props.selectedReportInvoice?.date ||
+    ''
+  )
 })
 
 const displayEndDate = computed(() => {
-  const fromReport = normalizeIsoDate(props.selectedReportInvoice?.endDate)
-  if (fromReport) return fromReport
-  return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+  return normalizeIsoDate(props.selectedReportInvoice?.endDate) || ''
 })
 
 const firstInvoiceProduct = computed(() => props.cart[0]?.product)
@@ -192,8 +198,36 @@ const invoiceShiftDays = computed(() => {
   })).join(', ') || 'N/A'
 })
 
-const displayNote = computed(() =>
-  String(props.selectedReportInvoice?.paymentNote || props.note || '').trim()
+const displayNote = computed(() => {
+  const note = String(props.selectedReportInvoice?.paymentNote || props.note || '').trim()
+  return note || '—'
+})
+
+const invoiceExchangeRate = computed(() =>
+  clampExchangeRate(props.selectedReportInvoice?.exchangeRate),
+)
+
+const displayAmountPaid = computed(() => {
+  const method = String(props.selectedReportInvoice?.paymentMethod || '').toLowerCase()
+  const paid = Number(props.selectedReportInvoice?.amountPaid ?? 0)
+  const own = Number(props.selectedReportInvoice?.amountOwn ?? 0)
+  if (method === 'own' || own > 0 || paid > 0) return Math.max(0, paid)
+  return 0
+})
+
+const displayAmountOwn = computed(() => {
+  const method = String(props.selectedReportInvoice?.paymentMethod || '').toLowerCase()
+  const own = Number(props.selectedReportInvoice?.amountOwn ?? 0)
+  if (method === 'own' || own > 0) return Math.max(0, own)
+  return 0
+})
+
+const showOwnPaymentBreakdown = computed(
+  () => displayAmountOwn.value > 0 || String(props.selectedReportInvoice?.paymentMethod || '').toLowerCase() === 'own',
+)
+
+const displayDiscountAmount = computed(() =>
+  Number(props.displayDiscount ?? props.selectedReportInvoice?.discountAmount ?? 0) || 0,
 )
 </script>
 
@@ -222,7 +256,7 @@ const displayNote = computed(() =>
                 <span class="text-slate-600 font-bold">{{ t('pages.school.invoice.fields.endDate') }}:</span>
                 <span class="font-bold text-slate-900">{{ formatDateShort(displayEndDate) }}</span>
                 <span class="text-slate-600 font-bold">{{ t('pages.school.invoice.fields.registered') }}:</span>
-                <span class="font-bold text-slate-900">{{ formatDateShort(selectedReportInvoice?.registeredAt || new Date()) }}</span>
+                <span class="font-bold text-slate-900">{{ formatDateShort(selectedReportInvoice?.registeredAt || '') }}</span>
                 <span class="text-slate-600 font-bold">{{ t('pages.school.invoice.fields.duration') }}:</span>
                 <span class="font-bold text-slate-900">{{ invoiceClassDuration }}</span>
               </div>
@@ -310,12 +344,34 @@ const displayNote = computed(() =>
 
                 <div class="flex justify-between text-xs text-slate-500 px-1">
                   <span class="font-bold">{{ t('pages.school.invoice.summary.discount') }}</span>
-                  <span class="font-black text-slate-800">{{ formatCurrency(displayDiscount, 'USD') }}</span>
+                  <span class="font-black text-slate-800">{{ formatCurrency(displayDiscountAmount, 'USD') }}</span>
                 </div>
                 <div class="flex justify-between items-center bg-slate-100 p-2 rounded-sm">
                   <span class="text-sm font-black text-slate-900">{{ t('pages.school.invoice.summary.grandTotal') }}</span>
-                  <span class="text-lg font-black text-slate-900">{{ formatCurrency(displayTotal, 'USD') }}</span>
+                  <span class="text-right">
+                    <span class="block text-lg font-black text-slate-900">{{ formatCurrency(displayTotal, 'USD') }}</span>
+                    <span class="block text-[10px] font-bold text-slate-500">{{ formatKhr(displayTotal, invoiceExchangeRate) }}</span>
+                  </span>
                 </div>
+                <template v-if="showOwnPaymentBreakdown">
+                  <div class="flex justify-between items-center px-1 text-xs text-slate-500">
+                    <span class="font-bold">{{ t('pages.allclass.payment.payAmount') }}</span>
+                    <span class="text-right font-black text-slate-800">
+                      <span class="block">{{ formatCurrency(displayAmountPaid, 'USD') }}</span>
+                      <span class="block text-[10px] text-slate-500">{{ formatKhr(displayAmountPaid, invoiceExchangeRate) }}</span>
+                    </span>
+                  </div>
+                  <div class="flex justify-between items-center bg-amber-50 border border-amber-200 p-2 rounded-sm">
+                    <span class="text-sm font-black text-amber-800">{{ t('pages.allclass.payment.ownAmount') }}</span>
+                    <span class="text-right">
+                      <span class="block text-base font-black text-amber-800">{{ formatCurrency(displayAmountOwn, 'USD') }}</span>
+                      <span class="block text-[10px] font-bold text-amber-700">{{ formatKhr(displayAmountOwn, invoiceExchangeRate) }}</span>
+                    </span>
+                  </div>
+                  <p class="text-[10px] text-slate-400 px-1 font-bold">
+                    {{ t('pages.allclass.payment.fxHint', { rate: invoiceExchangeRate }) }}
+                  </p>
+                </template>
 
                 <USeparator class="mt-4" />
 
@@ -338,11 +394,11 @@ const displayNote = computed(() =>
             <div class="bg-primary text-white px-2 py-2.5 flex justify-between items-center gap-3 text-[10px] font-bold">
               <span class="font-bold text-sm flex items-center gap-1.5">
                 <UIcon name="i-lucide-phone-call" class="size-3.5 shrink-0" />
-                098720123
+                0962943472
               </span>
               <span class="font-bold text-xs flex items-center gap-1.5 text-right">
                 <UIcon name="i-lucide-map-pin" class="size-3.5 shrink-0" />
-                ផ្ទះលេខ ១១៦ ផ្លូវ ២៦១ សង្កាត់ទឹកល្អក់៣ ខណ្ឌទួលគោក រាជធានីភ្នំពេញ
+                សង្កាត់កាកាបទី១ ខណ្ឌពោធិ៍សែនជ័យ រាជធានីភ្នំពេញ
               </span>
             </div>
           </div>

@@ -26,7 +26,7 @@ export const ROLE_PERMISSION_CATALOG: Record<string, readonly string[]> = {
     'preview_certificate',
     'download_certificate',
   ],
-  reports: ['view', 'export', 'preview_invoice'],
+  reports: ['view', 'export', 'preview_invoice', 'edit_invoice'],
   finance: ['view', 'update', 'export'],
   courses: ['view', 'create', 'update', 'delete'],
   levels: ['view', 'create', 'update', 'delete'],

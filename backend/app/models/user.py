@@ -22,6 +22,10 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255))
     role_id: Mapped[int | None] = mapped_column(ForeignKey("roles.id"), nullable=True)
     commission: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    # Shared secret for Telegram bot registration (shown in User Management).
+    telegram_key: Mapped[str | None] = mapped_column(String(64), unique=True, index=True, nullable=True)
+    # Bound after the user enters telegram_key in the bot chat.
+    telegram_chat_id: Mapped[str | None] = mapped_column(String(64), unique=True, index=True, nullable=True)
     last_login: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), onupdate=func.now())

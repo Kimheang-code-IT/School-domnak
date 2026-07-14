@@ -187,6 +187,102 @@ def get_students_summary_by_class(
     return items
 
 
+def _enrollment_status_bucket(status: str, roster_active: bool) -> str:
+    normalized = (status or "").strip().lower()
+    if normalized in {"completed", "graduated", "graduate"}:
+        return "graduate"
+    if normalized == "active" and roster_active:
+        return "active"
+    return "inactive"
+
+
+def _student_display_name(student: Student) -> str:
+    km = (student.name_km or "").strip()
+    en = (student.name_en or "").strip()
+    if km and en:
+        return f"{km} · {en}"
+    return en or km or "—"
+
+
+def _enrollment_duration_label(enrollment: Enrollment, school_class: SchoolClass | None) -> str:
+    if enrollment.duration_months is not None:
+        months = float(enrollment.duration_months)
+        if months == int(months):
+            return f"{int(months)} months"
+        return f"{months:g} months"
+    if school_class and (school_class.class_duration or "").strip():
+        return str(school_class.class_duration).strip()
+    return "—"
+
+
+def get_class_roster_report(
+    db: Session,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
+    *,
+    class_id: int | None = None,
+    include_students: bool = True,
+) -> list[dict[str, Any]]:
+    """Per-class roster with Active / Inactive / Graduate counts (and optional student lines)."""
+    enroll_date = _enrollment_date_column()
+    stmt = (
+        select(SchoolClass, Enrollment, Student)
+        .join(Enrollment, Enrollment.class_id == SchoolClass.id)
+        .join(Student, Student.id == Enrollment.student_id)
+        .order_by(SchoolClass.name, Student.name_en, Student.name_km, Enrollment.id)
+    )
+    if class_id is not None:
+        stmt = stmt.where(SchoolClass.id == class_id)
+    for clause in _apply_datetime_filter(enroll_date, start_date, end_date):
+        stmt = stmt.where(clause)
+
+    grouped: dict[int, dict[str, Any]] = {}
+    for school_class, enrollment, student in db.execute(stmt).all():
+        bucket = grouped.get(school_class.id)
+        if bucket is None:
+            bucket = {
+                "class_id": school_class.id,
+                "class_name": school_class.name or "—",
+                "students": [],
+                "active": 0,
+                "inactive": 0,
+                "graduate": 0,
+            }
+            grouped[school_class.id] = bucket
+
+        status_bucket = _enrollment_status_bucket(enrollment.status or "", bool(enrollment.roster_active))
+        bucket[status_bucket] += 1
+        if include_students:
+            bucket["students"].append(
+                {
+                    "name": _student_display_name(student),
+                    "duration": _enrollment_duration_label(enrollment, school_class),
+                    "status": status_bucket,
+                }
+            )
+
+    items = list(grouped.values())
+    items.sort(key=lambda row: str(row["class_name"]).lower())
+    return items
+
+
+def get_classes_summary_report(
+    db: Session,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
+    *,
+    class_id: int | None = None,
+) -> list[dict[str, Any]]:
+    """Class totals only (no student name lines)."""
+    return get_class_roster_report(
+        db,
+        start_date,
+        end_date,
+        class_id=class_id,
+        include_students=False,
+    )
+
+
 @dataclass
 class IncomeSummary:
     total_invoice: int
@@ -389,7 +485,7 @@ def list_all_classes(db: Session) -> list[dict[str, Any]]:
 
 
 def list_all_teachers(db: Session) -> list[dict[str, Any]]:
-    teacher_key = func.coalesce(User.name, SchoolClass.teacher_name, "Unknown")
+    teacher_key = func.coalesce(User.name, "Unknown")
     rows = db.execute(
         select(User.id, teacher_key)
         .select_from(SchoolClass)
@@ -513,7 +609,7 @@ def get_students_by_class_detail(
     class_id: int | None = None,
 ) -> list[dict[str, Any]]:
     enroll_date = _enrollment_date_column()
-    teacher_label = func.coalesce(User.name, SchoolClass.teacher_name, "Unknown")
+    teacher_label = func.coalesce(User.name, "Unknown")
     stmt = (
         select(
             SchoolClass.id,
@@ -562,7 +658,7 @@ def get_students_by_teacher_detail(
     teacher_name: str | None = None,
 ) -> list[dict[str, Any]]:
     enroll_date = _enrollment_date_column()
-    teacher_label = func.coalesce(User.name, SchoolClass.teacher_name, "Unknown")
+    teacher_label = func.coalesce(User.name, "Unknown")
     stmt = (
         select(
             teacher_label,
@@ -599,10 +695,17 @@ def get_students_by_teacher_detail(
             price_after_discount=row[7],
         )
 
-    commission_stmt = select(
-        Commission.teacher_name,
-        func.coalesce(func.sum(Commission.commission), 0),
-    ).group_by(Commission.teacher_name)
+    teacher_user = User.__table__.alias("commission_teacher")
+    commission_teacher_label = func.coalesce(teacher_user.c.name, "Unknown")
+    commission_stmt = (
+        select(
+            commission_teacher_label,
+            func.coalesce(func.sum(Commission.commission), 0),
+        )
+        .select_from(Commission)
+        .outerjoin(teacher_user, teacher_user.c.id == Commission.teacher_id)
+        .group_by(commission_teacher_label)
+    )
     for clause in _apply_datetime_filter(Commission.created_at, start_date, end_date):
         commission_stmt = commission_stmt.where(clause)
     commission_map = {
@@ -693,14 +796,16 @@ def get_students_by_class(
 ) -> list[dict[str, Any]]:
     income_sq = _invoice_line_income_subquery(start_date, end_date)
     enroll_sq = _enrollment_counts_subquery(start_date, end_date)
+    teacher_label = func.coalesce(User.name, "Unknown")
     stmt = (
         select(
             SchoolClass.id,
             SchoolClass.name,
-            SchoolClass.teacher_name,
+            teacher_label,
             func.coalesce(enroll_sq.c.student_count, 0),
             func.coalesce(income_sq.c.income, 0),
         )
+        .outerjoin(User, User.id == SchoolClass.teacher_id)
         .outerjoin(enroll_sq, enroll_sq.c.class_id == SchoolClass.id)
         .outerjoin(income_sq, income_sq.c.class_id == SchoolClass.id)
         .order_by(func.coalesce(enroll_sq.c.student_count, 0).desc())
@@ -729,7 +834,7 @@ def get_students_by_teacher(
 ) -> list[dict[str, Any]]:
     income_sq = _invoice_line_income_subquery(start_date, end_date)
     enroll_sq = _enrollment_counts_subquery(start_date, end_date)
-    teacher_key = func.coalesce(User.name, SchoolClass.teacher_name, "Unknown")
+    teacher_key = func.coalesce(User.name, "Unknown")
     stmt = (
         select(
             User.id,
@@ -748,10 +853,17 @@ def get_students_by_teacher(
         stmt = stmt.where(teacher_key == teacher_name)
     rows = db.execute(stmt).all()
 
-    commission_stmt = select(
-        Commission.teacher_name,
-        func.coalesce(func.sum(Commission.commission), 0),
-    ).group_by(Commission.teacher_name)
+    teacher_user = User.__table__.alias("commission_teacher")
+    commission_teacher_label = func.coalesce(teacher_user.c.name, "Unknown")
+    commission_stmt = (
+        select(
+            commission_teacher_label,
+            func.coalesce(func.sum(Commission.commission), 0),
+        )
+        .select_from(Commission)
+        .outerjoin(teacher_user, teacher_user.c.id == Commission.teacher_id)
+        .group_by(commission_teacher_label)
+    )
     for clause in _apply_datetime_filter(Commission.created_at, start_date, end_date):
         commission_stmt = commission_stmt.where(clause)
     commission_map = {name: _money(amount) for name, amount in db.execute(commission_stmt).all()}

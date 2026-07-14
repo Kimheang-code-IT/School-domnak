@@ -73,7 +73,7 @@ class Settings(BaseSettings):
         default="",
         validation_alias=AliasChoices("GOOGLE_SHEETS_SPREADSHEET_ID", "GOOGLE_SPREADSHEET_ID"),
     )
-    backup_schedule_hour: int = Field(default=19, validation_alias="BACKUP_SCHEDULE_HOUR")
+    backup_schedule_hour: int = Field(default=20, validation_alias="BACKUP_SCHEDULE_HOUR")
     backup_schedule_minute: int = Field(default=0, validation_alias="BACKUP_SCHEDULE_MINUTE")
     backup_timezone: str = Field(default="Asia/Phnom_Penh", validation_alias="BACKUP_TIMEZONE")
 

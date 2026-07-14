@@ -45,6 +45,7 @@ export const PERMISSIONS = {
   reportView: 'report:view',
   reportExport: 'report:export',
   reportPreviewInvoice: 'report:preview-invoice',
+  reportEditInvoice: 'report:edit-invoice',
 
   comissionView: 'comission:view',
   comissionExport: 'comission:export',

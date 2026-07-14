@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.orm import Session
 
@@ -11,19 +13,14 @@ from app.utils.pagination import apply_pagination, get_offset
 from app.utils.sorting import apply_sorting
 
 
-def _english_student_name(invoice: Invoice, student: Student | None) -> str | None:
-    if student is not None:
-        en = (student.name_en or "").strip()
-        if en:
-            return en
-    raw = (invoice.student_name or "").strip()
-    if not raw:
+def _english_student_name(student: Student | None) -> str | None:
+    if student is None:
         return None
-    if " · " in raw:
-        parts = [part.strip() for part in raw.split(" · ") if part.strip()]
-        if len(parts) >= 2:
-            return parts[-1]
-    return raw
+    en = (student.name_en or "").strip()
+    if en:
+        return en
+    km = (student.name_km or "").strip()
+    return km or None
 
 
 class ReportRepository:
@@ -47,7 +44,7 @@ class ReportRepository:
         )
         products = split_filter(product)
         if products:
-            statement = statement.where(InvoiceLine.product_name.in_(products))
+            statement = statement.where(SchoolClass.name.in_(products))
 
         addresses = split_filter(address)
         if addresses:
@@ -74,14 +71,12 @@ class ReportRepository:
             query.search,
             [
                 Invoice.invoice_no,
-                Invoice.student_name,
                 Student.name_en,
                 Student.name_km,
-                Invoice.student_phone,
                 Student.phone,
                 Invoice.address,
                 Invoice.seller,
-                InvoiceLine.product_name,
+                SchoolClass.name,
                 Student.province,
                 cast(Student.id, String),
                 cast(Invoice.student_id, String),
@@ -96,8 +91,8 @@ class ReportRepository:
             sort_map={
                 "invoiceNo": Invoice.invoice_no,
                 "studentId": Invoice.student_id,
-                "studentName": Invoice.student_name,
-                "studentPhone": Invoice.student_phone,
+                "studentName": Student.name_en,
+                "studentPhone": Student.phone,
                 "product": SchoolClass.name,
                 "className": SchoolClass.name,
                 "address": Invoice.address,
@@ -116,20 +111,31 @@ class ReportRepository:
             resolved_address = (invoice.address or "").strip()
             if not resolved_address and student is not None:
                 resolved_address = (student.province or "").strip()
-            display_name = _english_student_name(invoice, student)
+            display_name = _english_student_name(student)
             sid = student.id if student is not None else invoice.student_id
-            class_name = (school_class.name if school_class else None) or line.product_name
+            phone = student.phone if student is not None else None
+            class_name = school_class.name if school_class else None
+            amount_own = Decimal(invoice.amount_own or 0)
+            amount_paid = Decimal(invoice.amount_paid or 0)
+            payment_status = "own" if amount_own > 0 else "paid"
+            payment_method = (invoice.payment_method or ("own" if amount_own > 0 else "cash"))
             data.append(
                 ReportSalesLineRead(
                     no=index,
+                    invoice_id=invoice.id,
                     invoice_no=invoice.invoice_no,
                     student_id=sid,
                     student_name=display_name,
-                    student_phone=invoice.student_phone,
-                    phone_customer=invoice.student_phone,
+                    student_phone=phone,
+                    phone_customer=phone,
                     address=resolved_address or None,
                     seller=invoice.seller,
                     amount=line.total,
+                    amount_paid=amount_paid,
+                    amount_own=amount_own,
+                    exchange_rate=Decimal(invoice.exchange_rate or 4100),
+                    payment_method=payment_method,
+                    payment_status=payment_status,
                     date=invoice.created_at,
                     product=class_name,
                     class_name=class_name,

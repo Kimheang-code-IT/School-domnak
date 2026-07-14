@@ -17,11 +17,15 @@ from app.services.telegram_bot_entities import (
     BTN_ALL_ENTITIES,
     BTN_ENTITY_NEXT,
     BTN_ENTITY_PREV,
-    ENTITY_TYPE_LABELS,
     action_needs_entity,
     build_entity_page_keyboard,
-    format_entity_catalog_text,
     load_entity_catalog,
+)
+from app.services.telegram_auth_service import (
+    extract_telegram_key_from_text,
+    is_telegram_chat_registered,
+    register_telegram_chat,
+    unlink_telegram_chat,
 )
 from app.services.telegram_state import clear_user_state, get_user_state, reset_flow
 from app.utils.date_period import parse_custom_date_range
@@ -32,32 +36,22 @@ TELEGRAM_API = "https://api.telegram.org/bot{token}/{method}"
 PAGE_SIZE = 20
 
 ACTION_LABELS: dict[str, str] = {
-    "students_summary": "Students Summary",
+    "students_summary": "Students",
     "by_finance": "Finance",
-    "by_category": "By Category",
-    "by_course": "By Course",
-    "by_class": "By Class",
-    "by_teacher": "By Teacher",
-    "registration_summary": "Registration Summary",
+    "by_class": "Classes",
 }
 
 ACTION_CALLBACKS = {
     "students_summary",
     "by_finance",
-    "by_category",
-    "by_course",
     "by_class",
-    "by_teacher",
-    "registration_summary",
 }
 
 # Report reply keyboard (bottom of chat — step 1)
-BTN_STUDENTS = "📊 Students"
+BTN_STUDENTS = "🧑‍💻 Students"
 BTN_FINANCE = "💰 Finance"
-BTN_CATEGORY = "📂 Category"
-BTN_COURSE = "📚 Course"
-BTN_CLASS = "🏫 Class"
-BTN_TEACHER = "👨‍🏫 Teacher"
+BTN_CLASS = "🏫 Classes"
+BTN_BACKUP = "☁️ Backup"
 
 # Period reply keyboard (bottom of chat — step 2)
 BTN_PERIOD_TODAY = "Today"
@@ -67,7 +61,6 @@ BTN_PERIOD_YEAR = "This Year"
 BTN_PERIOD_ALL = "All Time"
 BTN_PERIOD_CUSTOM = "Custom Range"
 BTN_MAIN_MENU = "◀️ Main Menu"
-BTN_BACKUP = "☁️ Backup to Google Sheets"
 
 # Text the user may send to leave period selection / return to report buttons
 MAIN_MENU_REPLY_KEYS = frozenset(
@@ -85,29 +78,18 @@ MAIN_MENU_REPLY_KEYS = frozenset(
 COMMAND_TO_ACTION: dict[str, str] = {
     "/students": "students_summary",
     "/finance": "by_finance",
-    "/income": "by_finance",
-    "/category": "by_category",
-    "/course": "by_course",
     "/class": "by_class",
-    "/teacher": "by_teacher",
-    "/registration": "registration_summary",
+    "/classes": "by_class",
 }
 
 REPLY_TEXT_TO_ACTION: dict[str, str] = {
     BTN_STUDENTS.lower(): "students_summary",
     BTN_FINANCE.lower(): "by_finance",
-    "income": "by_finance",
-    "💰 income": "by_finance",
-    BTN_CATEGORY.lower(): "by_category",
-    BTN_COURSE.lower(): "by_course",
     BTN_CLASS.lower(): "by_class",
-    BTN_TEACHER.lower(): "by_teacher",
     "students": "students_summary",
     "finance": "by_finance",
-    "category": "by_category",
-    "course": "by_course",
     "class": "by_class",
-    "teacher": "by_teacher",
+    "classes": "by_class",
 }
 
 REPLY_TEXT_TO_PERIOD: dict[str, str] = {
@@ -132,20 +114,59 @@ def _allowed_chat_ids() -> set[str]:
 
 
 def is_chat_allowed(chat_id: int | str) -> bool:
+    """Legacy env allowlist (used for outbound system alerts)."""
     allowed = _allowed_chat_ids()
     if not allowed:
         return True
     return str(chat_id) in allowed
 
 
+def register_prompt_text() -> str:
+    return (
+        f"{welcome_text()}\n\n"
+        "🔐 Please enter your <b>Telegram Key</b> to use this bot.\n\n"
+        "Example: <code>LC-A1B2C3D4</code>"
+    )
+
+
+async def ensure_telegram_registered(chat_id: int | str, text: str) -> bool:
+    """
+    Return True if this chat may use tools.
+    Unregistered chats may only submit a telegram_key to register.
+    """
+    db = SessionLocal()
+    try:
+        if is_telegram_chat_registered(db, chat_id):
+            return True
+
+        key = extract_telegram_key_from_text(text)
+        if key:
+            user = register_telegram_chat(db, chat_id=chat_id, key=key)
+            if user:
+                await send_message(
+                    chat_id,
+                    (
+                        f"✅ Registered as <b>{_esc(user.name)}</b>.\n\n"
+                        f"{report_menu_text()}"
+                    ),
+                    reply_keyboard=build_report_reply_keyboard(),
+                )
+                return False  # already replied; caller should stop
+            await send_message(chat_id, register_prompt_text())
+            return False
+
+        await send_message(chat_id, register_prompt_text())
+        return False
+    finally:
+        db.close()
+
+
 def build_report_reply_keyboard() -> dict[str, Any]:
-    """Reports + manual Google Sheets backup."""
+    """Students, Finance, Classes, Backup only."""
     return {
         "keyboard": [
             [{"text": BTN_STUDENTS}, {"text": BTN_FINANCE}],
-            [{"text": BTN_CATEGORY}, {"text": BTN_COURSE}],
-            [{"text": BTN_CLASS}, {"text": BTN_TEACHER}],
-            [{"text": BTN_BACKUP}],
+            [{"text": BTN_CLASS}, {"text": BTN_BACKUP}],
         ],
         "resize_keyboard": True,
         "one_time_keyboard": False,
@@ -153,7 +174,7 @@ def build_report_reply_keyboard() -> dict[str, Any]:
 
 
 def build_period_reply_keyboard() -> dict[str, Any]:
-    """Step 2 — pick date period (bottom keyboard)."""
+    """Step 3 — pick date period (bottom keyboard)."""
     return {
         "keyboard": [
             [{"text": BTN_PERIOD_TODAY}, {"text": BTN_PERIOD_YESTERDAY}],
@@ -314,7 +335,15 @@ def _format_students_summary(period_label: str, data: reports.StudentsSummary) -
     )
 
 
-def _format_students_summary_by_class(
+def _roster_totals(items: list[dict[str, Any]]) -> dict[str, int]:
+    return {
+        "active": sum(int(row.get("active") or 0) for row in items),
+        "inactive": sum(int(row.get("inactive") or 0) for row in items),
+        "graduate": sum(int(row.get("graduate") or 0) for row in items),
+    }
+
+
+def _format_students_roster_report(
     period_label: str,
     items: list[dict[str, Any]],
     *,
@@ -322,31 +351,84 @@ def _format_students_summary_by_class(
 ) -> str:
     start = (page - 1) * PAGE_SIZE
     chunk = items[start : start + PAGE_SIZE]
-    lines = ["📊 <b>Students Summary</b>", f"Period: {_esc(period_label)}", ""]
+    lines = [f"📊 <b>Students Summary</b> ( {_esc(period_label)} )", ""]
     if not chunk:
         lines.append("No student data for this period.")
-    else:
-        for row in chunk:
-            lines.append(f"- Class Name: {_esc(row['class_name'])}")
-            lines.append(f"Total Students: {row['active_students']} ( Active )")
-            lines.append(f"Total Students: {row['inactive_students']} ( Inactive )")
-            lines.append(f"Total Enrollments: {row['total_enrollments']}")
-            lines.append(f"New Students In Period: {row['new_students_in_period']}")
+        return "\n".join(lines).strip()
+
+    for index, row in enumerate(chunk):
+        lines.append(f"<b>Class Name: {_esc(row['class_name'])}</b>")
+        lines.append("")
+        students = row.get("students") or []
+        if students:
+            for student in students:
+                lines.append(f"- {_esc(student['name'])} : {_esc(student['duration'])}")
+        else:
+            lines.append("- No students")
+        lines.append("")
+        lines.append(f"Total Active : {row.get('active', 0)}")
+        lines.append(f"Total Inactive : {row.get('inactive', 0)}")
+        lines.append(f"Total Graduate : {row.get('graduate', 0)}")
+        if index < len(chunk) - 1 or start + PAGE_SIZE < len(items):
             lines.append("")
+            lines.append("---------------------------")
+            lines.append("")
+
+    totals = _roster_totals(items)
+    lines.append("========================")
+    lines.append("")
+    lines.append(f"Total All Active : {totals['active']}")
+    lines.append(f"Total All Inactive : {totals['inactive']}")
+    lines.append(f"Total All Graduate : {totals['graduate']}")
     return "\n".join(lines).strip()
 
 
-def _format_finance_row_block(index: int, row: dict[str, Any]) -> list[str]:
+def _format_classes_summary_report(
+    period_label: str,
+    items: list[dict[str, Any]],
+    *,
+    page: int = 1,
+) -> str:
+    start = (page - 1) * PAGE_SIZE
+    chunk = items[start : start + PAGE_SIZE]
+    lines = [f"📊 <b>Class Summary</b> ( {_esc(period_label)} )", ""]
+    if not chunk:
+        lines.append("No class data for this period.")
+        return "\n".join(lines).strip()
+
+    for index, row in enumerate(chunk):
+        lines.append(f"<b>Class Name: {_esc(row['class_name'])}</b>")
+        lines.append("")
+        lines.append(f"Total Active : {row.get('active', 0)}")
+        lines.append(f"Total Inactive : {row.get('inactive', 0)}")
+        lines.append(f"Total Graduate : {row.get('graduate', 0)}")
+        if index < len(chunk) - 1 or start + PAGE_SIZE < len(items):
+            lines.append("")
+            lines.append("---------------------------")
+            lines.append("")
+
+    totals = _roster_totals(items)
+    lines.append("========================")
+    lines.append("")
+    lines.append(f"Total All Active : {totals['active']}")
+    lines.append(f"Total All Inactive : {totals['inactive']}")
+    lines.append(f"Total All Graduate : {totals['graduate']}")
+    return "\n".join(lines).strip()
+
+
+def _format_finance_row_block(row: dict[str, Any]) -> list[str]:
     return [
-        f"{index}. {_esc(row['class_name'])}",
-        f"Electricity: ${row['electricity']:,.2f}",
-        f"Water: ${row['water']:,.2f}",
-        f"Internet: ${row['internet']:,.2f}",
-        f"Total Commission: ${row['total_commission']:,.2f}",
-        f"Facebook: ${row['facebook']:,.2f}",
-        f"Other: ${row['other']:,.2f}",
-        f"Amount: ${row['amount']:,.2f}",
-        f"Final Price: ${row['final_price']:,.2f}",
+        f"<b>Class Name: {_esc(row['class_name'])}</b>",
+        "",
+        f"- Electricity : ${row['electricity']:,.2f}",
+        f"- Water : ${row['water']:,.2f}",
+        f"- Internet : ${row['internet']:,.2f}",
+        f"- Tik Tok : ${row['total_commission']:,.2f}",
+        f"- Facebook : ${row['facebook']:,.2f}",
+        f"- Other : ${row['other']:,.2f}",
+        "",
+        f"Grand Total (after discount) : ${row['amount']:,.2f}",
+        f"Final Price : ${row['final_price']:,.2f}",
     ]
 
 
@@ -373,109 +455,33 @@ def _format_finance_report(
     items: list[dict[str, Any]],
     *,
     page: int,
-    scope_label: str | None = None,
 ) -> str:
     start = (page - 1) * PAGE_SIZE
     chunk = items[start : start + PAGE_SIZE]
-    lines = ["💰 <b>Finance</b>", f"Period: {_esc(period_label)}", ""]
-    lines.extend(_scope_header(scope_label))
+    lines = [f"📊 <b>Finance Summary</b> ( {_esc(period_label)} )", ""]
     if not chunk:
         lines.append("No finance data for this period.")
-    else:
-        for index, row in enumerate(chunk, start=start + 1):
-            lines.extend(_format_finance_row_block(index, row))
+        return "\n".join(lines).strip()
+
+    for index, row in enumerate(chunk):
+        lines.extend(_format_finance_row_block(row))
+        if index < len(chunk) - 1 or start + PAGE_SIZE < len(items):
             lines.append("")
-        if len(items) > 1:
-            totals = _finance_totals(items)
-            lines.append(f"<b>Total (Count: {len(items)})</b>")
-            lines.append(f"Electricity: ${totals['electricity']:,.2f}")
-            lines.append(f"Water: ${totals['water']:,.2f}")
-            lines.append(f"Internet: ${totals['internet']:,.2f}")
-            lines.append(f"Total Commission: ${totals['total_commission']:,.2f}")
-            lines.append(f"Facebook: ${totals['facebook']:,.2f}")
-            lines.append(f"Other: ${totals['other']:,.2f}")
-            lines.append(f"Amount: ${totals['amount']:,.2f}")
-            lines.append(f"Final Price: ${totals['final_price']:,.2f}")
+            lines.append("---------------------")
+            lines.append("")
+
+    totals = _finance_totals(items)
+    lines.append("==================")
+    lines.append("")
+    lines.append(f"Grand Total (after discount) : ${totals['amount']:,.2f}")
+    lines.append(f"Final Price : ${totals['final_price']:,.2f}")
     return "\n".join(lines).strip()
-
-
-def _format_registration_summary(period_label: str, data: reports.RegistrationSummary) -> str:
-    return (
-        f"📝 <b>Registration Summary</b>\n"
-        f"Period: {_esc(period_label)}\n\n"
-        f"Total Registrations: {data.total_registrations}\n"
-        f"Active: {data.active_registrations}\n"
-        f"Inactive: {data.inactive_registrations}\n"
-        f"Registration Amount: ${data.total_registration_amount:,.2f}"
-    )
 
 
 def _scope_header(scope_label: str | None) -> list[str]:
     if not scope_label:
         return []
     return [f"Item: <b>{_esc(scope_label)}</b>", ""]
-
-
-def _format_enrollment_detail_report(
-    title: str,
-    period_label: str,
-    items: list[dict[str, Any]],
-    *,
-    page: int,
-    scope_label: str | None = None,
-    show_teacher_line: bool = False,
-    show_commission: bool = False,
-) -> str:
-    start = (page - 1) * PAGE_SIZE
-    chunk = items[start : start + PAGE_SIZE]
-    lines = [title, f"Period: {_esc(period_label)}", ""]
-    lines.extend(_scope_header(scope_label))
-    if not chunk:
-        lines.append("No data for this period.")
-    else:
-        for index, row in enumerate(chunk, start=start + 1):
-            lines.append(f"{index}. {_esc(row['item_name'])}")
-            if show_teacher_line:
-                lines.append(f"- Teacher: {_esc(row.get('teacher_name') or '—')}")
-            else:
-                class_names = row.get("class_names") or []
-                if class_names:
-                    for class_name in class_names:
-                        lines.append(f"- Class Name: {_esc(class_name)}")
-                else:
-                    lines.append("- Class Name: —")
-            lines.append(f"Students: {row['active_students']} ( Active )")
-            lines.append(f"Students: {row['inactive_students']} ( Inactive )")
-            lines.append(f"Subtotal: ${row['subtotal']:,.2f}")
-            lines.append(f"Discount: ${row['discount']:,.2f}")
-            lines.append(f"Grand Total: ${row['grand_total']:,.2f}")
-            if show_commission:
-                lines.append(f"Commission: ${row.get('commission', 0):,.2f}")
-            lines.append("")
-    return "\n".join(lines).strip()
-
-
-def _format_list_report(
-    title: str,
-    period_label: str,
-    items: list[dict[str, Any]],
-    *,
-    page: int,
-    formatter,
-    scope_label: str | None = None,
-) -> tuple[str, bool]:
-    start = (page - 1) * PAGE_SIZE
-    chunk = items[start : start + PAGE_SIZE]
-    has_next = len(items) > start + PAGE_SIZE
-    lines = [f"{title}", f"Period: {_esc(period_label)}", ""]
-    lines.extend(_scope_header(scope_label))
-    if not chunk:
-        lines.append("No data for this period.")
-    else:
-        for index, item in enumerate(chunk, start=start + 1):
-            lines.append(formatter(index, item))
-            lines.append("")
-    return "\n".join(lines).strip(), has_next
 
 
 def _scope_label_from_state(user_id: int) -> str | None:
@@ -490,16 +496,8 @@ def _entity_filter_kwargs(user_id: int, action: str) -> dict[str, Any]:
     if state.get("filter_all_entities"):
         return {}
     entity_id = state.get("filter_entity_id")
-    if action == "by_category" and entity_id is not None:
-        return {"category_id": entity_id}
-    if action == "by_course" and entity_id is not None:
-        return {"course_id": entity_id}
-    if action in ("by_class", "by_finance") and entity_id is not None:
+    if action in ("students_summary", "by_class", "by_finance") and entity_id is not None:
         return {"class_id": entity_id}
-    if action == "by_teacher":
-        label = state.get("filter_entity_label")
-        if label and label != "All":
-            return {"teacher_name": label}
     return {}
 
 
@@ -511,75 +509,42 @@ def run_report_for_action(
     page: int = 1,
 ) -> str:
     start, end, period_label = _resolve_dates_from_state(user_id)
-    scope_label = _scope_label_from_state(user_id) if action_needs_entity(action) else None
     filters = _entity_filter_kwargs(user_id, action)
 
     if action == "students_summary":
-        items = reports.get_students_summary_by_class(db, start, end)
-        return _format_students_summary_by_class(period_label, items, page=page)
+        items = reports.get_class_roster_report(db, start, end, include_students=True, **filters)
+        return _format_students_roster_report(period_label, items, page=page)
 
     if action == "by_finance":
         items = reports.get_finance_report(db, start, end, **filters)
-        return _format_finance_report(period_label, items, page=page, scope_label=scope_label)
-
-    if action == "registration_summary":
-        data = reports.get_registration_summary(db, start, end)
-        return _format_registration_summary(period_label, data)
-
-    if action == "by_category":
-        items = reports.get_students_by_category_detail(db, start, end, **filters)
-        return _format_enrollment_detail_report(
-            "📂 <b>Students By Category</b>",
-            period_label,
-            items,
-            page=page,
-            scope_label=scope_label,
-        )
-
-    if action == "by_course":
-        items = reports.get_students_by_course_detail(db, start, end, **filters)
-        return _format_enrollment_detail_report(
-            "📚 <b>Students By Course</b>",
-            period_label,
-            items,
-            page=page,
-            scope_label=scope_label,
-        )
+        return _format_finance_report(period_label, items, page=page)
 
     if action == "by_class":
-        items = reports.get_students_by_class_detail(db, start, end, **filters)
-        return _format_enrollment_detail_report(
-            "🏫 <b>Students By Class</b>",
-            period_label,
-            items,
-            page=page,
-            scope_label=scope_label,
-            show_teacher_line=True,
-        )
-
-    if action == "by_teacher":
-        items = reports.get_students_by_teacher_detail(db, start, end, **filters)
-        return _format_enrollment_detail_report(
-            "👨‍🏫 <b>Students By Teacher</b>",
-            period_label,
-            items,
-            page=page,
-            scope_label=scope_label,
-            show_commission=True,
-        )
+        items = reports.get_classes_summary_report(db, start, end, **filters)
+        return _format_classes_summary_report(period_label, items, page=page)
 
     return "Unknown report action."
 
 
+def welcome_text() -> str:
+    return "📋 <b>Welcome To Telegram ChatBot , Learn computer</b>"
+
+
+def step1_text() -> str:
+    return "<b>Step 1 — Please, Select tool do you want o know ?</b>"
+
+
+def step2_text() -> str:
+    return "<b>Step 2 — Please, Filter class do you want o know ?</b>"
+
+
+def step3_text() -> str:
+    return "<b>Step 3 — Please, Select Preiod do you want o know ?</b>"
+
+
 def report_menu_text() -> str:
-    return (
-        "📋 <b>Learn Computer Reports</b>\n\n"
-        "<b>Step 1:</b> Choose report type\n"
-        "<b>Step 2:</b> Finance / Category / Course / Class / Teacher — pick item or <b>📋 All</b>\n"
-        "<b>Step 3:</b> Choose period (<b>All Time</b> = no date filter)\n\n"
-        "Students goes straight to period.\n"
-        "Commands: /students /finance /category /course /class /teacher"
-    )
+    """Main menu: welcome + Step 1 only (tools on the keyboard)."""
+    return f"{welcome_text()}\n\n{step1_text()}"
 
 
 def help_text() -> str:
@@ -587,7 +552,6 @@ def help_text() -> str:
     hour = settings.backup_schedule_hour
     minute = settings.backup_schedule_minute
     return (
-        "🤖 <b>Learn Computer Bot</b>\n\n"
         f"{report_menu_text()}\n\n"
         f"Tap <b>{_esc(BTN_BACKUP)}</b> to back up the database to Google Sheets now.\n"
         f"Automatic backup runs daily at {hour:02d}:{minute:02d} ({_esc(tz)})."
@@ -598,14 +562,12 @@ def summary_text(db: Session) -> str:
     students = reports.get_students_summary(db, None, None)
     finance_rows = reports.get_finance_report(db, None, None)
     finance_total = sum(row["final_price"] for row in finance_rows)
-    registration = reports.get_registration_summary(db, None, None)
     return (
         "📋 <b>System Summary</b> (All Time)\n\n"
         f"Students: {students.total_students}\n"
         f"Enrollments: {students.total_enrollments}\n"
         f"Finance classes: {len(finance_rows)}\n"
-        f"Finance final total: ${finance_total:,.2f}\n"
-        f"Registrations: {registration.total_registrations}"
+        f"Finance final total: ${finance_total:,.2f}"
     )
 
 
@@ -708,35 +670,20 @@ async def show_report_menu(chat_id: int | str) -> None:
 
 
 async def show_entity_menu(chat_id: int | str, user_id: int, action: str) -> None:
+    """Step 2 — only the step sentence; class choices are on the keyboard."""
+    _ = action
     state = get_user_state(user_id)
-    catalog = state.get("entity_catalog") or []
-    entity_label = ENTITY_TYPE_LABELS.get(action, "Items")
-    text = (
-        f"<b>Step 2 — {_esc(entity_label)}</b>\n\n"
-        f"{format_entity_catalog_text(action, catalog)}"
-    )
     await send_message(
         chat_id,
-        text,
+        step2_text(),
         reply_keyboard=build_entity_page_keyboard(state),
     )
 
 
 async def show_period_menu(chat_id: int | str, action: str, user_id: int) -> None:
-    state = get_user_state(user_id)
-    label = ACTION_LABELS.get(action, action)
-    item_line = ""
-    if action_needs_entity(action):
-        picked = "All" if state.get("filter_all_entities") else state.get("filter_entity_label")
-        if picked:
-            item_line = f"Item: <b>{_esc(picked)}</b>\n\n"
-    text = (
-        f"📅 <b>{_esc(label)}</b>\n\n"
-        f"{item_line}"
-        f"<b>Step 3:</b> Choose a period (<b>{_esc(BTN_PERIOD_ALL)}</b> = show all dates).\n"
-        f"Tap <b>{_esc(BTN_MAIN_MENU)}</b> to go back."
-    )
-    await send_message(chat_id, text, reply_keyboard=build_period_reply_keyboard())
+    """Step 3 — only the step sentence; period choices are on the keyboard."""
+    _ = (action, user_id)
+    await send_message(chat_id, step3_text(), reply_keyboard=build_period_reply_keyboard())
 
 
 async def apply_period_selection(chat_id: int, user_id: int, period: str) -> None:
@@ -846,6 +793,19 @@ async def handle_text_message(chat_id: int, user_id: int, text: str) -> None:
         await handle_manual_backup(chat_id)
         return
 
+    if command in ("/logout", "/unlink"):
+        db = SessionLocal()
+        try:
+            unlinked = unlink_telegram_chat(db, chat_id)
+        finally:
+            db.close()
+        clear_user_state(user_id)
+        if unlinked:
+            await send_message(chat_id, "🔓 Unlinked. Send your telegram_key to register again.")
+        else:
+            await send_message(chat_id, register_prompt_text())
+        return
+
     if state.get("awaiting_entity"):
         action = state.get("selected_action")
         if not action:
@@ -930,9 +890,15 @@ async def handle_callback_query(update: dict[str, Any]) -> None:
 
     if chat_id is None or user_id is None:
         return
-    if not is_chat_allowed(chat_id):
+    db = SessionLocal()
+    try:
+        registered = is_telegram_chat_registered(db, chat_id)
+    finally:
+        db.close()
+    if not registered:
         if callback_id:
-            await answer_callback(callback_id, "Unauthorized")
+            await answer_callback(callback_id, "Enter telegram_key first")
+        await send_message(chat_id, register_prompt_text())
         return
     if callback_id:
         await answer_callback(callback_id)
@@ -981,8 +947,7 @@ async def process_telegram_update(update: dict[str, Any]) -> None:
     if chat_id is None or user_id is None:
         return
 
-    if not is_chat_allowed(chat_id):
-        logger.warning("Rejected Telegram message from unauthorized chat_id=%s", chat_id)
+    if not await ensure_telegram_registered(chat_id, text):
         return
 
     await handle_text_message(chat_id, user_id, text)
@@ -1004,15 +969,13 @@ async def delete_webhook(*, drop_pending_updates: bool = False) -> None:
 
 
 BOT_COMMANDS = [
-    {"command": "start", "description": "Report commands list"},
-    {"command": "students", "description": "Students summary"},
+    {"command": "start", "description": "Show tools menu"},
+    {"command": "students", "description": "Students by class"},
     {"command": "finance", "description": "Finance by class"},
-    {"command": "category", "description": "By category"},
-    {"command": "course", "description": "By course"},
-    {"command": "class", "description": "By class"},
-    {"command": "teacher", "description": "By teacher"},
-    {"command": "summary", "description": "All-time overview"},
+    {"command": "classes", "description": "Class summary"},
     {"command": "backup", "description": "Backup to Google Sheets now"},
+    {"command": "register", "description": "Register with telegram_key"},
+    {"command": "logout", "description": "Unlink this Telegram chat"},
     {"command": "help", "description": "Help"},
     {"command": "cancel", "description": "Cancel"},
 ]

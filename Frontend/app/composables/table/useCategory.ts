@@ -24,13 +24,14 @@ export function useTotalRevenue() {
 
   // --- Add Form State ---
   const newName = ref("");
+  const newNameKm = ref("");
   const newDescription = ref("");
 
   // --- Confirm State ---
   const editingId = ref<string | null>(null);
   const pendingDeleteId = ref<string | null>(null);
   const confirmMode = ref<"add" | "edit" | "delete">("add");
-  const pendingPayload = ref<{ id?: string; name: string; description: string } | null>(null);
+  const pendingPayload = ref<{ id?: string; name: string; nameKm: string; description: string } | null>(null);
   const selectedClassifications = ref<string[]>([]);
 
   // --- Computed ---
@@ -69,6 +70,7 @@ export function useTotalRevenue() {
         count: resource.totalRows.value,
       }),
     },
+    { accessorKey: "nameKm", header: t("category.nameKm") },
     { accessorKey: "description", header: t("category.description") },
     {
       accessorKey: "total",
@@ -87,6 +89,7 @@ export function useTotalRevenue() {
         icon: "i-lucide-edit",
         onSelect: () => {
           newName.value = entry.name;
+          newNameKm.value = entry.nameKm ?? "";
           newDescription.value = entry.description;
           editingId.value = entry.id;
         },
@@ -118,6 +121,7 @@ export function useTotalRevenue() {
     pendingPayload.value = {
       id: editingId.value ?? undefined,
       name,
+      nameKm: newNameKm.value.trim(),
       description: newDescription.value.trim(),
     };
     confirmMode.value = isEdit ? "edit" : "add";
@@ -126,17 +130,18 @@ export function useTotalRevenue() {
 
   function resetForm() {
     newName.value = "";
+    newNameKm.value = "";
     newDescription.value = "";
     editingId.value = null;
     pendingPayload.value = null;
   }
 
-  async function createCategory(payload: { name: string; description: string }) {
+  async function createCategory(payload: { name: string; nameKm: string; description: string }) {
     await categoryApi.create(payload);
     toast.add({ title: t("pages.category.toast.added"), color: "primary" });
   }
 
-  async function updateCategory(id: string, payload: { name: string; description: string }) {
+  async function updateCategory(id: string, payload: { name: string; nameKm: string; description: string }) {
     await categoryApi.update(id, payload);
     toast.add({ title: t("pages.category.toast.updated"), color: "primary" });
   }
@@ -155,12 +160,14 @@ export function useTotalRevenue() {
       } else if (confirmMode.value === "edit" && pendingPayload.value?.id) {
         await updateCategory(pendingPayload.value.id, {
           name: pendingPayload.value.name,
+          nameKm: pendingPayload.value.nameKm,
           description: pendingPayload.value.description,
         });
         resetForm();
       } else if (confirmMode.value === "add" && pendingPayload.value) {
         await createCategory({
           name: pendingPayload.value.name,
+          nameKm: pendingPayload.value.nameKm,
           description: pendingPayload.value.description,
         });
         resetForm();
@@ -228,6 +235,7 @@ export function useTotalRevenue() {
     columns,
     // Add Form
     newName,
+    newNameKm,
     newDescription,
     handleAdd,
     // Delete

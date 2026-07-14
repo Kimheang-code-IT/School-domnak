@@ -41,6 +41,7 @@
     "search": "ស្វែងរក...",
     "preview": "មើលវិក្កយបត្រ",
     "amount": "ចំនួនទឹកប្រាក់",
+    "qty": "ចំនួន",
     "items": "ចំនួន",
     "export": "នាំចេញ",
     "close": "បិទ",
@@ -137,10 +138,12 @@
       "revenueByRegion": "វិភាគចំនួនអ្នកទិញតាមខេត្ត",
       "summary": {
         "totalCategory": "ប្រភេទសរុប",
+        "totalCourses": "វគ្គសិក្សាសរុប",
         "totalClasses": "ថ្នាក់សរុប",
+        "totalStudents": "សិស្សសរុប",
         "totalInStock": "កន្លែងនៅសល់សរុប",
         "totalSold": "បន្ទាត់បង់ប្រាក់សរុប",
-        "totalReportAmount": "សរុបទឹកប្រាក់លក់",
+        "totalReportAmount": "សរុបទឹកប្រាក់",
         "totalReportLines": "បន្ទាត់លក់",
         "totalFinanceRows": "ហិរញ្ញវត្ថុ"
       }
@@ -203,6 +206,8 @@
         "printCurrent": "បោះពុម្ព",
         "printAll": "បោះពុម្ពទាំងអស់"
       },
+      "editInvoiceLoaded": "បានផ្ទុក {invoiceNo} — កែថ្នាក់ រួចបន្តដើម្បីរក្សាទុក",
+      "exitEditInvoice": "បោះបង់ការកែ",
       "enrollment": {
         "selectClassField": "ថ្នាក់សម្រាប់ចុះឈ្មោះ",
         "selectClassPlaceholder": "ជ្រើសថ្នាក់..."
@@ -240,9 +245,20 @@
         "note": "កំណត់សម្គាល់",
         "notePlaceholder": "កំណត់សម្គាល់បន្ថែម",
         "cash": "សាច់ប្រាក់",
-        "bankTransfer": "ផ្ទេរប្រាក់តាមធនាគារ",
-        "abaBank": "ធនាគារ ABA",
-        "other": "ផ្សេងៗ"
+        "bank": "ធនាគារ",
+        "bankTransfer": "ធនាគារ",
+        "abaBank": "ធនាគារ",
+        "wing": "Wing",
+        "own": "នៅខ្វះ",
+        "other": "ផ្សេងៗ",
+        "ownAmounts": "ការទូទាត់នៅខ្វះ",
+        "payAmount": "ចំនួនបង់",
+        "ownAmount": "ចំនួននៅខ្វះ",
+        "exchangeRate": "អត្រាប្តូរប្រាក់",
+        "fxHint": "1 ដុល្លារ = {rate} រៀល",
+        "ownInvalid": "ការទូទាត់នៅខ្វះមិនត្រឹមត្រូវ",
+        "ownMustHaveBalance": "ចំនួននៅខ្វះត្រូវធំជាងសូន្យ។",
+        "ownMustEqualTotal": "ចំនួនបង់ + ចំនួននៅខ្វះ ត្រូវស្មើសរុប។"
       },
       "invoice": {
         "class": "ថ្នាក់",
@@ -698,9 +714,11 @@
         "role": "តួនាទី",
         "email": "អ៊ីមែល",
         "password": "ពាក្យសម្ងាត់",
+        "telegramKey": "Telegram Key",
         "lastLogin": "ចូលប្រើចុងក្រោយ",
         "commission": "កម្រៃជើងសា"
-      }
+      },
+      "telegramKeyHint": "ទុកចោលដើម្បីបង្កើតស្វ័យប្រវត្តិ (ឧ. LC-A1B2C3D4)"
     },
     "finance": {
       "title": "ហិរញ្ញវត្ថុ",
@@ -716,7 +734,7 @@
         "totalCommission": "កម្រៃជើងសាសរុប",
         "facebook": "Facebook",
         "other": "ផ្សេងៗ",
-        "amount": "ចំនួនទឹកប្រាក់",
+        "amount": "សរុបចុងក្រោយ (បន្ទាប់ពីបញ្ចុះតម្លៃ)",
         "inPriceForPos": "តម្លៃចូលសម្រាប់ POS",
         "finalPrice": "តម្លៃចុងក្រោយ"
       }
@@ -734,7 +752,7 @@
         "courseName": "វគ្គ",
         "studentName": "សិស្ស",
         "date": "កាលបរិច្ឆេទ",
-        "amount": "ចំនួនទឹកប្រាក់",
+        "amount": "សរុបចុងក្រោយ (បន្ទាប់ពីបញ្ចុះតម្លៃ)",
         "commission": "កម្រៃជើងសា"
       }
     },
@@ -748,7 +766,7 @@
         "studentId": "លេខសម្គាល់សិស្ស",
         "product": "ផលិតផល",
         "className": "ឈ្មោះថ្នាក់",
-        "studentPayment": "ប្រាក់ទូទាត់សិស្ស",
+        "studentPayment": "សរុបចុងក្រោយ ",
         "customer": "អតិថិជន",
         "phoneCustomer": "ទូរស័ព្ទអតិថិជន",
         "studentName": "ឈ្មោះសិស្ស",
@@ -757,12 +775,34 @@
         "phoneSaler": "ទូរស័ព្ទអ្នកលក់",
         "address": "អាសយដ្ឋាន",
         "receiptNumber": "លេខបង្កាន់ដៃ",
-        "amount": "ចំនួនទឹកប្រាក់"
+        "amount": "សរុបចុងក្រោយ ",
+        "status": "ស្ថានភាព",
+        "payAmount": "ចំនួនបង់",
+        "ownAmount": "ចំនួននៅខ្វះ"
       },
       "searchPlaceholder": "ស្វែងរក វិក្កយបត្រ លេខសម្គាល់សិស្ស ឈ្មោះ ទូរស័ព្ទ ផលិតផល…",
       "footer": {
         "invoiceCount": "វិក្កយបត្រខុសគ្នា: {count}"
-      }
+      },
+      "editInvoice": "កែប្រែវិក្កយបត្រ",
+      "statusPaid": "បានបង់",
+      "statusOwn": "នៅខ្វះ",
+      "payOwnTitle": "បង់ប្រាក់នៅខ្វះ",
+      "payOwnRemaining": "នៅខ្វះ",
+      "payOwnAmount": "ចំនួនបង់",
+      "payOwnSuccess": "បានរក្សាទុកការបង់នៅខ្វះ",
+      "payOwnInvalid": "សូមបញ្ចូលចំនួនបង់ឱ្យបានត្រឹមត្រូវ",
+      "payOwnExceeds": "ចំនួនបង់មិនអាចលើសចំនួននៅខ្វះ",
+      "addProduct": "បន្ថែមផលិតផល",
+      "replaceProduct": "ប្តូរផលិតផល",
+      "applyReplace": "ប្តូរ",
+      "discountAmount": "ចំនួនបញ្ចុះតម្លៃ",
+      "paymentNote": "ចំណាំការទូទាត់",
+      "subtotal": "សរុបរង",
+      "grandTotal": "សរុបចុងក្រោយ (បន្ទាប់ពីបញ្ចុះតម្លៃ)",
+      "invoiceUpdated": "បានកែប្រែវិក្កយបត្រដោយជោគជ័យ",
+      "needOneProduct": "ត្រូវការផលិតផលយ៉ាងហោចណាស់មួយ",
+      "classAlreadyOnInvoice": "ថ្នាក់នេះមាននៅក្នុងវិក្កយបត្ររួចហើយ"
     },
     "delivery": {
       "title": "ដឹកជញ្ជូន",
@@ -795,12 +835,15 @@
     "tableTitle": "ប្រភេទផលិតផល",
     "addTitle": "បន្ថែមប្រភេទថ្មី",
     "id": "ល.រ",
-    "name": "ឈ្មោះ",
+    "name": "ឈ្មោះ (អង់គ្លេស)",
+    "nameKm": "ឈ្មោះ (ខ្មែរ)",
     "description": "ការពិពណ៌នា",
     "total": "ចំនួនផលិតផល",
     "createdAt": "កាលបរិច្ឆេទការ",
-    "namePlaceholder": "ឧ. កុំព្យូទ័រយួរដៃ, គ្រឿងបន្លាស់",
-    "descriptionPlaceholder": "ការពិពណ៌នាអំពីប្រភេទនេះ"
+    "namePlaceholder": "ឧ. Computers, Accessories",
+    "nameKmPlaceholder": "ឧ. កុំព្យូទ័រ, គ្រឿងបន្លាស់",
+    "descriptionPlaceholder": "ការពិពណ៌នាអំពីប្រភេទនេះ",
+    "emptyNameKm": "—"
   },
   "product": {
     "id": "ល.រ",
@@ -848,6 +891,19 @@
     "light": "ភ្លឺ",
     "dark": "ងងឹត",
     "logout": "ចាកចេញ",
-    "history": "ប្រវត្តិប្រើប្រាស់"
+    "history": "ប្រវត្តិប្រើប្រាស់",
+    "profile": {
+      "title": "ប្រវត្តិរូបខ្ញុំ",
+      "subtitle": "ព័ត៌មានគណនីរបស់អ្នក",
+      "changePassword": "ប្តូរពាក្យសម្ងាត់",
+      "currentPassword": "ពាក្យសម្ងាត់បច្ចុប្បន្ន",
+      "newPassword": "ពាក្យសម្ងាត់ថ្មី",
+      "confirmPassword": "បញ្ជាក់ពាក្យសម្ងាត់ថ្មី",
+      "updatePassword": "រក្សាទុកពាក្យសម្ងាត់",
+      "passwordUpdated": "បានប្តូរពាក្យសម្ងាត់ដោយជោគជ័យ",
+      "passwordError": "មិនអាចប្តូរពាក្យសម្ងាត់បានទេ",
+      "currentRequired": "សូមបញ្ចូលពាក្យសម្ងាត់បច្ចុប្បន្ន",
+      "passwordSame": "ពាក្យសម្ងាត់ថ្មីត្រូវខុសពីពាក្យសម្ងាត់បច្ចុប្បន្ន"
+    }
   }
 }

@@ -92,6 +92,9 @@ export function useSystemUserManagement() {
     if (user.password?.trim()) {
       payload.password = user.password.trim()
     }
+    if (user.telegramKey?.trim()) {
+      payload.telegramKey = user.telegramKey.trim()
+    }
     return payload
   }
 
@@ -152,6 +155,10 @@ export function useSystemUserManagement() {
       header: t("pages.userManagement.columns.password"),
     },
     {
+      accessorKey: "telegramKey",
+      header: t("pages.userManagement.columns.telegramKey"),
+    },
+    {
       accessorKey: "lastLogin",
       header: t("pages.userManagement.columns.lastLogin"),
     },
@@ -188,7 +195,14 @@ export function useSystemUserManagement() {
       type: "password",
       icon: "i-lucide-lock",
       placeholder: "Min 8 chars...",
-    }
+    },
+    {
+      key: "telegramKey",
+      label: t("pages.userManagement.columns.telegramKey"),
+      type: "input",
+      icon: "i-lucide-key-round",
+      placeholder: t("pages.userManagement.telegramKeyHint"),
+    },
   ]);
 
   // --- Actions ---

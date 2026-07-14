@@ -6,6 +6,7 @@ from app.models.class_model import SchoolClass
 from app.models.course import Course
 from app.models.level import Level
 from app.models.enrollment import Enrollment
+from app.models.user import User
 from app.repositories.base import BaseRepository
 from app.schemas.class_schema import ClassRead
 from app.schemas.common import TableQueryParams
@@ -30,11 +31,13 @@ class ClassRepository(BaseRepository[SchoolClass]):
                 Course.course_name,
                 Level.level_name_en,
                 Level.level_name_km,
+                User.name.label("teacher_name"),
                 student_count,
             )
             .outerjoin(Category, Category.id == SchoolClass.category_id)
             .outerjoin(Course, Course.id == SchoolClass.course_id)
             .outerjoin(Level, Level.id == SchoolClass.level_id)
+            .outerjoin(User, User.id == SchoolClass.teacher_id)
             .outerjoin(
                 Enrollment,
                 and_(Enrollment.class_id == SchoolClass.id, Enrollment.roster_active.is_(True)),
@@ -45,6 +48,7 @@ class ClassRepository(BaseRepository[SchoolClass]):
                 Course.course_name,
                 Level.level_name_en,
                 Level.level_name_km,
+                User.name,
             )
         )
         if category_id:
@@ -58,19 +62,27 @@ class ClassRepository(BaseRepository[SchoolClass]):
                 "name": SchoolClass.name,
                 "category": Category.name,
                 "courseName": Course.course_name,
-                "teacherName": SchoolClass.teacher_name,
-                "level": SchoolClass.level,
+                "teacherName": User.name,
+                "level": Level.level_name_en,
                 "timeIn": SchoolClass.time_in,
                 "fullPrice": SchoolClass.full_price,
                 "outPrice": SchoolClass.out_price,
                 "status": SchoolClass.status,
                 "createdAt": SchoolClass.created_at,
             },
-            search_columns=[SchoolClass.name, SchoolClass.teacher_name, Category.name, Course.course_name],
+            search_columns=[SchoolClass.name, User.name, Category.name, Course.course_name],
             date_column=SchoolClass.created_at,
         )
         data = []
-        for school_class, category_name, course_name, level_name_en, level_name_km, count in rows:
+        for (
+            school_class,
+            category_name,
+            course_name,
+            level_name_en,
+            level_name_km,
+            teacher_name,
+            count,
+        ) in rows:
             data.append(
                 ClassRead(
                     id=school_class.id,
@@ -82,11 +94,11 @@ class ClassRepository(BaseRepository[SchoolClass]):
                     course_name=course_name,
                     level_id=school_class.level_id,
                     teacher_id=school_class.teacher_id,
-                    teacher_name=school_class.teacher_name,
-                    level=school_class.level or level_name_en,
-                    level_km=school_class.level_km or level_name_km,
-                    level_name_en=level_name_en or school_class.level,
-                    level_name_km=level_name_km or school_class.level_km,
+                    teacher_name=teacher_name,
+                    level=level_name_en,
+                    level_km=level_name_km,
+                    level_name_en=level_name_en,
+                    level_name_km=level_name_km,
                     class_duration=school_class.class_duration,
                     days_of_week=school_class.days_of_week or [],
                     time_in=school_class.time_in,

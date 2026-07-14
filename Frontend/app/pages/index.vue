@@ -42,7 +42,8 @@ const barAxisName = computed(() => t('pages.dashboard.barAxisStudents'))
 const lineAxisName = computed(() => t('pages.dashboard.barAxisSeats'))
 
 const SECTION_HEIGHT = {
-  DASHBOARD: 'clamp(560px, calc(100vh - 220px), 760px)',
+  MAP_PIE: 'clamp(480px, calc(100vh - 340px), 640px)',
+  BAR: 'clamp(420px, 52vh, 560px)',
 }
 
 const summaryStats = computed(() => apiStats.value ?? [])
@@ -95,14 +96,15 @@ const summaryStats = computed(() => apiStats.value ?? [])
         </template>
       </UPageGrid>
 
+      <!-- Map + Pie: equal height row -->
       <div
-        class="grid grid-cols-1 lg:grid-cols-12 gap-3 pb-4 items-stretch"
-        :style="{ minHeight: SECTION_HEIGHT.DASHBOARD }"
+        class="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch"
+        :style="{ minHeight: SECTION_HEIGHT.MAP_PIE }"
       >
         <UCard
-          class="lg:col-span-8 shadow-sm border-accented flex flex-col overflow-hidden"
-          :style="{ minHeight: SECTION_HEIGHT.DASHBOARD }"
-          :ui="{ body: 'p-0 flex-1 min-h-0' }"
+          class="lg:col-span-8 shadow-sm border-accented flex flex-col overflow-hidden h-full"
+          :style="{ minHeight: SECTION_HEIGHT.MAP_PIE }"
+          :ui="{ body: 'p-0 flex-1 min-h-0 flex flex-col' }"
         >
           <template #header>
             <div class="flex items-center gap-2">
@@ -117,7 +119,7 @@ const summaryStats = computed(() => apiStats.value ?? [])
               v-if="chartsLoading"
               icon="i-lucide-map"
               :label="$t('components.loadingMap')"
-              class="absolute inset-0 top-10"
+              class="absolute inset-0"
             />
             <ChartAppChartMap
               v-else
@@ -128,63 +130,68 @@ const summaryStats = computed(() => apiStats.value ?? [])
           </div>
         </UCard>
 
-        <div
-          class="lg:col-span-4 gap-3 flex flex-col min-h-0"
-          :style="{ minHeight: SECTION_HEIGHT.DASHBOARD }"
+        <UCard
+          class="lg:col-span-4 shadow-sm border-accented relative overflow-hidden flex flex-col h-full"
+          :style="{ minHeight: SECTION_HEIGHT.MAP_PIE }"
+          :ui="{ body: 'p-2 flex-1 min-h-0 flex flex-col' }"
         >
-          <UCard
-            class="shadow-sm border-accented relative min-h-0 overflow-hidden flex flex-col basis-[52%] p-0"
-          >
-            <template #header>
-              <h3 class="font-normal text-sm">
-                {{ $t('pages.dashboard.studentsByCourseClass') }}
-              </h3>
-            </template>
-            <div class="w-full relative flex-1 min-h-0 p-2">
-              <CommonAppLoadingState
-                v-if="chartsLoading"
-                compact
-                icon="i-lucide-chart-pie"
-                :label="$t('common.loadingChart')"
-                class="absolute inset-0"
-              />
-              <ChartAppChartPie
-                v-else
-                :key="`pie-${chartsRenderKey}`"
-                :data="classEnrollmentNested"
-                :inner-series-name="pieInnerSeriesName"
-                :outer-series-name="pieOuterSeriesName"
-              />
-            </div>
-          </UCard>
-
-          <UCard class="shadow-sm border-accented relative min-h-0 overflow-hidden flex flex-col flex-1">
-            <template #header>
-              <h3 class="font-normal text-sm">
-                {{ $t('pages.dashboard.studentsByClass') }}
-              </h3>
-            </template>
-            <div class="w-full relative flex-1 min-h-0 p-2">
-              <CommonAppLoadingState
-                v-if="chartsLoading"
-                compact
-                icon="i-lucide-chart-column"
-                :label="$t('common.loadingChart')"
-                class="absolute inset-0"
-              />
-              <ChartAppChartBar
-                v-else
-                :key="`bar-${chartsRenderKey}`"
-                :data="classEnrollmentBar"
-                :bar-series-name="barSeriesName"
-                :line-series-name="lineSeriesName"
-                :bar-axis-name="barAxisName"
-                :line-axis-name="lineAxisName"
-              />
-            </div>
-          </UCard>
-        </div>
+          <template #header>
+            <h3 class="font-normal text-sm">
+              {{ $t('pages.dashboard.studentsByCourseClass') }}
+            </h3>
+          </template>
+          <div class="w-full relative flex-1 min-h-0">
+            <CommonAppLoadingState
+              v-if="chartsLoading"
+              compact
+              icon="i-lucide-chart-pie"
+              :label="$t('common.loadingChart')"
+              class="absolute inset-0"
+            />
+            <ChartAppChartPie
+              v-else
+              :key="`pie-${chartsRenderKey}`"
+              :data="classEnrollmentNested"
+              :inner-series-name="pieInnerSeriesName"
+              :outer-series-name="pieOuterSeriesName"
+            />
+          </div>
+        </UCard>
       </div>
+
+      <!-- Bar: full width under map + pie -->
+      <UCard
+        class="shadow-sm border-accented relative overflow-hidden flex flex-col"
+        :style="{ minHeight: SECTION_HEIGHT.BAR }"
+        :ui="{ body: 'p-2 flex-1 min-h-0 flex flex-col' }"
+      >
+        <template #header>
+          <div class="flex items-center gap-2">
+            <UIcon name="i-lucide-chart-column" class="size-5 text-primary" />
+            <h3 class="font-normal text-sm">
+              {{ $t('pages.dashboard.studentsByClass') }}
+            </h3>
+          </div>
+        </template>
+        <div class="w-full relative flex-1 min-h-0" :style="{ minHeight: '360px' }">
+          <CommonAppLoadingState
+            v-if="chartsLoading"
+            compact
+            icon="i-lucide-chart-column"
+            :label="$t('common.loadingChart')"
+            class="absolute inset-0"
+          />
+          <ChartAppChartBar
+            v-else
+            :key="`bar-${chartsRenderKey}`"
+            :data="classEnrollmentBar"
+            :bar-series-name="barSeriesName"
+            :line-series-name="lineSeriesName"
+            :bar-axis-name="barAxisName"
+            :line-axis-name="lineAxisName"
+          />
+        </div>
+      </UCard>
     </div>
   </div>
 </template>

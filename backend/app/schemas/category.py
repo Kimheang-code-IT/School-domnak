@@ -5,6 +5,7 @@ from app.schemas.common import CamelModel
 
 class CategoryBase(CamelModel):
     name: str
+    name_km: str | None = None
     description: str | None = None
 
 
@@ -14,6 +15,7 @@ class CategoryCreate(CategoryBase):
 
 class CategoryUpdate(CamelModel):
     name: str | None = None
+    name_km: str | None = None
     description: str | None = None
 
 

@@ -41,6 +41,7 @@
     "search": "Search...",
     "preview": "Preview",
     "amount": "Amount",
+    "qty": "Qty",
     "items": "items",
     "export": "Export",
     "close": "Close",
@@ -137,7 +138,9 @@
       "revenueByRegion": "Cambodia - Revenue by Region",
       "summary": {
         "totalCategory": "Total Category",
+        "totalCourses": "Total courses",
         "totalClasses": "Total classes",
+        "totalStudents": "Total students",
         "totalInStock": "Available seats (total)",
         "totalSold": "Enrollment lines (sold)",
         "totalReportAmount": "Total Amount",
@@ -203,6 +206,8 @@
         "printCurrent": "Print",
         "printAll": "Print all"
       },
+      "editInvoiceLoaded": "Loaded {invoiceNo} — update classes, then continue to save",
+      "exitEditInvoice": "Cancel edit",
       "enrollment": {
         "selectClassField": "Class for enrollment",
         "selectClassPlaceholder": "Select a class..."
@@ -240,9 +245,20 @@
         "note": "Notes",
         "notePlaceholder": "Optional reference or memo",
         "cash": "Cash",
-        "bankTransfer": "Bank transfer",
-        "abaBank": "ABA Bank",
-        "other": "Other"
+        "bank": "Bank",
+        "bankTransfer": "Bank",
+        "abaBank": "Bank",
+        "wing": "Wing",
+        "own": "Own",
+        "other": "Other",
+        "ownAmounts": "Own payment",
+        "payAmount": "Pay amount",
+        "ownAmount": "Own amount",
+        "exchangeRate": "Exchange rate",
+        "fxHint": "1 USD = {rate} KHR",
+        "ownInvalid": "Own payment invalid",
+        "ownMustHaveBalance": "Own amount must be greater than zero.",
+        "ownMustEqualTotal": "Pay amount + Own amount must equal the total."
       },
       "invoice": {
         "class": "Class",
@@ -698,9 +714,11 @@
         "role": "Role",
         "email": "Email",
         "password": "Password",
+        "telegramKey": "Telegram Key",
         "lastLogin": "Last Login",
         "commission": "Commission"
-      }
+      },
+      "telegramKeyHint": "Leave blank to auto-generate (e.g. LC-A1B2C3D4)"
     },
     "finance": {
       "title": "Finance",
@@ -716,7 +734,7 @@
         "totalCommission": "Total Commission",
         "facebook": "Facebook",
         "other": "Other",
-        "amount": "Amount",
+        "amount": "Grand Total",
         "inPriceForPos": "In Price for POS",
         "finalPrice": "Final Price"
       }
@@ -734,7 +752,7 @@
         "courseName": "Course",
         "studentName": "Student",
         "date": "Date",
-        "amount": "Amount",
+        "amount": "Grand Total (after discount)",
         "commission": "Commission"
       }
     },
@@ -748,7 +766,7 @@
         "studentId": "Student ID",
         "product": "Product",
         "className": "Class name",
-        "studentPayment": "Student payment",
+        "studentPayment": "Grand Total (after discount)",
         "customer": "Customer",
         "phoneCustomer": "Phone Customer",
         "studentName": "Student name",
@@ -757,12 +775,34 @@
         "phoneSaler": "Phone Seller",
         "address": "Address",
         "receiptNumber": "Receipt No.",
-        "amount": "Amount"
+        "amount": "Grand Total (after discount)",
+        "status": "Status",
+        "payAmount": "Pay amount",
+        "ownAmount": "Own amount"
       },
       "searchPlaceholder": "Search …",
       "footer": {
         "invoiceCount": "Distinct invoices: {count}"
-      }
+      },
+      "editInvoice": "Edit invoice",
+      "statusPaid": "Paid",
+      "statusOwn": "Own",
+      "payOwnTitle": "Pay own balance",
+      "payOwnRemaining": "Remaining own",
+      "payOwnAmount": "Payment amount",
+      "payOwnSuccess": "Own payment saved",
+      "payOwnInvalid": "Enter a valid payment amount",
+      "payOwnExceeds": "Payment cannot exceed remaining own",
+      "addProduct": "Add product",
+      "replaceProduct": "Replace product",
+      "applyReplace": "Replace",
+      "discountAmount": "Discount amount",
+      "paymentNote": "Payment note",
+      "subtotal": "Subtotal",
+      "grandTotal": "Grand total (after discount)",
+      "invoiceUpdated": "Invoice updated successfully",
+      "needOneProduct": "Add at least one product",
+      "classAlreadyOnInvoice": "This class is already on the invoice"
     },
     "delivery": {
       "title": "Delivery",
@@ -795,12 +835,15 @@
     "tableTitle": "Categories",
     "addTitle": "Add New Category",
     "id": "No",
-    "name": "Name",
+    "name": "Name (English)",
+    "nameKm": "Name (Khmer)",
     "description": "Description",
     "total": "Total",
     "createdAt": "Created",
-    "namePlaceholder": "e.g. Laptops, Accessories",
-    "descriptionPlaceholder": "Optional description for this category"
+    "namePlaceholder": "e.g. Computers, Accessories",
+    "nameKmPlaceholder": "ឧ. កុំព្យូទ័រ, គ្រឿងបន្លាស់",
+    "descriptionPlaceholder": "Optional description for this category",
+    "emptyNameKm": "—"
   },
   "product": {
     "id": "No",
@@ -848,6 +891,19 @@
     "light": "Light",
     "dark": "Dark",
     "logout": "Log out",
-    "history": "History"
+    "history": "History",
+    "profile": {
+      "title": "My profile",
+      "subtitle": "Your account details",
+      "changePassword": "Change password",
+      "currentPassword": "Current password",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm new password",
+      "updatePassword": "Update password",
+      "passwordUpdated": "Password updated successfully",
+      "passwordError": "Could not update password",
+      "currentRequired": "Enter your current password",
+      "passwordSame": "New password must be different from the current password"
+    }
   }
 }

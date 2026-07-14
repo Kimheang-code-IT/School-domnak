@@ -111,7 +111,7 @@ const chartOption = computed<EChartsOption>(() => ({
   },
   legend: {
     type: "scroll",
-    bottom: 0,
+    bottom: 4,
     left: "center",
     itemWidth: 10,
     itemHeight: 10,
@@ -123,8 +123,8 @@ const chartOption = computed<EChartsOption>(() => ({
       name: props.innerSeriesName,
       type: "pie",
       selectedMode: "single",
-      radius: [0, "32%"],
-      center: ["50%", "46%"],
+      radius: [0, "36%"],
+      center: ["50%", "44%"],
       label: {
         position: "inner",
         fontSize: 11,
@@ -137,11 +137,11 @@ const chartOption = computed<EChartsOption>(() => ({
     {
       name: props.outerSeriesName,
       type: "pie",
-      radius: ["45%", "60%"],
-      center: ["50%", "46%"],
+      radius: ["48%", "68%"],
+      center: ["50%", "44%"],
       labelLine: {
-        length: 18,
-        length2: 10,
+        length: 14,
+        length2: 8,
       },
       label: {
         formatter:
@@ -185,7 +185,7 @@ const chartOption = computed<EChartsOption>(() => ({
 </script>
 
 <template>
-  <div class="h-full w-full min-h-[200px]">
+  <div class="h-full w-full min-h-[280px]">
     <div
       v-if="!hasData"
       class="h-full grid place-items-center text-xs text-muted-foreground"
@@ -193,13 +193,13 @@ const chartOption = computed<EChartsOption>(() => ({
       {{ $t("common.noData") }}
     </div>
     <ClientOnly v-else>
-      <VChart autoresize class="h-full w-full min-h-[220px]" :option="chartOption" />
+      <VChart autoresize class="h-full w-full min-h-[320px]" :option="chartOption" />
       <template #fallback>
         <CommonAppLoadingState
           compact
           icon="i-lucide-chart-pie"
           :label="$t('common.loadingChart')"
-          class="h-full min-h-[200px]"
+          class="h-full min-h-[280px]"
         />
       </template>
     </ClientOnly>

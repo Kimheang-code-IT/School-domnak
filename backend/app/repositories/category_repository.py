@@ -26,17 +26,19 @@ class CategoryRepository(BaseRepository[Category]):
             sort_map={
                 "id": Category.id,
                 "name": Category.name,
+                "nameKm": Category.name_km,
                 "description": Category.description,
                 "total": total_classes,
                 "createdAt": Category.created_at,
             },
-            search_columns=[Category.name, Category.description],
+            search_columns=[Category.name, Category.name_km, Category.description],
             date_column=Category.created_at,
         )
         data = [
             CategoryRead(
                 id=category.id,
                 name=category.name,
+                name_km=category.name_km,
                 description=category.description,
                 total=total_count,
                 created_at=category.created_at,

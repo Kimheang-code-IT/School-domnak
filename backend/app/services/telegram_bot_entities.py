@@ -9,14 +9,12 @@ from sqlalchemy.orm import Session
 from app.services import telegram_report_service as reports
 from app.services.telegram_state import UserState
 
-ENTITY_ACTIONS = frozenset({"by_finance", "by_category", "by_course", "by_class", "by_teacher"})
+ENTITY_ACTIONS = frozenset({"students_summary", "by_finance", "by_class"})
 
 ENTITY_TYPE_LABELS: dict[str, str] = {
+    "students_summary": "Classes",
     "by_finance": "Classes",
-    "by_category": "Categories",
-    "by_course": "Courses",
     "by_class": "Classes",
-    "by_teacher": "Teachers",
 }
 
 BTN_ALL_ENTITIES = "📋 All"
@@ -30,14 +28,8 @@ def action_needs_entity(action: str | None) -> bool:
 
 
 def load_entity_catalog(db: Session, action: str) -> list[dict[str, Any]]:
-    if action in ("by_finance", "by_class"):
+    if action in ENTITY_ACTIONS:
         return reports.list_all_classes(db)
-    if action == "by_category":
-        return reports.list_all_categories(db)
-    if action == "by_course":
-        return reports.list_all_courses(db)
-    if action == "by_teacher":
-        return reports.list_all_teachers(db)
     return []
 
 
@@ -49,11 +41,11 @@ def format_entity_catalog_text(action: str, entities: list[dict[str, Any]]) -> s
     lines = [
         f"📋 <b>{esc(label)}</b> — {len(entities)} total",
         "",
-        "Choose one item below, or tap <b>📋 All</b> for every item.",
+        "Choose one class below, or tap <b>📋 All</b> for every class.",
         "",
     ]
     if not entities:
-        lines.append("No items in the system yet.")
+        lines.append("No classes in the system yet.")
         return "\n".join(lines)
 
     for index, entity in enumerate(entities, start=1):
@@ -104,4 +96,3 @@ def build_entity_page_keyboard(state: UserState) -> dict[str, Any]:
         "one_time_keyboard": False,
         "is_persistent": True,
     }
-

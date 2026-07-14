@@ -14,7 +14,11 @@ from app.schemas.finance import FinanceRead, FinanceUpdate
 from app.services.audit_service import write_audit_log
 from app.services.export_service import rows_for_export
 from app.services.cache_invalidation import FINANCE
-from app.services.finance_service import recalculate_finance, sync_finance_for_all_classes
+from app.services.finance_service import (
+    recalculate_finance,
+    refresh_all_finance_sale_totals,
+    sync_finance_for_all_classes,
+)
 from app.services.table_list_cache import cached_table_list
 from app.utils.filters import apply_date_filter, apply_search
 from app.utils.pagination import apply_pagination
@@ -81,7 +85,9 @@ def _build_finance_query(db: Session, query: TableParams):
 def _maybe_sync_empty(db: Session) -> None:
     if (db.scalar(select(func.count()).select_from(Finance)) or 0) == 0:
         sync_finance_for_all_classes(db)
-        db.commit()
+    else:
+        refresh_all_finance_sale_totals(db)
+    db.commit()
 
 
 @router.get("", response_model=TableResponse[FinanceRead])

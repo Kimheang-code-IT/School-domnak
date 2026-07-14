@@ -48,7 +48,12 @@ const { open, links } = useMenu()
     </template>
 
     <template #footer="{ collapsed }">
-      <LayoutUserMenu :collapsed="collapsed" />
+      <ClientOnly>
+        <LayoutUserMenu :collapsed="collapsed" />
+        <template #fallback>
+          <div class="h-10 w-full" aria-hidden="true" />
+        </template>
+      </ClientOnly>
     </template>
   </UDashboardSidebar>
 </template>

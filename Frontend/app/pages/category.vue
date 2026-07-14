@@ -5,7 +5,7 @@ const {
     rowSelection, sorting, searchQuery, columnVisibility, columnFilters,
     pagination, selectedClassifications,
     filteredEntries, columns, totalRows,
-    newName, newDescription, handleAdd,
+    newName, newNameKm, newDescription, handleAdd,
     isConfirmOpen, confirmConfig, finalizeAction,
     getDropdownActions,
 } = useTotalRevenue()
@@ -57,7 +57,7 @@ function getInitial(name: string) {
             >
                 <h2 class="text-base font-semibold text-foreground">{{ $t('category.addTitle') }}</h2>
                 <div class="w-full h-px bg-border" />
-                <!-- Category Name -->
+                <!-- Category Name (English) -->
                 <div class="flex flex-col gap-1.5">
                     <label class="text-sm font-medium text-foreground">
                         {{ $t('category.name') }}
@@ -67,6 +67,19 @@ function getInitial(name: string) {
                         v-model="newName"
                         :placeholder="$t('category.namePlaceholder')"
                         class="w-full"
+                        size="md"
+                    />
+                </div>
+
+                <!-- Category Name (Khmer) -->
+                <div class="flex flex-col gap-1.5">
+                    <label class="text-sm font-medium text-foreground">
+                        {{ $t('category.nameKm') }}
+                    </label>
+                    <UInput
+                        v-model="newNameKm"
+                        :placeholder="$t('category.nameKmPlaceholder')"
+                        class="w-full font-[family-name:var(--font-khmer-sans)]"
                         size="md"
                     />
                 </div>
@@ -144,6 +157,17 @@ function getInitial(name: string) {
                                 {{ row.original.name }}
                             </span>
                         </div>
+                    </template>
+
+                    <!-- Name (Khmer) -->
+                    <template #nameKm-cell="{ row }">
+                        <span
+                            class="text-foreground truncate max-w-[200px] block"
+                            :class="row.original.nameKm ? 'font-[family-name:var(--font-khmer-sans)]' : 'text-muted-foreground/40 italic text-sm'"
+                            :title="row.original.nameKm || undefined"
+                        >
+                            {{ row.original.nameKm || $t('category.emptyNameKm') }}
+                        </span>
                     </template>
 
                     <!-- Description -->

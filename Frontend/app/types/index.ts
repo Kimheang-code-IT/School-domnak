@@ -10,6 +10,7 @@ export interface AuditLog {
 export interface Category {
   id: string
   name: string
+  nameKm?: string
   description: string
   total: number
   createdAt: string
@@ -138,6 +139,7 @@ export interface FinanceEntry {
 }
 
 export interface ReportRow {
+  invoiceId?: number | null
   invoiceNo: string
   date: string
   /** Numeric student PK when linked */
@@ -150,6 +152,11 @@ export interface ReportRow {
   phoneSaler: string
   address: string
   amount: number
+  amountPaid?: number
+  amountOwn?: number
+  exchangeRate?: number
+  paymentMethod?: string
+  paymentStatus?: 'paid' | 'own' | string
   /** Table column `studentName` — same person as `customer` when API uses either key */
   studentName: string
   /** Table column `studentPhone` — same as `phoneCustomer` when API uses either key */
@@ -246,6 +253,8 @@ export interface SystemUser {
   role: string
   email: string
   password?: string
+  telegramKey?: string
+  telegramChatId?: string
   lastLogin: string
   commission?: number
   permissions?: Record<string, string[]>

@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import EmailStr, Field
 
 from app.schemas.common import CamelModel
@@ -28,11 +30,18 @@ class LogoutRequest(CamelModel):
     refresh_token: str
 
 
+class ChangePasswordRequest(CamelModel):
+    current_password: str = Field(min_length=1, max_length=128)
+    new_password: str = Field(min_length=6, max_length=128)
+
+
 class AuthUserRead(CamelModel):
     id: int
     name: str
     email: EmailStr
     role: str | None = None
+    telegram_key: str | None = None
+    last_login: datetime | None = None
     permissions: Permissions = Field(default_factory=dict)
 
 

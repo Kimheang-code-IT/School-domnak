@@ -436,14 +436,16 @@ const tooltipStyle = computed(() => {
                 <p class="text-xs">{{ $t('common.noData') }}</p>
             </div>
 
-            <!-- Legend Overlay -->
-            <div class="absolute bottom-2 p-1 rounded-lg bg-background/80 backdrop-blur-sm border border-accented shadow-sm select-none">
-                <div class="flex items-center gap-1.5 mb-2">
-                    <UIcon name="i-lucide-trending-up" class="size-3 text-primary" />
-                    <div class="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{{ label || $t('components.scale') }}</div>
+            <!-- Legend at bottom (aligned with pie/bar chart legends) -->
+            <div class="absolute bottom-2 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-lg bg-background/90 backdrop-blur-sm border border-accented shadow-sm select-none">
+                <div class="flex items-center gap-2 mb-1">
+                    <UIcon name="i-lucide-users" class="size-3 text-primary shrink-0" />
+                    <div class="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                        {{ label || $t('components.scale') }}
+                    </div>
                 </div>
                 <div
-                    class="h-1.5 w-32 rounded-full border border-white/10 mb-1"
+                    class="h-1.5 w-40 rounded-full border border-white/10 mb-1"
                     :style="{ backgroundImage: `linear-gradient(to right, rgba(${primaryLightRgb},0.5), rgb(${primaryRgb}), rgb(${primaryDarkRgb}))` }"
                 />
                 <div class="flex justify-between w-full text-[9px] font-bold text-muted-foreground/60 px-0.5">

@@ -45,6 +45,7 @@ const LEGACY_PERMISSION_MAP: Record<string, string> = {
   'report:view': 'reports:view',
   'report:export': 'reports:export',
   'report:preview-invoice': 'reports:preview_invoice',
+  'report:edit-invoice': 'reports:edit_invoice',
 
   'comission:view': 'commissions:view',
   'comission:export': 'commissions:export',

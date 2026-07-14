@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import type { Product } from '~/types'
 import { formatCurrency } from '~/utils/format/currency'
+import {
+  clampExchangeRate,
+  displayToUsd,
+  type PaymentCurrency,
+  usdToDisplay,
+} from '~/utils/format/paymentCurrency'
 
 interface CartItem {
   product: Product
@@ -8,17 +14,22 @@ interface CartItem {
 }
 
 const { t } = useI18n()
+const { exchangeRate: sharedExchangeRate, paymentCurrency: sharedCurrency } = useExchangeRate()
 
 const discountMode = defineModel<'percent' | 'usd'>('discountMode', { default: 'percent' })
 const discountPercent = defineModel<number>('discountPercent', { required: true })
 const discountFixedAmount = defineModel<number>('discountFixedAmount', { default: 0 })
 const paymentMethod = defineModel<string>('paymentMethod', { default: 'cash' })
+const amountPaid = defineModel<number>('amountPaid', { default: 0 })
+const amountOwn = defineModel<number>('amountOwn', { default: 0 })
+const exchangeRate = defineModel<number>('exchangeRate', { default: 4100 })
 
 const paymentMethodItems = computed(() => [
   { label: t('pages.allclass.payment.cash'), value: 'cash' },
-  { label: t('pages.allclass.payment.bankTransfer'), value: 'bank_transfer' },
-  { label: t('pages.allclass.payment.abaBank'), value: 'aba' },
-  { label: t('pages.allclass.payment.other'), value: 'other' }
+  { label: t('pages.allclass.payment.bank'), value: 'bank' },
+  { label: t('pages.allclass.payment.wing'), value: 'wing' },
+  { label: t('pages.allclass.payment.own'), value: 'own' },
+  { label: t('pages.allclass.payment.other'), value: 'other' },
 ])
 
 const props = withDefaults(defineProps<{
@@ -33,7 +44,7 @@ const props = withDefaults(defineProps<{
   loading?: boolean
 }>(), {
   allowFinishWithoutCart: false,
-  loading: false
+  loading: false,
 })
 
 const emit = defineEmits<{
@@ -44,10 +55,100 @@ const emit = defineEmits<{
 }>()
 
 const isFinishConfirmOpen = ref(false)
+const ownCurrency = ref<PaymentCurrency>(sharedCurrency.value)
 const isLastStep = computed(() => props.currentStep === props.totalSteps - 1)
+const isOwnMethod = computed(() => String(paymentMethod.value || '').toLowerCase() === 'own')
+const effectiveRate = computed(() => clampExchangeRate(exchangeRate.value))
+
+const payAmountDisplay = computed({
+  get: () => usdToDisplay(Number(amountPaid.value || 0), ownCurrency.value, effectiveRate.value),
+  set: (value: number) => {
+    const usd = displayToUsd(value, ownCurrency.value, effectiveRate.value)
+    const total = Math.max(0, Number(props.total || 0))
+    const paid = Math.min(total, Math.max(0, usd))
+    amountPaid.value = paid
+    amountOwn.value = Math.round((total - paid) * 100) / 100
+  },
+})
+
+const ownAmountDisplay = computed({
+  get: () => usdToDisplay(Number(amountOwn.value || 0), ownCurrency.value, effectiveRate.value),
+  set: (value: number) => {
+    const usd = displayToUsd(value, ownCurrency.value, effectiveRate.value)
+    const total = Math.max(0, Number(props.total || 0))
+    const own = Math.min(total, Math.max(0, usd))
+    amountOwn.value = own
+    amountPaid.value = Math.round((total - own) * 100) / 100
+  },
+})
+
+function syncOwnFromTotal() {
+  if (!isOwnMethod.value) {
+    amountPaid.value = Math.max(0, Number(props.total || 0))
+    amountOwn.value = 0
+    return
+  }
+  const total = Math.max(0, Number(props.total || 0))
+  let paid = Math.max(0, Number(amountPaid.value || 0))
+  if (paid > total) paid = total
+  amountPaid.value = paid
+  amountOwn.value = Math.round((total - paid) * 100) / 100
+}
+
+function onPaymentMethodChange() {
+  if (isOwnMethod.value) {
+    const total = Math.max(0, Number(props.total || 0))
+    if (amountOwn.value <= 0 && amountPaid.value <= 0) {
+      amountPaid.value = 0
+      amountOwn.value = total
+    } else {
+      syncOwnFromTotal()
+    }
+  } else {
+    amountPaid.value = Math.max(0, Number(props.total || 0))
+    amountOwn.value = 0
+  }
+}
+
+function setOwnCurrency(next: PaymentCurrency) {
+  ownCurrency.value = next
+  sharedCurrency.value = next
+}
+
+function onExchangeRateInput(event: Event) {
+  const target = event.target as HTMLInputElement | null
+  const next = clampExchangeRate(target?.value)
+  exchangeRate.value = next
+  sharedExchangeRate.value = next
+}
+
+function validateOwnBeforeFinish(): boolean {
+  if (!isOwnMethod.value) return true
+  const total = Math.round(Math.max(0, Number(props.total || 0)) * 100) / 100
+  const paid = Math.round(Math.max(0, Number(amountPaid.value || 0)) * 100) / 100
+  const own = Math.round(Math.max(0, Number(amountOwn.value || 0)) * 100) / 100
+  if (own <= 0) {
+    useToast().add({
+      title: t('pages.allclass.payment.ownInvalid'),
+      description: t('pages.allclass.payment.ownMustHaveBalance'),
+      color: 'warning',
+    })
+    return false
+  }
+  if (Math.abs(paid + own - total) > 0.02) {
+    useToast().add({
+      title: t('pages.allclass.payment.ownInvalid'),
+      description: t('pages.allclass.payment.ownMustEqualTotal'),
+      color: 'warning',
+    })
+    return false
+  }
+  return true
+}
 
 function onPrimaryAction() {
   if (isLastStep.value) {
+    if (!validateOwnBeforeFinish()) return
     isFinishConfirmOpen.value = true
     return
   }
@@ -75,6 +176,20 @@ function onDiscountFixedInput(event: Event) {
 
 watch(() => props.subtotal, () => {
   if (discountMode.value === 'usd') clampDiscountFixed()
+})
+
+watch(() => props.total, () => {
+  syncOwnFromTotal()
+})
+
+watch(paymentMethod, () => {
+  onPaymentMethodChange()
+})
+
+onMounted(() => {
+  if (!exchangeRate.value || exchangeRate.value <= 0) {
+    exchangeRate.value = sharedExchangeRate.value
+  }
 })
 </script>
 
@@ -221,12 +336,87 @@ watch(() => props.subtotal, () => {
         </div>
       </div>
 
+      <div v-if="isOwnMethod" class="flex flex-col gap-2 rounded-md border border-default p-2.5 bg-muted/20">
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-xs font-medium text-muted-foreground">{{ $t('pages.allclass.payment.ownAmounts') }}</span>
+          <div class="inline-flex rounded-md border border-default overflow-hidden shrink-0" role="group">
+            <UButton
+              type="button"
+              size="xs"
+              :variant="ownCurrency === 'USD' ? 'solid' : 'ghost'"
+              :color="ownCurrency === 'USD' ? 'primary' : 'neutral'"
+              class="rounded-none min-w-10 px-2"
+              @click="setOwnCurrency('USD')"
+            >
+              USD
+            </UButton>
+            <UButton
+              type="button"
+              size="xs"
+              :variant="ownCurrency === 'KHR' ? 'solid' : 'ghost'"
+              :color="ownCurrency === 'KHR' ? 'primary' : 'neutral'"
+              class="rounded-none min-w-10 px-2"
+              @click="setOwnCurrency('KHR')"
+            >
+              KHR
+            </UButton>
+          </div>
+        </div>
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-xs text-muted-foreground shrink-0">{{ $t('pages.allclass.payment.exchangeRate') }}</span>
+          <UInput
+            :model-value="effectiveRate"
+            type="number"
+            size="xs"
+            min="1"
+            step="1"
+            class="w-24 text-right shrink-0"
+            @input="onExchangeRateInput"
+          />
+        </div>
+        <p class="text-[11px] text-muted-foreground">
+          {{ $t('pages.allclass.payment.fxHint', { rate: effectiveRate }) }}
+        </p>
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-sm text-muted-foreground shrink-0">{{ $t('pages.allclass.payment.payAmount') }}</span>
+          <UInput
+            v-model.number="payAmountDisplay"
+            type="number"
+            size="xs"
+            min="0"
+            step="any"
+            class="w-28 text-right shrink-0"
+          />
+        </div>
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-sm text-muted-foreground shrink-0">{{ $t('pages.allclass.payment.ownAmount') }}</span>
+          <UInput
+            v-model.number="ownAmountDisplay"
+            type="number"
+            size="xs"
+            min="0"
+            step="any"
+            class="w-28 text-right shrink-0"
+          />
+        </div>
+      </div>
+
       <USeparator />
 
       <div class="flex justify-between items-center">
         <span class="text-base font-bold text-foreground">{{ $t('pages.school.cart.total') }}</span>
         <span class="text-lg font-bold text-primary">{{ formatCurrency(total, 'USD') }}</span>
       </div>
+      <template v-if="isOwnMethod">
+        <div class="flex justify-between text-xs text-muted-foreground">
+          <span>{{ $t('pages.allclass.payment.payAmount') }}</span>
+          <span class="font-semibold text-foreground tabular-nums">{{ formatCurrency(amountPaid, 'USD') }}</span>
+        </div>
+        <div class="flex justify-between text-xs text-muted-foreground">
+          <span>{{ $t('pages.allclass.payment.ownAmount') }}</span>
+          <span class="font-semibold text-amber-600 tabular-nums">{{ formatCurrency(amountOwn, 'USD') }}</span>
+        </div>
+      </template>
 
       <UButton
         block

@@ -135,7 +135,7 @@ Sorting is always mapped through per-resource `SORT_MAP` dictionaries in reposit
 
 ## Google Sheets auto backup (all tables)
 
-The backend can export **every table and every column** from the database into a Google Spreadsheet once per day at **19:00** (configurable timezone, default `Asia/Phnom_Penh`). Each database table becomes its own sheet tab; a `_backup_meta` tab records the last run.
+The backend can export **every table and every column** from the database into a Google Spreadsheet once per day at **20:00** (configurable timezone, default `Asia/Phnom_Penh`). Each database table becomes its own sheet tab; a `_backup_meta` tab records the last run.
 
 ### 1. Google Cloud setup
 
@@ -161,7 +161,7 @@ Add to `backend/.env`:
 GOOGLE_SHEETS_BACKUP_ENABLED=true
 GOOGLE_SHEETS_CREDENTIALS_FILE=credentials/google-sheets-service-account.json
 GOOGLE_SHEETS_SPREADSHEET_ID=your-spreadsheet-id-here
-BACKUP_SCHEDULE_HOUR=19
+BACKUP_SCHEDULE_HOUR=20
 BACKUP_SCHEDULE_MINUTE=0
 BACKUP_TIMEZONE=Asia/Phnom_Penh
 ```
@@ -176,13 +176,13 @@ pip install -r requirements.txt
 
 ### 4. Run
 
-- **Automatic:** start the API with `uvicorn app.main:app --reload`. While the server is running, the scheduler triggers backup daily at 19:00.
+- **Automatic:** start the API with `uvicorn app.main:app --reload`. While the server is running, the scheduler triggers backup daily at 20:00.
 - **Manual (CLI):** `python scripts/run_google_sheets_backup.py`
 - **Manual (API):** `POST /api/v1/backup/google-sheets` (requires `role-management` view permission — Admin).
 
 ### 5. Optional: Windows Task Scheduler
 
-If the API is not always running, schedule the CLI instead at 19:00:
+If the API is not always running, schedule the CLI instead at 20:00:
 
 ```powershell
 cd backend
@@ -222,7 +222,7 @@ Polling starts automatically when `TELEGRAM_USE_POLLING=true` and a token is set
 
 Open your bot in Telegram → send `/start` → tap report buttons or **☁️ Backup to Google Sheets**.
 
-**Auto backup:** daily at **19:00** `Asia/Phnom_Penh` when `GOOGLE_SHEETS_BACKUP_ENABLED=true` and Celery Beat is running (Docker: `celery_beat` service).
+**Auto backup:** daily at **20:00** `Asia/Phnom_Penh` when `GOOGLE_SHEETS_BACKUP_ENABLED=true` and Celery Beat is running (Docker: `celery_beat` service).
 
 **Student alerts** (checkout / new enrollment) include per-class subtotal/discount/line total and invoice subtotal, discount, and grand total.
 

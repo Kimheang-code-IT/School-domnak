@@ -29,6 +29,12 @@ export function mapReportViewRow(raw: Record<string, unknown>): ReportRow {
   const phoneCustomer = fromStudentPhone || fromPhoneCustomer || '—'
 
   const invoiceNo = str(raw.invoiceNo) || str(raw.invoice_no)
+  const invoiceIdRaw = raw.invoiceId ?? raw.invoice_id
+  let invoiceId: number | null = null
+  if (invoiceIdRaw != null && invoiceIdRaw !== '') {
+    const n = Number(invoiceIdRaw)
+    if (Number.isFinite(n) && n > 0) invoiceId = n
+  }
   const studentIdRaw = raw.studentId ?? raw.student_id
   let studentId: number | null = null
   if (studentIdRaw != null && studentIdRaw !== '') {
@@ -45,6 +51,7 @@ export function mapReportViewRow(raw: Record<string, unknown>): ReportRow {
     '—'
 
   return {
+    invoiceId,
     invoiceNo: invoiceNo || '—',
     date: str(raw.date),
     studentId,
@@ -74,6 +81,11 @@ export function mapReportViewRow(raw: Record<string, unknown>): ReportRow {
       str(raw.student_province) ||
       '—',
     amount: num(raw.amount),
+    amountPaid: num(raw.amountPaid ?? raw.amount_paid),
+    amountOwn: num(raw.amountOwn ?? raw.amount_own),
+    exchangeRate: num(raw.exchangeRate ?? raw.exchange_rate, 4100) || 4100,
+    paymentMethod: str(raw.paymentMethod) || str(raw.payment_method) || undefined,
+    paymentStatus: (str(raw.paymentStatus) || str(raw.payment_status) || 'paid').toLowerCase(),
   }
 }
 

@@ -20,7 +20,7 @@ export function buildCheckoutPayload(input: {
   gender?: string
   birthdate?: string
   province?: string
-  customerName: string
+  customerName?: string
   customerPhone: string
   customerAddress: string
   deliveryType: string
@@ -28,6 +28,9 @@ export function buildCheckoutPayload(input: {
   deliveryDate: string
   discountPercent: number
   paymentMethod: string
+  amountPaid?: number
+  amountOwn?: number
+  exchangeRate?: number
   deliveryStatus: string
   sellerId?: number
   durationMonths?: number | null
@@ -51,6 +54,9 @@ export function buildCheckoutPayload(input: {
     deliveryDate: input.deliveryDate,
     discountPercent: Number(input.discountPercent || 0),
     paymentMethod: input.paymentMethod || 'cash',
+    amountPaid: input.amountPaid,
+    amountOwn: input.amountOwn,
+    exchangeRate: input.exchangeRate,
     deliveryStatus: input.deliveryStatus || 'pending',
     sellerId: input.sellerId,
     durationMonths: input.durationMonths,

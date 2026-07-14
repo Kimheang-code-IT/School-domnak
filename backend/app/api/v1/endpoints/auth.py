@@ -9,6 +9,7 @@ from app.models.user import User
 from app.schemas.auth import (
     AccessTokenResponse,
     AuthUserRead,
+    ChangePasswordRequest,
     LoginRequest,
     LogoutRequest,
     RefreshTokenRequest,
@@ -23,6 +24,7 @@ from app.services.auth_service import (
     authenticate_user,
     build_auth_user,
     build_login_token,
+    change_user_password,
     create_initial_admin,
     create_refresh_token,
     needs_initial_setup,
@@ -31,6 +33,7 @@ from app.services.auth_service import (
 )
 from app.middleware.rate_limit import enforce_login_rate_limit
 from app.services.table_list_cache import cached_value
+from app.core.redis_cache import invalidate_auth_me
 
 router = APIRouter()
 DbSession = Annotated[Session, Depends(get_db)]
@@ -103,6 +106,19 @@ def me(current_user: CurrentUser):
         ttl_seconds=settings.redis_cache_ttl_auth_me,
     )
     return AuthUserRead.model_validate(payload)
+
+
+@router.post("/change-password", response_model=CommonResponse)
+def change_password(payload: ChangePasswordRequest, db: DbSession, current_user: CurrentUser):
+    change_user_password(
+        db,
+        current_user,
+        current_password=payload.current_password,
+        new_password=payload.new_password,
+    )
+    invalidate_auth_me(current_user.id)
+    db.commit()
+    return CommonResponse(message="Password updated")
 
 
 @router.post("/logout", response_model=CommonResponse)

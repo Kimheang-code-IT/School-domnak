@@ -10,22 +10,15 @@ from app.models.invoice import Invoice
 from app.models.student import Student
 
 
-def _split_student_display_name(raw: str | None) -> tuple[str, str]:
-    text = str(raw or "").strip()
-    if not text:
-        return "", ""
-    if " · " in text:
-        parts = [part.strip() for part in text.split(" · ") if part.strip()]
-        if len(parts) >= 2:
-            return parts[0], " · ".join(parts[1:])
-        return parts[0], ""
-    return text, ""
-
-
 def _iso_date(value: date | None) -> str | None:
     if value is None:
         return None
     return value.isoformat()
+
+
+def _student_display_name(name_km: str, name_en: str) -> str:
+    parts = [part for part in [name_km.strip(), name_en.strip()] if part]
+    return " · ".join(parts)
 
 
 def _build_preview_from_invoice(db: Session, invoice: Invoice) -> dict:
@@ -33,14 +26,10 @@ def _build_preview_from_invoice(db: Session, invoice: Invoice) -> dict:
     if student is None and invoice.student_id:
         student = db.get(Student, invoice.student_id)
 
-    name_km = student.name_km if student else ""
-    name_en = student.name_en if student else ""
-    if not name_km and not name_en:
-        name_km, name_en = _split_student_display_name(invoice.student_name)
-
-    customer = invoice.student_name or (
-        " · ".join([part for part in [name_km, name_en] if part]) or name_en or name_km
-    )
+    name_km = (student.name_km if student else "") or ""
+    name_en = (student.name_en if student else "") or ""
+    customer = _student_display_name(name_km, name_en) or (name_en or name_km or "—")
+    phone = student.phone if student else None
 
     lines_payload: list[dict] = []
     for line in invoice.lines:
@@ -67,7 +56,7 @@ def _build_preview_from_invoice(db: Session, invoice: Invoice) -> dict:
                     .order_by(Enrollment.id.desc())
                 )
 
-        class_name = school_class.name if school_class else line.product_name
+        class_name = school_class.name if school_class else "—"
         start_date = enrollment.start_date if enrollment else invoice.created_at.date()
         end_date = enrollment.end_date if enrollment else None
 
@@ -95,10 +84,12 @@ def _build_preview_from_invoice(db: Session, invoice: Invoice) -> dict:
                 "nameKm": name_km,
                 "nameEn": name_en,
                 "customer": customer,
-                "phoneCustomer": invoice.student_phone or (student.phone if student else None),
+                "phoneCustomer": phone,
                 "seller": invoice.seller,
                 "address": invoice.address,
                 "paymentNote": invoice.payment_note or "",
+                "subtotal": float(invoice.subtotal or 0),
+                "discountAmount": float(invoice.discount_amount or 0),
                 "amount": float(line.total or 0),
                 "grandTotal": float(invoice.total or 0),
                 "qty": int(line.qty or 1),
@@ -117,10 +108,12 @@ def _build_preview_from_invoice(db: Session, invoice: Invoice) -> dict:
                 "nameKm": name_km,
                 "nameEn": name_en,
                 "customer": customer,
-                "phoneCustomer": invoice.student_phone,
+                "phoneCustomer": phone,
                 "seller": invoice.seller,
                 "address": invoice.address,
                 "paymentNote": invoice.payment_note or "",
+                "subtotal": float(invoice.subtotal or 0),
+                "discountAmount": float(invoice.discount_amount or 0),
                 "amount": float(invoice.total or 0),
                 "grandTotal": float(invoice.total or 0),
                 "qty": 1,
@@ -130,6 +123,10 @@ def _build_preview_from_invoice(db: Session, invoice: Invoice) -> dict:
     head = lines_payload[0]
     return {
         **head,
+        "paymentNote": invoice.payment_note or "",
+        "subtotal": float(invoice.subtotal or 0),
+        "discountAmount": float(invoice.discount_amount or 0),
+        "grandTotal": float(invoice.total or 0),
         "lines": lines_payload,
     }
 
@@ -153,7 +150,12 @@ def get_invoice_preview_by_no(db: Session, invoice_no: str) -> dict | None:
 
     normalized = invoice_no.strip()
     cached = get_cached_invoice_print(normalized)
-    if cached:
+    # Ignore stale cache payloads that predate discount / payment-note fields.
+    if (
+        isinstance(cached, dict)
+        and "discountAmount" in cached
+        and "paymentNote" in cached
+    ):
         return cached
 
     invoice = db.scalar(
@@ -201,6 +203,8 @@ def enrich_preview_payloads(db: Session, payloads: list[dict]) -> list[dict]:
                 "seller": raw.get("seller"),
                 "address": raw.get("address"),
                 "paymentNote": raw.get("paymentNote") or raw.get("payment_note") or "",
+                "subtotal": float(raw.get("subtotal") or amount or 0),
+                "discountAmount": float(raw.get("discountAmount") or raw.get("discount_amount") or 0),
                 "amount": float(amount or 0),
                 "grandTotal": float(raw.get("grandTotal") or amount or 0),
                 "qty": int(raw.get("qty") or 1),

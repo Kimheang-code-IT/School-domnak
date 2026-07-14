@@ -115,9 +115,7 @@ def _format_enrollment_block(
     *,
     index: int | None = None,
 ) -> list[str]:
-    teacher = school_class.teacher_name or (
-        school_class.teacher.name if school_class.teacher else None
-    )
+    teacher = school_class.teacher.name if school_class.teacher else None
     prefix = f"{index}. " if index is not None else ""
     lines = [f"<b>{prefix}{_esc(school_class.name)}</b>"]
     if teacher:

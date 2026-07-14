@@ -5,6 +5,8 @@ export type AuthUser = {
   name: string
   email: string
   role?: string | null
+  telegramKey?: string | null
+  lastLogin?: string | null
   permissions: PermissionsMap
 }
 

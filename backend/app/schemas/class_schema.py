@@ -11,9 +11,6 @@ class ClassBase(CamelModel):
     course_id: int | None = None
     level_id: int | None = None
     teacher_id: int | None = None
-    teacher_name: str | None = None
-    level: str | None = None
-    level_km: str | None = None
     class_duration: str | None = None
     days_of_week: list[str] = []
     time_in: str | None = None
@@ -39,9 +36,6 @@ class ClassUpdate(CamelModel):
     course_id: int | None = None
     level_id: int | None = None
     teacher_id: int | None = None
-    teacher_name: str | None = None
-    level: str | None = None
-    level_km: str | None = None
     class_duration: str | None = None
     days_of_week: list[str] | None = None
     time_in: str | None = None
@@ -60,6 +54,9 @@ class ClassRead(ClassBase):
     id: int
     category: str | None = None
     course_name: str | None = None
+    teacher_name: str | None = None
+    level: str | None = None
+    level_km: str | None = None
     level_name_en: str | None = None
     level_name_km: str | None = None
     student_count: int = 0

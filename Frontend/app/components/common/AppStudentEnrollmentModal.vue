@@ -181,14 +181,29 @@ function drawText(ctx: CanvasRenderingContext2D, text: string, x: number, y: num
   fillStyle?: string
   align?: CanvasTextAlign
   maxWidth?: number
+  underline?: boolean
 } = {}) {
   ctx.save()
   ctx.font = options.font || '18px "Noto Sans Khmer", "Khmer OS Siemreap", sans-serif'
   ctx.fillStyle = options.fillStyle || '#132f43'
   ctx.textAlign = options.align || 'left'
   ctx.textBaseline = 'middle'
-  const width = Math.min(ctx.measureText(text).width, options.maxWidth ?? Number.POSITIVE_INFINITY)
+  const measured = ctx.measureText(text).width
+  const width = Math.min(measured, options.maxWidth ?? Number.POSITIVE_INFINITY)
   ctx.fillText(text, x, y, options.maxWidth)
+
+  if (options.underline && text.trim()) {
+    const fontSize = Number((options.font || '').match(/(\d+)px/)?.[1] ?? 18)
+    const startX = options.align === 'center' ? x - width / 2 : x
+    const underlineY = y + fontSize * 0.45
+    ctx.strokeStyle = options.fillStyle || '#132f43'
+    ctx.lineWidth = Math.max(2, fontSize * 0.06)
+    ctx.beginPath()
+    ctx.moveTo(startX, underlineY)
+    ctx.lineTo(startX + width, underlineY)
+    ctx.stroke()
+  }
+
   ctx.restore()
   const fontSize = Number((options.font || '').match(/(\d+)px/)?.[1] ?? 18)
   return {
@@ -220,7 +235,8 @@ let certificateHitBoxes: Array<{
 }> = []
 
 function certificateTextFields(data: ReturnType<typeof certificateDetails>) {
-  const ink = '#143249'
+  const nameColor = '#be914b'
+  const dateColor = '#143249'
   const nameFont = 'bold 52px "Khmer OS Muol Light", "Khmer OS Muol", "Noto Serif Khmer", "Khmer UI", serif'
   const dateFont = 'bold 36px "Khmer OS Battambang", "Noto Sans Khmer", "Khmer UI", sans-serif'
 
@@ -229,7 +245,7 @@ function certificateTextFields(data: ReturnType<typeof certificateDetails>) {
       key: 'nameKm' as const,
       text: data.nameKm,
       font: nameFont,
-      fillStyle: ink,
+      fillStyle: nameColor,
       align: 'center' as const,
       maxWidth: 1100,
     },
@@ -237,9 +253,10 @@ function certificateTextFields(data: ReturnType<typeof certificateDetails>) {
       key: 'finishDate' as const,
       text: data.finishDate,
       font: dateFont,
-      fillStyle: ink,
+      fillStyle: dateColor,
       align: 'left' as const,
       maxWidth: 420,
+      underline: true,
     },
   ]
 }
@@ -408,11 +425,10 @@ const footerSums = computed(() => {
 const columns = computed(() => [
   { accessorKey: 'no', header: t('pages.allstudent.enrollmentModal.columns.no'), enableSorting: false },
   {
-    accessorKey: 'courseName',
-    header: t('pages.allstudent.enrollmentModal.columns.courseName'),
+    accessorKey: 'className',
+    header: t('pages.allstudent.enrollmentModal.columns.className'),
     footer: t('pages.allstudent.enrollmentModal.footer.courseCount', { count: props.total }),
   },
-  { accessorKey: 'className', header: t('pages.allstudent.enrollmentModal.columns.className') },
   { accessorKey: 'durationMonths', header: t('pages.allstudent.enrollmentModal.columns.duration') },
   { accessorKey: 'startDate', header: t('pages.allstudent.enrollmentModal.columns.startDate') },
   { accessorKey: 'endDate', header: t('pages.allstudent.enrollmentModal.columns.endDate') },
@@ -440,7 +456,7 @@ const columns = computed(() => [
   <UModal
     v-model:open="open"
     :dismissible="false"
-    :ui="{ content: 'sm:max-w-7xl h-[98vh] flex flex-col' }"
+    :ui="{ content: 'w-[min(98vw,1600px)] max-w-[98vw] sm:max-w-[98vw] h-[98vh] flex flex-col' }"
   >
     <template #header>
       <div class="flex items-center justify-between w-full gap-3 flex-wrap">

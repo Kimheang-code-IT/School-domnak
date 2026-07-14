@@ -24,11 +24,37 @@ export type InvoicePreviewRow = {
   seller?: string
   address?: string
   paymentNote?: string
+  paymentMethod?: string
+  amountPaid?: number
+  amountOwn?: number
+  exchangeRate?: number
+  subtotal?: number
+  discountAmount?: number
   amount?: number
   grandTotal?: number
   qty?: number
   description?: string
   lines?: InvoicePreviewRow[]
+}
+
+/** Resolve money fields for report/checkout invoice preview. */
+export function previewTotalsFrom(
+  header: InvoicePreviewRow | null | undefined,
+  cartSubtotal: number,
+) {
+  const linesSubtotal = Number(cartSubtotal) || 0
+  const subtotalRaw = header?.subtotal
+  const subtotal =
+    subtotalRaw != null && Number.isFinite(Number(subtotalRaw))
+      ? Number(subtotalRaw)
+      : linesSubtotal
+  const discount = Math.max(0, Number(header?.discountAmount ?? 0) || 0)
+  const totalRaw = header?.grandTotal ?? header?.amount
+  const total =
+    totalRaw != null && Number.isFinite(Number(totalRaw))
+      ? Number(totalRaw)
+      : Math.max(0, subtotal - discount)
+  return { subtotal, discount, total }
 }
 
 /** Line items for a single invoice bundle (does not merge multiple invoices). */

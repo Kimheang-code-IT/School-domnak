@@ -76,8 +76,8 @@ function useSchoolResourcePath(resource?: 'students' | 'classes') {
 function toStudentPayload(payload: Partial<Product>) {
   return {
     image: payload.image,
-    nameKm: payload.nameKm || payload.name,
-    nameEn: payload.nameEn || payload.name,
+    nameKm: payload.nameKm,
+    nameEn: payload.nameEn,
     gender: payload.gender,
     birthdate: payload.birthdate,
     phone: payload.phone,
@@ -92,10 +92,7 @@ function toClassPayload(payload: Partial<Product>) {
     categoryId: payload.categoryId ? Number(payload.categoryId) : undefined,
     courseId: payload.courseId ? Number(payload.courseId) : undefined,
     teacherId: payload.teacherId ? Number(payload.teacherId) : undefined,
-    teacherName: payload.teacherName,
     levelId: payload.levelId ? Number(payload.levelId) : undefined,
-    level: payload.level,
-    levelKm: payload.levelKm,
     classDuration: payload.classDuration,
     daysOfWeek: payload.daysOfWeek,
     timeIn: payload.timeIn,
@@ -347,6 +344,91 @@ export function usePosApi() {
       api.get<{ invoices: any[]; invoice?: any }>('/invoices/preview', {
         query: { invoice: invoiceNos.join(',') },
       }),
+    getInvoice: (invoiceId: number) =>
+      api.get<{
+        id: number
+        invoiceNo: string
+        studentId?: number | null
+        studentName?: string | null
+        nameKm?: string | null
+        nameEn?: string | null
+        studentPhone?: string | null
+        gender?: string | null
+        birthdate?: string | null
+        address?: string | null
+        seller?: string | null
+        paymentNote?: string | null
+        paymentMethod?: string | null
+        amountPaid?: number
+        amountOwn?: number
+        exchangeRate?: number
+        paymentStatus?: string | null
+        subtotal: number
+        discountAmount: number
+        total: number
+        lines: Array<{
+          id: number
+          classId?: number | null
+          productName: string
+          qty: number
+          price: number
+          total: number
+        }>
+      }>(`/invoices/${invoiceId}`),
+    getInvoiceByNo: (invoiceNo: string) =>
+      api.get<{
+        id: number
+        invoiceNo: string
+        studentId?: number | null
+        studentName?: string | null
+        nameKm?: string | null
+        nameEn?: string | null
+        studentPhone?: string | null
+        gender?: string | null
+        birthdate?: string | null
+        address?: string | null
+        seller?: string | null
+        paymentNote?: string | null
+        paymentMethod?: string | null
+        amountPaid?: number
+        amountOwn?: number
+        exchangeRate?: number
+        paymentStatus?: string | null
+        subtotal: number
+        discountAmount: number
+        total: number
+        lines: Array<{
+          id: number
+          classId?: number | null
+          productName: string
+          qty: number
+          price: number
+          total: number
+        }>
+      }>(`/invoices/by-no/${encodeURIComponent(invoiceNo)}`),
+    updateInvoice: (
+      invoiceId: number,
+      payload: {
+        discountAmount: number
+        paymentNote?: string | null
+        paymentMethod?: string | null
+        amountPaid?: number | null
+        amountOwn?: number | null
+        exchangeRate?: number | null
+        lines: Array<{ classId: number; qty: number; price: number }>
+      },
+    ) =>
+      api.put(`/invoices/${invoiceId}`, payload),
+    payInvoiceOwn: (invoiceId: number, payload: { amount: number }) =>
+      api.post<{
+        id: number
+        invoiceNo: string
+        amountPaid: number
+        amountOwn: number
+        paymentStatus: string
+        paymentMethod?: string | null
+        total: number
+      }>(`/invoices/${invoiceId}/pay-own`, payload),
     getNextInvoiceNo: () =>
       api.get<{ invoiceNo: string }>('/invoices/next-number'),
     calculateTotals: (payload: {
@@ -377,6 +459,9 @@ export function usePosApi() {
       deliveryDate: string
       discountPercent: number
       paymentMethod?: string
+      amountPaid?: number
+      amountOwn?: number
+      exchangeRate?: number
       deliveryStatus?: string
       sellerId?: number
       durationMonths?: number | null

@@ -12,10 +12,12 @@ from app.schemas.invoice import (
     InvoiceCheckoutResponse,
     InvoiceCreate,
     InvoiceNumberRead,
+    InvoicePayOwn,
     InvoicePreviewBundleRead,
     InvoicePreviewSessionCreate,
     InvoicePreviewSessionRead,
     InvoiceRead,
+    InvoiceUpdate,
 )
 from app.services.invoice_preview_service import (
     enrich_preview_payloads,
@@ -23,12 +25,21 @@ from app.services.invoice_preview_service import (
     get_invoice_previews_by_nos,
 )
 from app.services.invoice_preview_store import create_preview_session, get_preview_session
-from app.services.invoice_service import checkout_invoice, create_invoice, get_invoice, get_next_invoice_no
+from app.services.invoice_service import (
+    checkout_invoice,
+    create_invoice,
+    get_invoice,
+    get_invoice_by_no,
+    get_next_invoice_no,
+    pay_invoice_own,
+    update_invoice,
+)
 from app.utils.task_dispatch import get_checkout_job_status
 
 router = APIRouter()
 DbSession = Annotated[Session, Depends(get_db)]
 InvoicePreviewUser = Annotated[User, Depends(require_permission("reports", "preview_invoice"))]
+InvoiceEditUser = Annotated[User, Depends(require_permission("reports", "edit_invoice"))]
 InvoiceCreateUser = Annotated[User, Depends(require_permission("classes", "continue_payment"))]
 
 
@@ -90,6 +101,14 @@ def read_invoice_preview_by_no(
     return InvoicePreviewBundleRead(invoices=[preview], invoice=preview)
 
 
+@router.get("/by-no/{invoice_no}", response_model=InvoiceRead)
+def read_invoice_by_no(invoice_no: str, db: DbSession, current_user: InvoiceEditUser):
+    invoice = get_invoice_by_no(db, invoice_no)
+    if not invoice:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+    return invoice
+
+
 @router.get("/checkout-jobs/{job_id}", response_model=CheckoutJobStatusRead)
 def read_checkout_job_status(job_id: str, current_user: InvoiceCreateUser):
     payload = get_checkout_job_status(job_id)
@@ -102,11 +121,31 @@ def read_checkout_job_status(job_id: str, current_user: InvoiceCreateUser):
 
 
 @router.get("/{invoice_id}", response_model=InvoiceRead)
-def read_invoice(invoice_id: int, db: DbSession, current_user: InvoicePreviewUser):
+def read_invoice(invoice_id: int, db: DbSession, current_user: InvoiceEditUser):
     invoice = get_invoice(db, invoice_id)
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
     return invoice
+
+
+@router.put("/{invoice_id}", response_model=InvoiceRead)
+def update_invoice_endpoint(
+    invoice_id: int,
+    payload: InvoiceUpdate,
+    db: DbSession,
+    current_user: InvoiceEditUser,
+):
+    return update_invoice(db, invoice_id, payload, username=current_user.name)
+
+
+@router.post("/{invoice_id}/pay-own", response_model=InvoiceRead)
+def pay_invoice_own_endpoint(
+    invoice_id: int,
+    payload: InvoicePayOwn,
+    db: DbSession,
+    current_user: InvoiceEditUser,
+):
+    return pay_invoice_own(db, invoice_id, payload, username=current_user.name)
 
 
 @router.post("", response_model=InvoiceRead, status_code=status.HTTP_201_CREATED)

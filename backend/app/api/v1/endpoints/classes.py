@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import delete, func, select, update
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.core.database import get_db
 from app.core.security import enforce_permission, get_current_active_user, require_permission
@@ -21,7 +21,6 @@ from app.services.audit_service import write_audit_log
 from app.services.enrollment_service import sync_class_roster_enrollments, to_class_enrollment_read
 from app.services.finance_service import ensure_finance_for_class
 from app.services.cache_invalidation import CLASSES, class_enrollments_resource
-from app.services.level_service import apply_level_to_class_data
 from app.services.table_list_cache import cached_table_list
 from app.utils.image_storage import persist_image
 
@@ -37,7 +36,23 @@ ClassDeleteUser = Annotated[User, Depends(require_permission("classes", "delete"
 ClassRosterViewUser = Annotated[User, Depends(require_permission("classes", "view_roster"))]
 
 
+def _load_class(db: Session, class_id: int) -> SchoolClass | None:
+    return db.scalar(
+        select(SchoolClass)
+        .options(
+            selectinload(SchoolClass.category),
+            selectinload(SchoolClass.course),
+            selectinload(SchoolClass.level_ref),
+            selectinload(SchoolClass.teacher),
+        )
+        .where(SchoolClass.id == class_id)
+    )
+
+
 def _to_read(item, student_count: int = 0) -> ClassRead:
+    level_en = item.level_ref.level_name_en if item.level_ref else None
+    level_km = item.level_ref.level_name_km if item.level_ref else None
+    teacher_name = item.teacher.name if item.teacher else None
     return ClassRead(
         id=item.id,
         name=item.name,
@@ -47,12 +62,12 @@ def _to_read(item, student_count: int = 0) -> ClassRead:
         course_id=item.course_id,
         course_name=item.course.course_name if item.course else None,
         teacher_id=item.teacher_id,
-        teacher_name=item.teacher_name,
+        teacher_name=teacher_name,
         level_id=item.level_id,
-        level=item.level,
-        level_km=item.level_km,
-        level_name_en=item.level,
-        level_name_km=item.level_km,
+        level=level_en,
+        level_km=level_km,
+        level_name_en=level_en,
+        level_name_km=level_km,
         class_duration=item.class_duration,
         days_of_week=item.days_of_week or [],
         time_in=item.time_in,
@@ -87,13 +102,14 @@ def list_classes(
 
 @router.post("", response_model=ClassRead, status_code=status.HTTP_201_CREATED)
 def create_class(payload: ClassCreate, db: DbSession, current_user: ClassCreateUser):
-    data = apply_level_to_class_data(db, payload.model_dump())
+    data = payload.model_dump()
     if "image" in data:
         data["image"] = persist_image(data.get("image"), "classes")
     item = repo.create(db, data)
     ensure_finance_for_class(db, item)
     write_audit_log(db, action="Create", username=current_user.name, description=f"{current_user.name} created class {item.name}")
     db.commit()
+    item = _load_class(db, item.id)
     return _to_read(item)
 
 
@@ -102,13 +118,14 @@ def update_class(class_id: int, payload: ClassUpdate, db: DbSession, current_use
     item = repo.get(db, class_id)
     if not item:
         raise HTTPException(status_code=404, detail="Class not found")
-    data = apply_level_to_class_data(db, payload.model_dump(exclude_unset=True))
+    data = payload.model_dump(exclude_unset=True)
     if "image" in data:
         data["image"] = persist_image(data.get("image"), "classes")
     item = repo.update(db, item, data)
     ensure_finance_for_class(db, item)
     write_audit_log(db, action="Update", username=current_user.name, description=f"{current_user.name} updated class {item.name}")
     db.commit()
+    item = _load_class(db, item.id)
     count = db.scalar(select(func.count(Enrollment.id)).where(Enrollment.class_id == item.id)) or 0
     return _to_read(item, count)
 

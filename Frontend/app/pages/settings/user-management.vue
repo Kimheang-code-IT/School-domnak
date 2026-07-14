@@ -67,6 +67,11 @@ function onSubmitUser(data: Record<string, any>) {
                 <template #password-cell="{ row }">
                     <span class="text-sm tracking-widest text-muted-foreground opacity-50">••••••••</span>
                 </template>
+                <template #telegramKey-cell="{ row }">
+                    <code class="text-xs font-mono text-primary bg-primary/5 px-1.5 py-0.5 rounded">
+                        {{ row.original.telegramKey || '—' }}
+                    </code>
+                </template>
                 <template #lastLogin-cell="{ row }">
                     <div class="flex items-center gap-1 text-sm text-primary">
                         {{ formatDateOnly(row.original.lastLogin) }}

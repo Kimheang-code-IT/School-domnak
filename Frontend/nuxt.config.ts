@@ -46,12 +46,9 @@ export default defineNuxtConfig({
     defaultLocale: 'en',
     strategy: 'no_prefix',
     langDir: 'locales',
-    detectBrowserLanguage: {
-      useCookie: true,
-      cookieKey: 'i18n_redirected',
-      alwaysRedirect: true,
-      redirectOn: 'root'
-    }
+    // Disabled for static/SSG: cookie/browser locale before hydrate causes SSR/client mismatches.
+    // Locale from cookie is applied after mount in plugins/i18n-locale.client.ts
+    detectBrowserLanguage: false
   },
 
   routeRules: {

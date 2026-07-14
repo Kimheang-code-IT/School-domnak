@@ -8,6 +8,7 @@ import { waitForCheckoutPrintReady } from '~/composables/classes/useCheckoutPrin
 import {
     cartLinesFromBundle,
     previewHeaderFromBundle,
+    previewTotalsFrom,
     type InvoicePreviewRow,
 } from '~/utils/helpers/invoicePreview'
 
@@ -62,6 +63,9 @@ const {
     deliveryPrice,
     deliveryDate,
     paymentMethod,
+    amountPaid,
+    amountOwn,
+    exchangeRate,
     deliveryStatus,
     sellerId,
     enrollmentCartLines,
@@ -78,6 +82,9 @@ const {
     goNextStep,
     finishEnrollmentCheckout,
     resetEnrollmentWizard,
+    exitEditInvoiceMode,
+    isEditingInvoice,
+    isLoadingEditInvoice,
     isLoadingProducts,
     filteredProducts,
     loadMoreProducts,
@@ -119,9 +126,17 @@ const checkoutJobId = ref<string | null>(null)
 
 const reportPreviewCart = computed(() => currentPreviewLines.value)
 
-const reportPreviewSubtotal = computed(() =>
-    reportPreviewCart.value.reduce((sum, line) => sum + Number(line.product.outPrice || 0) * line.qty, 0)
+const reportPreviewCartSubtotal = computed(() =>
+    reportPreviewCart.value.reduce((sum, line) => sum + Number(line.product.outPrice || 0) * line.qty, 0),
 )
+
+const reportPreviewTotals = computed(() =>
+    previewTotalsFrom(currentPreviewHeader.value, reportPreviewCartSubtotal.value),
+)
+
+const reportPreviewSubtotal = computed(() => reportPreviewTotals.value.subtotal)
+const reportPreviewDiscount = computed(() => reportPreviewTotals.value.discount)
+const reportPreviewTotal = computed(() => reportPreviewTotals.value.total)
 
 const previewCounterLabel = computed(() =>
     t('pages.allclass.previewNav.counter', {
@@ -137,6 +152,8 @@ type ReportInvoiceDisplay = {
     phoneCustomer: string
     seller: string
     grandTotal?: number
+    subtotal?: number
+    discountAmount?: number
     startDate?: string
     endDate?: string
     registeredAt?: string
@@ -149,6 +166,10 @@ type ReportInvoiceDisplay = {
     nameKm?: string
     nameEn?: string
     paymentNote?: string
+    paymentMethod?: string
+    amountPaid?: number
+    amountOwn?: number
+    exchangeRate?: number
 }
 
 function buildReportInvoiceDisplay(row: InvoicePreviewRow | null | undefined): ReportInvoiceDisplay | null {
@@ -170,7 +191,13 @@ function buildReportInvoiceDisplay(row: InvoicePreviewRow | null | undefined): R
         customer: String(row.customer || row.studentName || ''),
         phoneCustomer: String(row.phoneCustomer || ''),
         seller: String(row.seller || ''),
-        paymentNote: row.paymentNote,
+        paymentNote: String(row.paymentNote || ''),
+        paymentMethod: String(row.paymentMethod || ''),
+        amountPaid: Number(row.amountPaid ?? 0),
+        amountOwn: Number(row.amountOwn ?? 0),
+        exchangeRate: Number(row.exchangeRate ?? 4100) || 4100,
+        subtotal: Number(row.subtotal ?? 0),
+        discountAmount: Number(row.discountAmount ?? 0),
         grandTotal: Number(row.grandTotal ?? row.amount ?? 0),
     }
 }
@@ -189,17 +216,26 @@ const previewInvoiceSlides = computed(() =>
     previewBundles.value.map((bundle, index) => {
         const header = previewHeaderFromBundle(bundle)
         const cart = cartLinesFromBundle(bundle)
-        const subtotal = cart.reduce(
+        const cartSubtotal = cart.reduce(
             (sum, line) => sum + Number(line.product.outPrice || 0) * line.qty,
             0,
         )
+        const money = previewTotalsFrom(header, cartSubtotal)
         return {
             index,
             key: `${String(header?.invoiceNo || 'invoice')}-${index}`,
             header,
             cart,
-            subtotal,
-            display: buildReportInvoiceDisplay(header),
+            subtotal: money.subtotal,
+            discount: money.discount,
+            total: money.total,
+            display: buildReportInvoiceDisplay({
+                ...header,
+                paymentNote: header?.paymentNote || bundle.paymentNote || '',
+                subtotal: money.subtotal,
+                discountAmount: money.discount,
+                grandTotal: money.total,
+            }),
         }
     }),
 )
@@ -342,7 +378,11 @@ function onToggleEnrollmentSelect(classItem: Product, selected: boolean) {
 function onInvoiceDone() {
     isCheckoutSuccessOpen.value = false
     completedInvoiceNo.value = ''
+    const wasEditing = isEditingInvoice.value
     resetEnrollmentWizard()
+    if (wasEditing) {
+        void navigateTo('/report')
+    }
 }
 
 async function onEnrollmentPaymentNext() {
@@ -401,7 +441,7 @@ async function printAllPreviewInvoices() {
 <template>
     <div class="flex flex-col h-full bg-background text-foreground overflow-hidden tracking-tight">
 
-        <LayoutAppHeader :title="hasReportPreviewInvoices ? t('pages.allclass.previewNav.title') : t('pages.allclass.title')">
+        <LayoutAppHeader :title="hasReportPreviewInvoices ? t('pages.allclass.previewNav.title') : isEditingInvoice ? t('pages.report.editInvoice') : t('pages.allclass.title')">
             <template #right>
                 <div class="flex flex-wrap items-center gap-2 justify-end w-full">
                     <template v-if="hasReportPreviewInvoices && hasMultiplePreviewInvoices">
@@ -470,13 +510,23 @@ async function printAllPreviewInvoices() {
                         <UStepper v-model="currentStep" :items="enrollmentStepItems" size="xs" :linear="false"
                             class="hidden w-[280px] shrink-0 sm:flex" />
                         <UButton
-                            v-if="currentStep === 0 && enrollmentItemCount > 0 && can(PERMISSIONS.allClassContinuePayment)"
+                            v-if="currentStep === 0 && enrollmentItemCount > 0 && (can(PERMISSIONS.allClassContinuePayment) || (isEditingInvoice && can(PERMISSIONS.reportEditInvoice)))"
                             trailing-icon="i-lucide-arrow-right"
                             color="primary" variant="solid" class="font-normal shadow-sm shrink-0" @click="goNextStep">
                             <span class="hidden sm:inline">{{ t('pages.allclass.nav.next') }}</span>
                         </UButton>
                         <UButton
-                            v-if="can(PERMISSIONS.allClassCreate)"
+                            v-if="isEditingInvoice"
+                            icon="i-lucide-x"
+                            color="neutral"
+                            variant="ghost"
+                            size="sm"
+                            class="font-normal shrink-0"
+                            :title="t('pages.allclass.exitEditInvoice')"
+                            @click="exitEditInvoiceMode"
+                        />
+                        <UButton
+                            v-if="can(PERMISSIONS.allClassCreate) && !isEditingInvoice"
                             icon="i-lucide-circle-plus" color="primary" variant="solid"
                             class="font-normal shadow-sm shrink-0" @click="handleAddNew">
                             <span class="hidden sm:inline">{{ t('pages.allclass.addBtn') }}</span>
@@ -516,13 +566,14 @@ async function printAllPreviewInvoices() {
                         </div>
 
                         <div class="flex-1 min-h-0 overflow-y-auto p-4 relative flex flex-col sm:p-3">
-                            <div v-if="filteredProducts.length === 0"
+                            <CommonAppLoadingState v-if="isLoadingEditInvoice" class="absolute inset-0 z-10 bg-background/80" />
+                            <div v-if="!isLoadingEditInvoice && filteredProducts.length === 0"
                                 class="flex flex-1 min-h-[240px] flex-col items-center justify-center gap-3 py-12 text-muted-foreground">
                                 <UIcon name="i-lucide-layout-grid" class="size-12 opacity-30" />
                                 <p class="text-sm">{{ t('pages.allclass.empty') }}</p>
                             </div>
 
-                            <template v-else>
+                            <template v-else-if="!isLoadingEditInvoice">
                                 <div
                                     class="grid w-full grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                                     <CommonAppClassCard v-for="classItem in filteredProducts" :key="classItem.id"
@@ -607,9 +658,9 @@ async function printAllPreviewInvoices() {
                                             :selected-report-invoice="slide.display"
                                             checkout-invoice-no=""
                                             :display-subtotal="slide.subtotal"
-                                            :display-discount="0"
-                                            :display-total="slide.subtotal"
-                                            :note="slide.header?.paymentNote || paymentNote"
+                                            :display-discount="slide.discount"
+                                            :display-total="slide.total"
+                                            :note="slide.header?.paymentNote || slide.display?.paymentNote || ''"
                                             class="min-h-0 w-full"
                                         />
                                     </div>
@@ -628,9 +679,9 @@ async function printAllPreviewInvoices() {
                                 :selected-report-invoice="activeInvoiceForDisplay"
                                 :checkout-invoice-no="enrollmentInvoiceNo"
                                 :display-subtotal="hasReportPreviewInvoices ? reportPreviewSubtotal : enrollmentSubtotal"
-                                :display-discount="hasReportPreviewInvoices ? 0 : enrollmentDiscountAmount"
-                                :display-total="hasReportPreviewInvoices ? reportPreviewSubtotal : enrollmentTotal"
-                                :note="(hasReportPreviewInvoices ? currentPreviewHeader?.paymentNote : paymentNote) || paymentNote"
+                                :display-discount="hasReportPreviewInvoices ? reportPreviewDiscount : enrollmentDiscountAmount"
+                                :display-total="hasReportPreviewInvoices ? reportPreviewTotal : enrollmentTotal"
+                                :note="hasReportPreviewInvoices ? (currentPreviewHeader?.paymentNote || activeInvoiceForDisplay?.paymentNote || '') : paymentNote"
                                 class="min-h-0 w-full"
                             />
                         </div>
@@ -645,7 +696,11 @@ async function printAllPreviewInvoices() {
                         v-model:discount-mode="enrollmentDiscountMode"
                         v-model:discount-percent="enrollmentDiscountPercent"
                         v-model:discount-fixed-amount="enrollmentDiscountFixed"
-                        v-model:payment-method="paymentMethod" :cart="enrollmentCartLines"
+                        v-model:payment-method="paymentMethod"
+                        v-model:amount-paid="amountPaid"
+                        v-model:amount-own="amountOwn"
+                        v-model:exchange-rate="exchangeRate"
+                        :cart="enrollmentCartLines"
                         :item-count="enrollmentItemCount" :subtotal="enrollmentSubtotal"
                         :discount-amount="enrollmentDiscountAmount" :total="enrollmentTotal" :current-step="currentStep"
                         :total-steps="TOTAL_WIZARD_STEPS" :loading="isFinishing" class="h-full min-h-0" @clear-cart="clearEnrollmentCart"

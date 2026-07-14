@@ -34,5 +34,12 @@ export const authService = {
 
   me() {
     return apiGet<AuthUser>('/auth/me')
-  }
+  },
+
+  changePassword(payload: { currentPassword: string; newPassword: string }) {
+    return apiPost<{ message?: string }, { currentPassword: string; newPassword: string }>(
+      '/auth/change-password',
+      payload,
+    )
+  },
 }

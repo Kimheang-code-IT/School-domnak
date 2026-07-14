@@ -5,21 +5,40 @@ from app.schemas.common import CamelModel
 
 
 class InvoiceLineCreate(CamelModel):
-    class_id: int | None = None
-    product_name: str
+    class_id: int
     qty: int = 1
     price: Decimal = Decimal("0")
 
 
 class InvoiceCreate(CamelModel):
     student_id: int | None = None
-    student_name: str | None = None
-    student_phone: str | None = None
     address: str | None = None
     seller: str | None = None
     payment_note: str | None = None
+    payment_method: str | None = None
+    amount_paid: Decimal | None = None
+    amount_own: Decimal | None = None
+    exchange_rate: Decimal | None = None
     discount_amount: Decimal = Decimal("0")
     lines: list[InvoiceLineCreate]
+
+
+class InvoiceUpdate(CamelModel):
+    """Replace-all invoice lines + optional header fields (student/invoice no unchanged)."""
+
+    payment_note: str | None = None
+    payment_method: str | None = None
+    amount_paid: Decimal | None = None
+    amount_own: Decimal | None = None
+    exchange_rate: Decimal | None = None
+    discount_amount: Decimal = Decimal("0")
+    lines: list[InvoiceLineCreate]
+
+
+class InvoicePayOwn(CamelModel):
+    """Settle part (or all) of remaining own balance. Amount is always USD."""
+
+    amount: Decimal
 
 
 class InvoiceCheckoutLine(CamelModel):
@@ -43,6 +62,9 @@ class InvoiceCheckoutCreate(CamelModel):
     delivery_date: str | None = None
     discount_percent: Decimal = Decimal("0")
     payment_method: str | None = None
+    amount_paid: Decimal | None = None
+    amount_own: Decimal | None = None
+    exchange_rate: Decimal | None = None
     delivery_status: str | None = None
     seller_id: int | None = None
     duration_months: float | None = None
@@ -58,6 +80,7 @@ class InvoiceProduct(CamelModel):
 
 class InvoiceLineRead(CamelModel):
     id: int
+    class_id: int | None = None
     product: InvoiceProduct
     product_name: str
     qty: int
@@ -70,10 +93,19 @@ class InvoiceRead(CamelModel):
     invoice_no: str
     student_id: int | None = None
     student_name: str | None = None
+    name_km: str | None = None
+    name_en: str | None = None
     student_phone: str | None = None
+    gender: str | None = None
+    birthdate: date | None = None
     address: str | None = None
     seller: str | None = None
     payment_note: str | None = None
+    payment_method: str | None = None
+    amount_paid: Decimal = Decimal("0")
+    amount_own: Decimal = Decimal("0")
+    exchange_rate: Decimal = Decimal("4100")
+    payment_status: str = "paid"
     subtotal: Decimal
     discount_amount: Decimal
     total: Decimal
